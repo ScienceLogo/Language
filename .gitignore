@@ -1,0 +1,6 @@
+# Local documentation drafts; package documentation should be tracked as Scribble source.
+/docs/
+
+# Generated Racket files.
+compiled/
+/doc/
