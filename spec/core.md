@@ -19,6 +19,56 @@ The specified method may include loops, branches, agent actions, and human inter
 An observed run follows one path through it. A run record must not turn an intended action
 into a claim that it happened.
 
+## What it means to account for AI
+
+ScienceLogo must represent an AI activity as part of the scientific method, with its own
+inputs, permissions, possible outcomes, and evidence. AI may participate in planning,
+searching, selecting sources, preparing data, analysis, interpretation, and reporting, even
+when it performs most of the operations in a workflow. The scientist needs a view of the
+whole investigation, including the choices and claims made at each stage. The language and
+its run representation should support these tasks:
+
+| Task | What ScienceLogo must represent or check |
+| --- | --- |
+| Trace | Connect each attempt to the resolved model, prompt, settings, supplied context, tools, memory, output, validation, and later human or machine decision. Retain failed and discarded attempts. |
+| Replicate and compare | State the conditions for a new run, link it to the earlier method and run, record any changed or unavailable condition, and compare outputs and decisions. The same method need not yield identical model text. |
+| Control | Limit an agent's context, tools, authority, retries, and stopping conditions before use; check actual requests and events against those limits; route failures and uncertain cases through stated paths. |
+| Evaluate | Distinguish a well-formed answer from a supported scientific judgment. Allow declared tests, repeated attempts, alternative choices, and human assessment without promoting model confidence or agreement to proof. |
+
+These are language obligations, not just fields for a later log viewer. A validator should
+inspect the specified method before execution, and a run checker should compare it with
+observed events. If a provider hides a condition or the trace lacks evidence, the relevant
+check reports **undetermined**, with that limit visible. An investigation without AI uses
+the same concepts of activities, obligations, and evidence at a simpler scale.
+
+## Humans first in AI science
+
+People set the scientific conditions for the workflow and retain a way to inspect and
+challenge its results, even when AI performs most of its operations. The declarative layer
+states which sources and measurements are admissible, what evidence a claim needs, when
+checks occur, which decisions need a person, and which uncertainties must remain visible.
+The procedural layer states who or what performs each step and in what order. A run connects
+the two by showing which
+conditions held, which failed, and which still need judgment. These conditions apply to
+human and AI activities alike, including stages that contain several nested procedures.
+This is the sense of **“Declarative, not decorative”**: a stated condition has a scope,
+checkpoint, and evidence for checking it.
+
+An AI suggestion, a human decision, and a scientific claim have separate identities and
+statuses. Moving a suggestion into a conclusion requires a recorded decision, its actor,
+the supporting evidence, and any unresolved limitations. Human review may mean approving a
+method, checking a sample, resolving a disagreement, verifying a cited passage, or deciding
+whether a conclusion is warranted. The method must say which review is required and at what
+point; a generic approval mark cannot establish that the underlying claim is true.
+
+Human inspection should answer plain questions: What did the AI see and do? Which choices
+did it make? What evidence supports each result? Who checked or changed it? What remains
+uncertain, and what changed between runs? This readable account is an output of the language,
+alongside the machine-checkable representation and run record. ScienceLogo supports scrutiny
+of scientific claims; it cannot guarantee their truth.
+
+## Core concepts
+
 | Core concept | Minimum meaning |
 | --- | --- |
 | Investigation | Names the research question and scopes its context, method, obligations, and runs. |
@@ -38,6 +88,8 @@ An agent's view is narrower than the investigation's context. The method says wh
 receive or use; the run says what it *did* receive or use. Its output starts with the status
 of a generated suggestion. A later human or machine activity may accept, revise, or reject
 it, leaving a trace of that decision.
+Repeated calls may return different suggestions. Each attempt, its actual request and
+context, and its outcome must remain separately inspectable.
 
 An obligation has one of three reported outcomes: **satisfied**, **violated**, or
 **undetermined**. Each outcome names the check and its evidence. A checker may establish
@@ -45,6 +97,11 @@ that a required field exists or that human review occurred. Whether a cited pass
 supports a scientific claim may remain undetermined until a person assesses it. The language
 must not report an undetermined scientific judgment as satisfied. Checks depend on the
 evidence a run records; they cannot prove that an unrecorded action never occurred.
+
+The draft [prompt and obligation design](prompts-and-obligations.md) develops how `must`
+rules, named prompt parts, model settings, agent context, and actual requests fit together.
+The [LLM variation design](llm-variation.md) describes repeated attempts, context
+dependence, and the evidence needed to inspect model-assisted work.
 
 ## Trace 1: measuring a plant
 
@@ -97,11 +154,12 @@ suggestion. This illustrative run binds it to model `example-screen-model/1`, pr
 settings `temperature = 0`. The model name is fictional; a real run would retain the actual
 model identity and version. These settings do not promise identical model text on repetition.
 
-**Specified method and obligations.** Ask `A1` for a suggestion. If it says `unsure`, ask
-`H2` for a decision. Every final screening decision must retain its decision maker, reason,
-and source passage. Every agent use must retain its actual model, prompt, settings, supplied
-context, outputs, and tool or memory events. The final decision is a human activity, distinct
-from the agent's suggestion.
+**Specified method and obligations.** Ask `A1` for a suggestion, then ask `H2` to confirm
+or resolve it. If it says `unsure`, `H2` must resolve it before any final decision. Every
+final screening decision must retain its decision maker, reason, and source passage. Every
+agent use must retain its actual model, prompt, settings, supplied context, outputs, and
+tool or memory events. The final decision is a human activity, distinct from the agent's
+suggestion.
 
 **Observed run.** All event times below are on `2026-06-02` in UTC.
 
@@ -124,7 +182,11 @@ The first Racket prototype should be able to represent both starting contexts, s
 paths, obligations, and observed events without flattening agent suggestions into human
 decisions. It should report the two invalid runs above with the relevant item and missing
 evidence. Its inspection output should show what was prescribed, what path was specified,
-and what the run actually did.
+and what the run actually did. For the agent trace, it should also distinguish the declared
+agent view from the supplied context, expose the model call as an attempt, and reject a
+recorded final decision that bypasses the required human authority. The representation
+should allow a later attempt or run to be linked and compared without claiming that matching
+prompt names guarantee matching requests.
 
 This contract leaves the surface syntax, exact intermediate representation, execution
 engine, and standards for scientific judgment open. The examples should be revised as those

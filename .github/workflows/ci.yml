@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Racket
+        uses: Bogdanp/setup-racket@v1.15
+        with:
+          distribution: full
+          variant: CS
+          version: "9.3"
+
+      - name: Check documentation links and whitespace
+        run: python3 scripts/check_docs.py
+
+      - name: Validate citation metadata
+        run: |
+          python3 -m venv "$RUNNER_TEMP/cff-venv"
+          "$RUNNER_TEMP/cff-venv/bin/pip" install cffconvert==2.0.0
+          "$RUNNER_TEMP/cff-venv/bin/cffconvert" --validate
+
+      - name: Build Racket package archive
+        run: raco pkg create --format zip --dest "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+
+      - name: Run Racket tests
+        run: raco test .

@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use ScienceLogo, please cite this repository."
+title: "ScienceLogo: a language for scientific workflows in the AI era"
+type: software
+authors:
+  - given-names: Riccardo
+    family-names: Boero
+    email: ribo@nilu.no
+    orcid: "https://orcid.org/0000-0002-7468-9096"
+abstract: >-
+  ScienceLogo is a draft Logo dialect for readable scientific workflows,
+  with explicit obligations, evidence, and human supervision when AI participates.
+keywords:
+  - scientific workflows
+  - reproducible research
+  - human oversight
+  - artificial intelligence
+license: MIT
+repository-code: "https://github.com/open-and-sustainable/ScienceLogo"
+# After the first Zenodo archive, add its concept DOI here as `doi: 10.5281/zenodo...`.

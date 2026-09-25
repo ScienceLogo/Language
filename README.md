@@ -1,18 +1,43 @@
 # ScienceLogo
 
-ScienceLogo is an early-stage Logo dialect for scientific workflows in the AI era. It aims to
-make procedures, scientific obligations, and evidence from each run understandable and
-inspectable, including when LLMs take part in the work.
+<img src="assets/logo.png" alt="ScienceLogo logo: a blue flask with a turtle silhouette" width="220">
+
+**Mottos:**
+
+- **Humans first in AI science.**
+- Declarative, not decorative.
+
+ScienceLogo is an early-stage Logo dialect for scientific workflows in the AI era. Its central
+goal is to support human understanding, quality control, and supervision when AI participates
+in science. AI may help plan, search, select evidence, analyse data, interpret results, and
+write conclusions. ScienceLogo should let people state the scientific criteria and evidence
+each stage owes, specify what an agent may see and do, inspect what happened, and decide when
+a person must review or intervene. Its procedures and nested, named parts should remain
+understandable to a learner.
+
+“Declarative, not decorative” means that rules about evidence, authority, and review become
+checks on the specified procedure and its observed runs. They are part of the method even
+when AI performs much of the work.
 
 This repository is the working source for the language. It is set up as a single-collection
 Racket package whose collection name is `sciencelogo`, with package metadata in `info.rkt`.
 The language reader, validator, and runtime have not been implemented yet, so
 `#lang sciencelogo` is not available.
 
-The [design examples](examples/README.md) are provisional workflows for testing the
-language's readability and scientific meaning. They are not executable programs yet.
-The draft [semantic core](spec/core.md) defines the meaning the first prototype should
-preserve and works through valid and invalid runs for two examples.
+## Read the draft
+
+The [design examples](examples/README.md) are provisional workflows, not executable
+programs. Start with [plant growth](examples/plant-growth.md) for the small Logo-like form,
+then [knowledge synthesis](examples/knowledge-synthesis.md) for AI participation and human
+review. [Rainfall modelling](examples/rainfall-modelling.md) tests the same ideas in a
+different kind of investigation.
+
+The [semantic core](spec/core.md) defines the intended meaning and works through valid and
+invalid runs. The [prompt and obligation design](spec/prompts-and-obligations.md) develops
+named LLM requests and `must` rules; the [LLM variation design](spec/llm-variation.md)
+develops context selection, repeated attempts, replication, and control.
+The [release plan](RELEASE.md) tracks what remains before publication as a Racket package
+and how GitHub releases will be archived on Zenodo.
 
 ## Documentation
 
@@ -21,3 +46,8 @@ home is decided. Racket packages do not require that directory. If ScienceLogo s
 manual, its Scribble source should be tracked in this repository and registered in `info.rkt`
 so `raco setup` can build it when the package is installed. A separate website or broader
 documentation project can still live elsewhere.
+
+## License
+
+ScienceLogo is released under the [MIT License](LICENSE).
+Citation metadata is in [CITATION.cff](CITATION.cff).

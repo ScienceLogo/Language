@@ -10,6 +10,10 @@ Read each example in two ways: commands such as `measure`, `llm`, and `ask human
 activities; `must` states an obligation on the investigation or a named activity. A future
 implementation needs to say exactly which obligations can be checked from the written
 workflow, which need evidence from a run, and which need human judgment.
+The [prompt and obligation design](../spec/prompts-and-obligations.md) proposes that `must`
+be a checkable declaration, alongside named method components such as `prompt` and `agent`.
+The [LLM variation design](../spec/llm-variation.md) expands the synthesis example with
+multiple recorded suggestions and a stated review policy.
 
 Each activity also needs a scientific context. `measure height` must eventually identify a
 plant, date, and unit; screening changes a paper's status; fitting creates a model tied to
