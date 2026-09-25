@@ -41,11 +41,9 @@ and how GitHub releases will be archived on Zenodo.
 
 ## Documentation
 
-The local `docs/` directory is ignored by Git for drafts while the documentation's eventual
-home is decided. Racket packages do not require that directory. If ScienceLogo ships a Racket
-manual, its Scribble source should be tracked in this repository and registered in `info.rkt`
-so `raco setup` can build it when the package is installed. A separate website or broader
-documentation project can still live elsewhere.
+End-user documentation is planned outside this repository. The local `docs/` directory is
+ignored by Git. This repository keeps the README, examples, and design specifications needed
+to develop the language; a Racket package does not require a `docs/` directory.
 
 ## License
 

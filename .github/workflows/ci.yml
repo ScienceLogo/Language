@@ -26,9 +26,6 @@ jobs:
           variant: CS
           version: "9.3"
 
-      - name: Check documentation links and whitespace
-        run: python3 scripts/check_docs.py
-
       - name: Validate citation metadata
         run: |
           python3 -m venv "$RUNNER_TEMP/cff-venv"

@@ -22,7 +22,7 @@ publish the design earlier, label it clearly as a design preview and defer catal
 - [x] State the purpose, draft status, and reading path in the README and examples.
 - [x] Add the MIT license and matching Racket package metadata.
 - [x] Add `CITATION.cff` with author, ORCID, repository, and license metadata.
-- [x] Add CI checks for documentation, citation metadata, package archive creation, and tests.
+- [x] Add CI checks for citation metadata, package archive creation, and tests.
 - [ ] Implement and test the first runnable language slice.
 - [ ] Document exactly which syntax and obligations the first release supports.
 - [ ] Build and install the package from a clean checkout.
@@ -58,8 +58,8 @@ explains catalog sources and package registration.
 ## Automation
 
 The [CI workflow](.github/workflows/ci.yml) checks pushes, pull requests, and version tags.
-It validates local documentation links and citation metadata, creates a Racket package
-archive, and runs `raco test`. Once executable code exists, add tests that exercise the
-language and installation. Publication stays a deliberate GitHub release action; Zenodo
+It validates citation metadata, creates a Racket package archive, and runs `raco test`.
+Once executable code exists, add tests that exercise the language and installation.
+Publication stays a deliberate GitHub release action; Zenodo
 handles archival after the repository is connected. No automatic catalog registration or
 GitHub release creation is configured.
