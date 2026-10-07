@@ -96,8 +96,9 @@ it can be passed to another procedure in a call. For example, a procedure with i
 the procedure names its own input or investigation item; the callee's `:plant` is not visible
 there. The colon is not a pointer or an instruction to change an item.
 
-`as measured-height` names a step's result in the current block; later steps refer to
-`measured-height` without a colon. `output observation` returns the named item to the caller;
+`as measured-height` names a step's result in the current block; later steps there or in
+nested blocks refer to `measured-height` without a colon. `output observation` returns the
+named item to the caller. The call
 `do measure-plant P1 "2026-06-01" as first-observation` gives that value a local name in the
 caller. `first-observation` is then used without a colon. A result name does not change the
 item's scientific status or provenance.
@@ -128,7 +129,10 @@ lines need actual validation and run evidence; writing them is not proof that th
 held. An unknown check remains **undetermined** under the [semantic core](core.md).
 Procedure inputs and result names belong to each call; only an explicit `output` passes a
 result back. State changes to scientific items are explicit run events rather than silent
-changes through a name. Rules for duplicate names and shadowing still need definition.
+changes through a name. In the first runnable slice, an `as` name cannot duplicate a
+visible result or one of the procedure's inputs. Separate sibling blocks may use the same
+result name because neither block can see the other's result. Naming rules for proposed
+constructs such as standards and agents still need definition.
 
 ### Comments and descriptions
 

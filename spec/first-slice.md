@@ -45,7 +45,9 @@ procedure call
 and returns one value; a call with `as` requires an `output` in that procedure.
 A nested `do [ ... ]` block can read results from its enclosing blocks. An `as` name
 made inside that nested block stays there: enclosing and sibling blocks cannot read it.
-A procedure sees only its declared inputs, not the caller's result names.
+A result name cannot duplicate an input or another result visible in its block, including
+one from an enclosing block. Separate sibling blocks may use the same result name. A
+procedure sees only its declared inputs, not the caller's result names.
 
 The reader parses and validates the complete investigation before any command runs.
 Definitions may appear after their calls, including a call inside another procedure.

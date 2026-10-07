@@ -116,6 +116,33 @@
      "]\n"))
    "Bean plant\nMonday\n")
 
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "investigate \"Nested results\" [\n"
+     "  do echo \"outer\" as outer\n"
+     "  do [print outer do echo \"first\" as local print local]\n"
+     "  do [do echo \"second\" as local print local]\n"
+     "  print outer\n"
+     "  to echo :value [output :value]\n"
+     "]\n"))
+   "outer\nfirst\nsecond\nouter\n")
+
+  (check-exn
+   (lambda (e)
+     (and (exn:fail:read? e)
+          (regexp-match? #rx"duplicate result outer" (exn-message e))))
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "investigate \"Invalid\" [\n"
+       "  do echo \"outer\" as outer\n"
+       "  do [do echo \"inner\" as outer]\n"
+       "  to echo :value [output :value]\n"
+       "]\n"))))
+
   (check-exn
    (lambda (e)
      (and (exn:fail:read? e)

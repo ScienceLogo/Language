@@ -87,8 +87,10 @@ local checkout with @tt{racket examples/inputs-and-results.rkt}.
 For now, a value can be quoted text, a declared @tt{:input} inside its procedure,
 or a result named earlier with @tt{as}. A nested @tt{do [ ... ]} block can read
 results from its enclosing blocks. Results named inside the nested block stay there;
-enclosing and sibling blocks cannot read them. A procedure sees only its declared
-inputs, not the caller's result names. The colon is only used for procedure inputs.
+enclosing and sibling blocks cannot read them. A result name cannot duplicate an input
+or another result visible in its block. Separate sibling blocks may use the same name.
+A procedure sees only its declared inputs, not the caller's result names. The colon is
+only used for procedure inputs.
 
 Use @tt{;} for a line comment. A block comment begins with @tt{#|} and ends with
 @tt{|#}; block comments can nest. Whitespace is flexible, and empty blocks are
