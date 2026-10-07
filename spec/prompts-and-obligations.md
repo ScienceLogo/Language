@@ -287,8 +287,8 @@ agent "paper screener" [
   suggest a screening decision
 ]
 
-to screen paper [
-  ask agent "paper screener" about paper
+to screen-paper :paper [
+  ask agent "paper screener" about :paper
   if unsure [ ask human "resolve uncertain eligibility" ]
   if include or exclude [ ask human "confirm or revise eligibility" ]
   if invalid or no answer [ ask human "resolve failed screening" ]

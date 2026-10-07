@@ -86,9 +86,9 @@ workflow.
 This is a provisional nested sketch of one such policy:
 
 ```text
-to screen paper [
+to screen-paper :paper [
   repeat 3 times [
-    ask agent "paper screener" about paper with fresh memory
+    ask agent "paper screener" about :paper with fresh memory
     record suggestion
   ]
   check every suggestion has a decision, reason, and source passage

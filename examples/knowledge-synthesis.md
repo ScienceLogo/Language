@@ -73,15 +73,15 @@ investigate "Do urban trees reduce summer air temperature?" [
   record search query, source, date, and returned records
   remove duplicate records
 
-  to screen paper [
-    ask agent "paper screener" about paper
+  to screen-paper :paper [
+    ask agent "paper screener" about :paper
     if unsure [ ask human "resolve uncertain eligibility" ]
     if include or exclude [ ask human "confirm or revise eligibility" ]
     if invalid or no answer [ ask human "resolve failed screening" ]
     record final decision, reason, and decision maker
   ]
 
-  for each paper [ screen paper ]
+  for each paper [ do screen-paper paper ]
 
   for each included paper [
     obtain full text
