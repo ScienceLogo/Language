@@ -57,9 +57,9 @@ specifications above describe proposed language features. To preview the site lo
 `raco scribble --html --dest /tmp/sciencelogo-site --dest-name index.html scribblings/sciencelogo.scrbl`
 and open `/tmp/sciencelogo-site/index.html`. Generated HTML is not committed.
 The [documentation workflow](.github/workflows/docs.yml) checks the manual on pull requests
-and pushes. To publish it from `main`, set the repository's Pages source to **GitHub Actions**
-and set the repository Actions variable `PUBLISH_DOCS` to `true` in GitHub Settings. It can
-also be run manually to publish the current `main` version after those settings are in place.
+and pushes. With the repository's Pages source set to **GitHub Actions**, it publishes the
+manual from `main` whenever its source changes. It can also be run manually to republish
+the current `main` version.
 
 ## License
 
