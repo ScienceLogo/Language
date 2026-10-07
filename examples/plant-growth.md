@@ -12,11 +12,14 @@ investigate "Does light change plant growth?" [
     ]
   ]
 
-  measure-plants
-  compare "plants in sunlight" with "plants in shade"
+  do measure-plants
+  do compare "plants in sunlight" with "plants in shade"
   must record a date for every height
 ]
 ```
+
+`to measure-plants` defines the procedure; `do measure-plants` runs it at this point.
+The two `do` lines run once, in order. `repeat 7 days` is the loop inside the procedure.
 
 The first lesson is that a measurement and its date belong together. The obligation should
 cause a check: a run with an undated height is incomplete, even if the comparison was made.

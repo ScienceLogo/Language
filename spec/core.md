@@ -72,11 +72,14 @@ of scientific claims; it cannot guarantee their truth.
 | Core concept | Minimum meaning |
 | --- | --- |
 | Investigation | Names the research question and scopes its context, method, obligations, and runs. |
+| Stage | A named section of executable method commands, beginning at a header and ending at the next header at the same nesting level or the enclosing block's end. It supports documentation, references, and checkpoints without performing an action or check itself. |
 | Scientific item | Has an identity, kind, origin, and status. It may be a plant, source, dataset, criterion, observation, claim, model, or decision. A suggestion is not automatically an accepted finding. |
 | Actor | A person, program, or agent with a named role and authority for an activity. |
 | Activity | Names its actor, readable inputs, permitted actions, possible outputs, and effect on the investigation's state. Its failure and handoff paths matter too. |
 | Agent setup | Defines the model, prompt, settings, knowledge and context it may receive, tools and permissions, memory scope, and stopping or retry rule for an agent activity. |
 | Obligation | Names what must hold, its scope and checkpoint, and what evidence could establish or refute it. It can apply to an activity, a path, or a whole run. |
+| Standard | A reusable workflow specification in a library: stages, relationships, conditions, open choices, and optional default procedures. A research protocol can be represented this way. |
+| Assessment | Application of a named standard to a concrete method, run, or scientific report. It retains each condition's applicability, outcome, priority where relevant, and evidence or missing evidence. |
 | Run event | Records one observed activity or decision, including its actor, actual inputs and context, outputs, state change, time, and evidence references. Corrections retain the earlier record. |
 
 An activity changes the state of named scientific items and emits run evidence. The same
@@ -98,10 +101,113 @@ supports a scientific claim may remain undetermined until a person assesses it. 
 must not report an undetermined scientific judgment as satisfied. Checks depend on the
 evidence a run records; they cannot prove that an unrecorded action never occurred.
 
+### Source order and method order
+
+Named procedures and other declarations are resolved across their containing scope
+before the method runs. A call may therefore refer to a procedure defined later in the
+source. The validator checks the reference before execution. A result produced by an
+activity, however, is available only after that activity occurs.
+
+The order in which a document introduces components does not prescribe their runtime
+order. The method describes calls, branches, loops, and any required dependencies; a
+particular run records the path that occurred. A method need not be one straight line.
+The current syntax sketch makes order explicit inside a `do` block and through stage
+headers on a path. A form for independent or partially ordered activities remains to be
+designed; their order should not be invented from source placement or a publication's
+reading order. A `must` rule about order checks a condition; it does not schedule the
+activities itself.
+
+For example, measuring plant heights and recording weather might be independent, while
+comparing growth needs both results. The method should be able to express those two
+dependencies without forcing an order between measurement and weather recording. A run
+then shows which order or overlap actually occurred. The syntax for this relation is
+still open.
+The proposed [`any order` group](prompts-and-obligations.md#activities-with-no-required-order)
+tests the simplest case: both activities finish before comparison, with no order
+between them. Its spelling and failure behavior remain open.
+
+## Standards as workflow specifications
+
+A research protocol can be represented as a reusable, possibly partial specification of
+a workflow in ScienceLogo: a **standard** for that kind of work. It may name stages,
+their order and conditions, required outputs or evidence, reporting duties, and decisions
+that need human review. It can supply default procedures or leave parts of a stage open
+for the scientist to design. A concrete investigation fills in choices with procedures,
+agents, observations, and other activities. The same stage and rule constructs describe
+the standard and the concrete method. Libraries can publish standards alongside reusable
+`to` procedures.
+
+A stage header in a standard provides a named place in the workflow template. Its
+presence does not automatically make that stage mandatory in every concrete workflow.
+The standard's explicit conditions say which stages or outputs are required, which are
+recommended, and which are left open. A default procedure is available for reuse;
+whether its use is required is likewise an explicit condition.
+
+Strict and advisory guidance use the same structure. A specification can say what a
+workflow **must** include or preserve and what it **should** consider, with priorities
+where useful. For example, a library could encode the applicable
+[PRISMA 2020](https://www.prisma-statement.org/prisma-2020) checklist requirements as
+conditions on a review's method and reporting, while leaving research choices open
+where the source does. The library must identify its source and version, the conditions
+it represents, and how each condition is checked. The exact declaration and import
+syntax remains open.
+
+A standard can serve as a template, provide declarations for validating a concrete
+method, and direct checks on an observed run and scientific report. Applying it produces
+a structured assessment. Both the standard and the concrete workflow are ScienceLogo
+representations; the language can provide a general comparison operation, while a
+library may add reusable `to` procedures for specialized checks. The method, run, and
+scientific report must be inspectable as named items rather than raw source text. A user
+must be able to apply a named standard to a particular workflow; the same standard can
+assess many workflows, and one workflow may be assessed against several standards.
+The method's reference to a standard identifies a library source and exact version. It
+expresses intent to use that specification, not a claim that its conditions are met.
+Assessing a method, a run, or a report produces distinct findings against that same
+identified source. A run assessment also identifies the method version and run examined.
+Neither importing the library nor naming the standard executes its default procedures.
+
+The assessment distinguishes **method coverage** (required stages and rules specified),
+**run evidence** (which stages were reached and what happened there), and **scientific
+judgment** (whether the work and evidence are adequate). A header in an unused library
+procedure does not establish coverage, and a stage skipped in a run cannot count as
+completed. Each condition has an applicability result, then an outcome such as
+**satisfied**, **violated**, or **undetermined** where it applies. Applicability itself
+may be established, ruled out, or undetermined. An unmet strict condition is a
+conformance failure; an unmet advisory condition is a recommendation,
+possibly with a priority. A standard may define finer grades or aggregation rules, but
+the language must retain the individual findings and their evidence rather than reduce
+them to an unexplained yes/no verdict. Each finding identifies the source condition,
+target workflow version, and supporting evidence or gap.
+
+The scientist may choose the actions and reasoning inside a stage wherever the protocol
+leaves them open. Some specifications constrain a stage's composition, order, outputs,
+reporting, or human review; others suggest useful components and priorities. Deviations
+and amendments need recorded reasons and links to the affected specification, method
+version, and run.
+
 The draft [prompt and obligation design](prompts-and-obligations.md) develops how `must`
 rules, named prompt parts, model settings, agent context, and actual requests fit together.
 The [LLM variation design](llm-variation.md) describes repeated attempts, context
 dependence, and the evidence needed to inspect model-assisted work.
+The [workflow documentation design](workflow-documentation.md) describes the separate
+readable accounts generated from a specified method and an observed run.
+
+### Versioned standards
+
+A standard has its own identity and version. When it encodes an external protocol, its
+metadata also identifies that protocol's source and edition; the protocol edition and
+the ScienceLogo encoding version are separate facts. Revising a rule, its priority, its
+scope, or how it is checked creates a new standard version. A released version must stay
+available unchanged so an earlier assessment can still be explained.
+
+An investigation resolves each `use standard` reference to a particular library source,
+standard name, version, and content identity. Its method record retains that resolution;
+an assessment also retains it alongside the method, run, or report it examined. A later
+standard version does not silently replace the one used by an earlier method or rewrite
+an earlier finding. Reassessing the same work under a later version produces a separate
+assessment. Condition IDs are stable within a version; a library can provide an explicit
+mapping of related conditions across versions when their meaning changes. The spelling
+of versions and the syntax for resolving libraries remain open.
 
 ## Trace 1: measuring a plant
 
@@ -176,17 +282,24 @@ reports **violated** for the review obligation and the agent's authority limit. 
 the missing human event and does not treat `G1` as the final decision, even if someone later
 agrees with it.
 
-## First prototype acceptance checks
+## Acceptance checks for a later semantic prototype
 
-The first Racket prototype should be able to represent both starting contexts, specified
-paths, obligations, and observed events without flattening agent suggestions into human
-decisions. It should report the two invalid runs above with the relevant item and missing
-evidence. Its inspection output should show what was prescribed, what path was specified,
+A later prototype, beyond the [first runnable control-flow slice](first-slice.md), should
+be able to represent both starting contexts, specified paths, obligations, and observed
+events without flattening agent suggestions into human decisions. It should report the
+two invalid runs above with the relevant item and missing evidence. Its inspection output
+should show what was prescribed, what path was specified,
 and what the run actually did. For the agent trace, it should also distinguish the declared
 agent view from the supplied context, expose the model call as an attempt, and reject a
 recorded final decision that bypasses the required human authority. The representation
 should allow a later attempt or run to be linked and compared without claiming that matching
 prompt names guarantee matching requests.
+
+The first runnable slice already resolves `do measure-plants` when its `to measure-plants`
+definition appears later in the same investigation and reports an unresolved call
+before running anything. A later method representation should expose both the call site
+and the procedure it names, so a publication tool can follow the reference without using
+source order as an identifier.
 
 This contract leaves the surface syntax, exact intermediate representation, execution
 engine, and standards for scientific judgment open. The examples should be revised as those

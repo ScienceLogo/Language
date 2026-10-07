@@ -21,21 +21,28 @@ when AI performs much of the work.
 
 This repository is the working source for the language. It is set up as a single-collection
 Racket package whose collection name is `sciencelogo`, with package metadata in `info.rkt`.
-The language reader, validator, and runtime have not been implemented yet, so
-`#lang sciencelogo` is not available.
+The first `#lang sciencelogo` reader and runner are available for a small set of
+commands. The [first-slice contract](spec/first-slice.md) lists what runs today and what
+remains design work. To try the example from a local checkout, install the package with
+`raco pkg install --link .`, then run `racket examples/first-slice.rkt`.
 
 ## Read the draft
 
-The [design examples](examples/README.md) are provisional workflows, not executable
-programs. Start with [plant growth](examples/plant-growth.md) for the small Logo-like form,
-then [knowledge synthesis](examples/knowledge-synthesis.md) for AI participation and human
-review. [Rainfall modelling](examples/rainfall-modelling.md) tests the same ideas in a
-different kind of investigation.
+The [design examples](examples/README.md) are provisional workflows. The
+[first runnable example](examples/first-slice.rkt) exercises the implemented subset.
+Start with [plant growth](examples/plant-growth.md) for the small Logo-like form,
+then [the plant-growth standard](examples/plant-growth-standard.md) for a reusable template
+and nuanced assessment. [Knowledge synthesis](examples/knowledge-synthesis.md) introduces
+AI participation and human review. [Rainfall modelling](examples/rainfall-modelling.md)
+tests the same ideas in a different kind of investigation.
 
 The [semantic core](spec/core.md) defines the intended meaning and works through valid and
 invalid runs. The [prompt and obligation design](spec/prompts-and-obligations.md) develops
 named LLM requests and `must` rules; the [LLM variation design](spec/llm-variation.md)
-develops context selection, repeated attempts, replication, and control.
+develops context selection, repeated attempts, replication, and control. The
+[workflow publication support design](spec/workflow-documentation.md) defines the information
+ScienceLogo should expose to external research publications, without prescribing a booklet
+template.
 The [release plan](RELEASE.md) tracks what remains before publication as a Racket package
 and how GitHub releases will be archived on Zenodo.
 

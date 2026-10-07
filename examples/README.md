@@ -1,6 +1,11 @@
 # ScienceLogo design examples
 
-These examples are **provisional language sketches**, not executable ScienceLogo programs.
+The [first runnable slice](first-slice.rkt) is a small `#lang sciencelogo` program for
+checking `to`, `do`, forward references, ordered blocks, and Logo's `print` command.
+It prints a method reminder; it does not record scientific evidence. The supported
+syntax is listed in the [first-slice contract](../spec/first-slice.md).
+
+The other examples are **provisional language sketches**, not executable ScienceLogo programs.
 Their words and bracketed structure are candidates to test with scientists and learners.
 They should inform the reader, validator, and run-record design before syntax is fixed.
 The [draft semantic core](../spec/core.md) gives two of these sketches concrete run traces
@@ -28,6 +33,7 @@ context. This tests whether one language can describe both forms of AI use.
 | Example | Main design question |
 | --- | --- |
 | [Plant growth](plant-growth.md) | Can a beginner read the method and its evidence rule, then grow into more advanced science in the same language? |
+| [Plant-growth standard](plant-growth-standard.md) | Can one reusable standard scaffold a method, validate its stages, check a run, and give prioritized advice? |
 | [Knowledge synthesis](knowledge-synthesis.md) | Can LLM-assisted screening and extraction remain traceable to sources and human decisions? |
 | [Rainfall modelling](rainfall-modelling.md) | Can the same concepts cover data preparation, model comparison, LLM proposals, and held-out evaluation? |
 

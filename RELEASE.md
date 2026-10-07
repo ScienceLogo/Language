@@ -1,7 +1,8 @@
 # Release plan
 
-**Status:** preparing the first public draft. No release has been tagged, the repository has
-not been registered in the Racket package catalog, and `#lang sciencelogo` is not runnable yet.
+**Status:** preparing the first public draft. A small `#lang sciencelogo` control-flow
+slice runs, but no release has been tagged and the repository has not been registered
+in the Racket package catalog.
 
 ## Release target
 
@@ -17,20 +18,29 @@ check installation from a clean checkout. Set a package version in `info.rkt` an
 `version` and `date-released` in `CITATION.cff` when the release is ready. If we choose to
 publish the design earlier, label it clearly as a design preview and defer catalog registration.
 
+The first reader resolves `do` calls against `to` definitions in the whole containing
+scope, including definitions written after a call. It currently supports `print` as a
+visible teaching action, not scientific measurement or evidence. A proposed unordered
+activity group should enter the release scope only after its completion and failure
+rules are settled.
+
 ## Current preparation
 
 - [x] State the purpose, draft status, and reading path in the README and examples.
 - [x] Add the MIT license and matching Racket package metadata.
 - [x] Add `CITATION.cff` with author, ORCID, repository, and license metadata.
 - [x] Add CI checks for citation metadata, package archive creation, and tests.
-- [ ] Implement and test the first runnable language slice.
-- [ ] Document exactly which syntax and obligations the first release supports.
+- [x] Implement and test the first runnable language slice.
+- [x] Document the supported syntax and current limitations in `spec/first-slice.md`.
 - [ ] Build and install the package from a clean checkout.
 - [ ] Review release notes and choose a version and tag.
 
+An isolated package archive assembled from the current working files has been built,
+installed, and tested. The clean-checkout gate remains for the release commit.
+
 The untracked `agents.md` brief is local and must stay outside commits and release archives.
-Build release archives from a clean checkout; a package archive made from a developer's working
-directory can include untracked files.
+Build release archives from a clean checkout. CI creates a source package, and
+`info.rkt` excludes the local brief and workspace metadata as an extra safeguard.
 
 ## Publish and archive
 
@@ -58,8 +68,8 @@ explains catalog sources and package registration.
 ## Automation
 
 The [CI workflow](.github/workflows/ci.yml) checks pushes, pull requests, and version tags.
-It validates citation metadata, creates a Racket package archive, and runs `raco test`.
-Once executable code exists, add tests that exercise the language and installation.
-Publication stays a deliberate GitHub release action; Zenodo
-handles archival after the repository is connected. No automatic catalog registration or
-GitHub release creation is configured.
+It validates citation metadata, creates and installs a Racket package archive, and runs
+`raco test`. The language tests cover forward calls, ordered blocks, comments, unknown
+and duplicate names, malformed blocks, and recursion rejection. Publication stays a
+deliberate GitHub release action; Zenodo handles archival after the repository is
+connected. No automatic catalog registration or GitHub release creation is configured.

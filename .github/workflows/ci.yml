@@ -19,6 +19,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate citation metadata
+        uses: citation-file-format/cffconvert-github-action@2.0.0
+        with:
+          args: "--validate"
+
       - name: Set up Racket
         uses: Bogdanp/setup-racket@v1.15
         with:
@@ -26,14 +31,11 @@ jobs:
           variant: CS
           version: "9.3"
 
-      - name: Validate citation metadata
-        run: |
-          python3 -m venv "$RUNNER_TEMP/cff-venv"
-          "$RUNNER_TEMP/cff-venv/bin/pip" install cffconvert==2.0.0
-          "$RUNNER_TEMP/cff-venv/bin/cffconvert" --validate
-
       - name: Build Racket package archive
-        run: raco pkg create --format zip --dest "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+        run: raco pkg create --source --format zip --dest "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+
+      - name: Install package archive
+        run: raco pkg install --auto --batch --scope user "$RUNNER_TEMP"/*.zip
 
       - name: Run Racket tests
         run: raco test .
