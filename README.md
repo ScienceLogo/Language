@@ -1,6 +1,6 @@
 # ScienceLogo
 
-<img src="assets/logo.png" alt="ScienceLogo logo: a blue flask with a turtle silhouette" width="220">
+<img src="assets/logo.png" alt="ScienceLogo logo: a blue turtle with a flask-shaped shell" width="220">
 
 **Mottos:**
 
@@ -45,15 +45,6 @@ develops context selection, repeated attempts, replication, and control. The
 [workflow publication support design](spec/workflow-documentation.md) defines the information
 ScienceLogo should expose to external research publications, without prescribing a booklet
 template.
-The [release plan](RELEASE.md) tracks what remains before publication as a Racket package
-and how GitHub releases will be archived on Zenodo.
-
-## Documentation
-
-Read the [ScienceLogo documentation](https://open-and-sustainable.github.io/ScienceLogo/)
-for the commands that run today. The design specifications above describe proposed language
-features. The [documentation source](scribblings/sciencelogo.scrbl) is in this repository.
-
 ## License
 
 ScienceLogo is released under the [MIT License](LICENSE).

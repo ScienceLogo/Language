@@ -1,6 +1,6 @@
 # Release plan
 
-**Status:** preparing the first public draft. A small `#lang sciencelogo` control-flow
+**Status:** preparing the first tagged draft. A small `#lang sciencelogo` control-flow
 slice runs, but no release has been tagged and the repository has not been registered
 in the Racket package catalog.
 
@@ -43,8 +43,8 @@ Build release archives from a clean checkout. CI creates a source package, and
 
 ## Publish and archive
 
-1. Make the GitHub repository public and connect it to Zenodo **before** the first GitHub
-   release. Enable the repository in Zenodo's GitHub integration.
+1. Connect the public GitHub repository to Zenodo **before** the first GitHub release.
+   Enable the repository in Zenodo's GitHub integration.
 2. Commit the reviewed release files. Run CI on the release commit. Create a version tag
    and GitHub release from that commit. Zenodo will ingest the release after the repository
    is enabled.
