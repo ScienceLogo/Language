@@ -50,16 +50,9 @@ and how GitHub releases will be archived on Zenodo.
 
 ## Documentation
 
-The [ScienceLogo manual](scribblings/sciencelogo.scrbl) is maintained in this repository as
-Scribble source. Racket builds it when the package is installed, and the same source builds
-the HTML site for GitHub Pages. The manual describes the commands that run today; the design
-specifications above describe proposed language features. To preview the site locally, run
-`raco scribble --html --dest /tmp/sciencelogo-site --dest-name index.html scribblings/sciencelogo.scrbl`
-and open `/tmp/sciencelogo-site/index.html`. Generated HTML is not committed.
-The [documentation workflow](.github/workflows/docs.yml) checks the manual on pull requests
-and pushes. With the repository's Pages source set to **GitHub Actions**, it publishes the
-manual from `main` whenever its source changes. It can also be run manually to republish
-the current `main` version.
+Read the [ScienceLogo documentation](https://open-and-sustainable.github.io/ScienceLogo/)
+for the commands that run today. The design specifications above describe proposed language
+features. The [documentation source](scribblings/sciencelogo.scrbl) is in this repository.
 
 ## License
 
