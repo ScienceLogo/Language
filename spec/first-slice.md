@@ -39,10 +39,13 @@ investigate "What should we measure?" [
 
 This prints `Bean plant` and then `Measure its height each day.` The colon is used
 only for a procedure input inside that procedure. A bare name such as `plan` refers
-to a result named earlier with `as` in the current block. A value can currently be
-quoted text, a declared input, or a named result. `output` ends the procedure call
+to a result named earlier with `as` in the current block or an enclosing block. A value
+can currently be quoted text, a declared input, or a named result. `output` ends the
+procedure call
 and returns one value; a call with `as` requires an `output` in that procedure.
-An `as` name made inside a `do [ ... ]` block stays in that block.
+A nested `do [ ... ]` block can read results from its enclosing blocks. An `as` name
+made inside that nested block stays there: enclosing and sibling blocks cannot read it.
+A procedure sees only its declared inputs, not the caller's result names.
 
 The reader parses and validates the complete investigation before any command runs.
 Definitions may appear after their calls, including a call inside another procedure.
