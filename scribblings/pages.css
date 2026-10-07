@@ -1,0 +1,4 @@
+/* The single-page site already lists every section in .tocsub. */
+.tocset .tocview {
+  display: none;
+}

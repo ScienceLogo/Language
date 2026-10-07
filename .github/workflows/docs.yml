@@ -34,7 +34,7 @@ jobs:
           version: "9.3"
 
       - name: Build HTML manual
-        run: raco scribble --html --dest "$RUNNER_TEMP/site" --dest-name index.html scribblings/sciencelogo.scrbl
+        run: raco scribble --html ++style scribblings/pages.css --dest "$RUNNER_TEMP/site" --dest-name index.html scribblings/sciencelogo.scrbl
 
       - name: Prepare GitHub Pages
         if: github.ref == 'refs/heads/main'

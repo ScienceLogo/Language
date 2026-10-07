@@ -1,8 +1,15 @@
 #lang scribble/manual
 
 @title{ScienceLogo}
+@author{Riccardo Boero}
 
 @bold{Humans first in AI science.}
+
+@hyperlink["https://github.com/open-and-sustainable/ScienceLogo"]{Source code and issues}
+@" · "
+@hyperlink["https://github.com/open-and-sustainable/ScienceLogo/tree/main/spec"]{Language specifications}
+@" · "
+@hyperlink["https://github.com/open-and-sustainable/ScienceLogo/blob/main/CITATION.cff"]{How to cite ScienceLogo}
 
 ScienceLogo is a Logo dialect for scientific workflows. It aims to make scientific
 methods readable while giving people ways to inspect and supervise work performed
@@ -61,6 +68,6 @@ procedure calls. Procedure names are local to the investigation.
 Inputs and results, repetition, stages, standards, declarative obligations, agents,
 and scientific evidence are not implemented in this first slice. The
 @hyperlink["https://github.com/open-and-sustainable/ScienceLogo"]{source repository}
-contains the design specifications and further examples. Those examples explore
+contains further examples. Those examples explore
 how human review, traceability, and control of AI work might become part of a
 scientific method; they are not yet executable ScienceLogo programs.
