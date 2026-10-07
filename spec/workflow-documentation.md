@@ -1,8 +1,9 @@
 # Workflow publication support (draft)
 
-**Status:** design proposal, not an implemented generator or a documentation site. This
-describes information ScienceLogo must expose to external publication tools. Booklet
-templates and end-user documentation for the language belong outside this repository.
+**Status:** design proposal, not an implemented research booklet generator. This
+describes information ScienceLogo must expose to external publication tools. The
+ScienceLogo language manual is maintained in this repository; templates for publishing
+particular research workflows are separate from the language specification.
 
 ## Two records for one investigation
 

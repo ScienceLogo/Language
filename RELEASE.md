@@ -38,17 +38,16 @@ rules are settled.
 An isolated package archive assembled from the current working files has been built,
 installed, and tested. The clean-checkout gate remains for the release commit.
 
-The untracked `agents.md` brief is local and must stay outside commits and release archives.
 Build release archives from a clean checkout. CI creates a source package, and
-`info.rkt` excludes the local brief and workspace metadata as an extra safeguard.
+`info.rkt` excludes local workspace metadata as an extra safeguard.
 
 ## Publish and archive
 
 1. Make the GitHub repository public and connect it to Zenodo **before** the first GitHub
    release. Enable the repository in Zenodo's GitHub integration.
-2. Commit the reviewed release files, keeping `agents.md` untracked. Run CI on the release
-   commit. Create a version tag and GitHub release from that commit. Zenodo will ingest the
-   release after the repository is enabled.
+2. Commit the reviewed release files. Run CI on the release commit. Create a version tag
+   and GitHub release from that commit. Zenodo will ingest the release after the repository
+   is enabled.
 3. Check the resulting Zenodo record and distinguish its **version DOI** (the exact archived
    release) from its **concept DOI** (the series of releases). Add the concept DOI to the
    top-level `doi` field in `CITATION.cff`, as a bare `10.xxxx/...` value, once it exists.

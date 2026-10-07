@@ -1,8 +1,9 @@
 # ScienceLogo semantic core (draft)
 
 **Status:** design contract for the first prototype, not adopted syntax or a complete
-language specification. The [example workflows](../examples/README.md) explore readable
-wording; this document states the minimum meaning the prototype should preserve.
+language specification. The [design principles](design-principles.md) state the wider
+scope and learning tests; the [example workflows](../examples/README.md) explore readable
+wording. This document states the minimum meaning the prototype should preserve.
 
 ## What ScienceLogo must distinguish
 
@@ -91,6 +92,11 @@ An agent's view is narrower than the investigation's context. The method says wh
 receive or use; the run says what it *did* receive or use. Its output starts with the status
 of a generated suggestion. A later human or machine activity may accept, revise, or reject
 it, leaving a trace of that decision.
+Human collaborators may fill in an instruction from shared context, but an agent cannot be
+presumed to know it. If the method needs a source, criterion, unit, or assumption that is not
+yet specified, the language must make the gap visible and resolve it before the activity
+uses that information. A supplied default or interactive answer becomes part of the method
+and run record, not an invisible implementation choice.
 Repeated calls may return different suggestions. Each attempt, its actual request and
 context, and its outcome must remain separately inspectable.
 
@@ -136,6 +142,8 @@ for the scientist to design. A concrete investigation fills in choices with proc
 agents, observations, and other activities. The same stage and rule constructs describe
 the standard and the concrete method. Libraries can publish standards alongside reusable
 `to` procedures.
+Standards are available when a protocol applies; an investigation need not import one or
+claim preregistration to be a valid ScienceLogo workflow.
 
 A stage header in a standard provides a named place in the workflow template. Its
 presence does not automatically make that stage mandatory in every concrete workflow.

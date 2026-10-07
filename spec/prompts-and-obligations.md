@@ -308,6 +308,11 @@ must resolve to a provider, concrete model identity or version, and supported op
 an agent call. Unsupported settings should be reported instead of ignored. Model parameters
 belong to `settings`, not inside the prompt text; tools, memory, retrieval, retries, and
 stopping rules belong to the agent's working environment.
+That working environment is a named part of the scientific method, whether an
+implementation calls it an agent setup or a harness. It should be understandable to a
+scientist without exposing unnecessary adapter internals. A simple LLM call may have a
+small environment; an autonomous agent may need more explicit permissions, memory,
+retrieval, stopping, and handoff rules.
 
 ## What the run must retain
 

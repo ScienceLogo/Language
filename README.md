@@ -7,7 +7,7 @@
 - **Humans first in AI science.**
 - Declarative, not decorative.
 
-ScienceLogo is an early-stage Logo dialect for scientific workflows in the AI era. Its central
+ScienceLogo is a Logo dialect for scientific workflows in the AI era. Its central
 goal is to support human understanding, quality control, and supervision when AI participates
 in science. AI may help plan, search, select evidence, analyse data, interpret results, and
 write conclusions. ScienceLogo should let people state the scientific criteria and evidence
@@ -36,8 +36,10 @@ and nuanced assessment. [Knowledge synthesis](examples/knowledge-synthesis.md) i
 AI participation and human review. [Rainfall modelling](examples/rainfall-modelling.md)
 tests the same ideas in a different kind of investigation.
 
-The [semantic core](spec/core.md) defines the intended meaning and works through valid and
-invalid runs. The [prompt and obligation design](spec/prompts-and-obligations.md) develops
+The [design principles](spec/design-principles.md) state the language's scope, learning
+progression, and tests. The [semantic core](spec/core.md) defines the intended meaning and
+works through valid and invalid runs. The
+[prompt and obligation design](spec/prompts-and-obligations.md) develops
 named LLM requests and `must` rules; the [LLM variation design](spec/llm-variation.md)
 develops context selection, repeated attempts, replication, and control. The
 [workflow publication support design](spec/workflow-documentation.md) defines the information
@@ -48,9 +50,16 @@ and how GitHub releases will be archived on Zenodo.
 
 ## Documentation
 
-End-user documentation is planned outside this repository. The local `docs/` directory is
-ignored by Git. This repository keeps the README, examples, and design specifications needed
-to develop the language; a Racket package does not require a `docs/` directory.
+The [ScienceLogo manual](scribblings/sciencelogo.scrbl) is maintained in this repository as
+Scribble source. Racket builds it when the package is installed, and the same source builds
+the HTML site for GitHub Pages. The manual describes the commands that run today; the design
+specifications above describe proposed language features. To preview the site locally, run
+`raco scribble --html --dest /tmp/sciencelogo-site --dest-name index.html scribblings/sciencelogo.scrbl`
+and open `/tmp/sciencelogo-site/index.html`. Generated HTML is not committed.
+The [documentation workflow](.github/workflows/docs.yml) checks the manual on pull requests
+and pushes. To publish it from `main`, set the repository's Pages source to **GitHub Actions**
+and set the repository Actions variable `PUBLISH_DOCS` to `true` in GitHub Settings. It can
+also be run manually to publish the current `main` version after those settings are in place.
 
 ## License
 
