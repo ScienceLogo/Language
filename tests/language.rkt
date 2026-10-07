@@ -85,4 +85,70 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [do [print \"incomplete\"]\n")))))
+       "investigate \"Invalid\" [do [print \"incomplete\"]\n"))))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "investigate \"Plant labels\" [\n"
+     "  do make-note \"Plant B\" as note\n"
+     "  print note\n"
+     "  to make-note :plant [\n"
+     "    do echo :plant as inner\n"
+     "    output inner\n"
+     "  ]\n"
+     "  to echo :item [output :item]\n"
+     "]\n"))
+   "Plant B\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "investigate \"Observation day\" [\n"
+     "  do choose-day \"Bean plant\" \"Monday\" as day\n"
+     "  print day\n"
+     "  to choose-day :plant :day [\n"
+     "    print :plant\n"
+     "    do [output :day]\n"
+     "  ]\n"
+     "]\n"))
+   "Bean plant\nMonday\n")
+
+  (check-exn
+   (lambda (e)
+     (and (exn:fail:read? e)
+          (regexp-match? #rx"wrong number of inputs for echo" (exn-message e))))
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "investigate \"Invalid\" [do echo to echo :item [output :item]]\n"))))
+
+  (check-exn
+   (lambda (e)
+     (and (exn:fail:read? e)
+          (regexp-match? #rx"unknown result note" (exn-message e))))
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "investigate \"Invalid\" [\n"
+       "  do [do echo \"inside\" as note]\n"
+       "  print note\n"
+       "  to echo :item [output :item]\n"
+       "]\n"))))
+
+  (check-exn
+   (lambda (e)
+     (and (exn:fail:read? e)
+          (regexp-match? #rx"procedure no-result has no output" (exn-message e))))
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "investigate \"Invalid\" [\n"
+       "  do no-result as note\n"
+       "  to no-result [print \"not returned\"]\n"
+       "]\n")))))

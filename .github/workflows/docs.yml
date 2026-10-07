@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scribblings/**"
+      - "assets/logo.png"
       - "info.rkt"
       - ".github/workflows/docs.yml"
   pull_request:
