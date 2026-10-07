@@ -81,10 +81,7 @@ happened or an unverified suggestion into a finding.
 Racket is the current tool for implementing the reader, validator, and language
 semantics. That does not require scientists to write an entire analysis in Racket or
 future tools to use Racket internally. ScienceLogo is a language project in its own
-right. Jacquard may later consume its representation to connect activities to
-implementations, enforce applicable rules, and capture run evidence; it should use
-ScienceLogo's scientific commitments rather than invent a competing interpretation.
-The boundary and any interchange format need testing before they are fixed.
+right.
 
 ## Tests for later semantic prototypes
 
