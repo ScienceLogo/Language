@@ -2,7 +2,8 @@
 
 (require rackunit
          racket/file
-         racket/port)
+         racket/port
+         racket/system)
 
 (define (with-source source use)
   (define path (make-temporary-file "sciencelogo-~a.rkt"
@@ -20,6 +21,215 @@
     (lambda (path)
       (with-output-to-string
         (lambda () (dynamic-require path #f))))))
+
+(define (with-library-repo use)
+  (define repo (make-temporary-file "sciencelogo-library-test-~a" 'directory))
+  (dynamic-wind
+    void
+    (lambda ()
+      (define (git . args)
+        (define status
+          (parameterize ([current-output-port (open-output-string)]
+                         [current-error-port (open-output-string)])
+            (apply system*/exit-code (find-executable-path "git")
+                   "-C" (path->string repo) args)))
+        (unless (zero? status) (error 'with-library-repo "Git command failed")))
+      (git "init" "--initial-branch=main")
+      (make-directory* (build-path repo "greetings"))
+      (make-directory* (build-path repo "shared"))
+      (make-directory* (build-path repo "tools"))
+      (call-with-output-file (build-path repo "library.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "library \"hello-world\" [\n"
+            "  include \"greetings/hello.rkt\"\n"
+            "  include \"tools/echo.rkt\"\n"
+            "]\n")
+           out)))
+      (call-with-output-file (build-path repo "greetings" "hello.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "include \"../shared/message.rkt\"\n"
+            "to say-hello [do greet]\n")
+           out)))
+      (call-with-output-file (build-path repo "shared" "message.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "to greet [print \"Hello, world!\"]\n")
+           out)))
+      (call-with-output-file (build-path repo "tools" "echo.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "to echo :name [output :name]\n")
+           out)))
+      (git "add" ".")
+      (git "-c" "user.name=ScienceLogo Tests"
+           "-c" "user.email=tests@example.invalid"
+           "commit" "--quiet" "-m" "Add hello-world library")
+      (git "tag" "v1.0.0")
+      (check-equal?
+       (with-output-to-string
+         (lambda () (dynamic-require (build-path repo "library.rkt") #f))) "")
+      (call-with-output-file (build-path repo "shared" "message.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "include \"../greetings/hello.rkt\"\n"
+            "to greet [print \"Hello, world!\"]\n")
+           out))
+        #:exists 'truncate)
+      (git "add" "shared/message.rkt")
+      (git "-c" "user.name=ScienceLogo Tests"
+           "-c" "user.email=tests@example.invalid"
+           "commit" "--quiet" "-m" "Add include cycle")
+      (git "tag" "v-cycle")
+      (call-with-output-file (build-path repo "greetings" "hello.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "include \"../../outside.rkt\"\n"
+            "to say-hello [do greet]\n")
+           out))
+        #:exists 'truncate)
+      (git "add" "greetings/hello.rkt")
+      (git "-c" "user.name=ScienceLogo Tests"
+           "-c" "user.email=tests@example.invalid"
+           "commit" "--quiet" "-m" "Add escaping include path")
+      (git "tag" "v-escape")
+      (git "switch" "--quiet" "-c" "other")
+      (call-with-output-file (build-path repo "other.txt")
+        (lambda (out) (display "Only on another branch\n" out)))
+      (git "add" "other.txt")
+      (git "-c" "user.name=ScienceLogo Tests"
+           "-c" "user.email=tests@example.invalid"
+           "commit" "--quiet" "-m" "Add off-main commit")
+      (git "tag" "off-main")
+      (git "switch" "--quiet" "main")
+      (use (format "file://~a" (path->string repo))))
+    (lambda () (delete-directory/files repo))))
+
+(define (with-dependent-libraries use)
+  (define base (make-temporary-file "sciencelogo-dependencies-~a" 'directory))
+  (define a (build-path base "a"))
+  (define b (build-path base "b"))
+  (define c (build-path base "c"))
+  (make-directory a)
+  (make-directory b)
+  (make-directory c)
+  (define a-url (format "file://~a" (path->string a)))
+  (define b-url (format "file://~a" (path->string b)))
+  (define c-url (format "file://~a" (path->string c)))
+  (define (git repo . args)
+    (define status
+      (parameterize ([current-output-port (open-output-string)]
+                     [current-error-port (open-output-string)])
+        (apply system*/exit-code (find-executable-path "git")
+               "-C" (path->string repo) args)))
+    (unless (zero? status) (error 'with-dependent-libraries "Git command failed")))
+  (define (write-library repo content)
+    (call-with-output-file (build-path repo "library.rkt")
+      (lambda (out) (display content out))
+      #:exists 'truncate))
+  (define (commit-and-tag repo tag)
+    (git repo "add" ".")
+    (git repo "-c" "user.name=ScienceLogo Tests"
+         "-c" "user.email=tests@example.invalid"
+         "commit" "--quiet" "-m" tag)
+    (git repo "tag" tag))
+  (dynamic-wind
+    void
+    (lambda ()
+      (git a "init" "--initial-branch=main")
+      (git b "init" "--initial-branch=main")
+      (git c "init" "--initial-branch=main")
+      (write-library b
+                     (string-append
+                      "#lang sciencelogo\n"
+                      "library \"base\" [\n"
+                      "  to message :name [output :name]\n"
+                      "]\n"))
+      (commit-and-tag b "v1.0.0")
+      (make-directory (build-path a "greetings"))
+      (call-with-output-file (build-path a "greetings" "welcome.rkt")
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "to welcome :name [\n"
+            "  do b.message :name as greeting\n"
+            "  print greeting\n"
+            "]\n")
+           out)))
+      (write-library a
+                     (format
+                      (string-append
+                       "#lang sciencelogo\n"
+                       "library \"wrapper\" [\n"
+                       "  import ~s at \"v1.0.0\" as b\n"
+                       "  include \"greetings/welcome.rkt\"\n"
+                       "]\n")
+                      b-url))
+      (commit-and-tag a "v1.0.0")
+      (check-equal?
+       (with-output-to-string
+         (lambda () (dynamic-require (build-path a "library.rkt") #f))) "")
+      (write-library c
+                     (format
+                      (string-append
+                       "#lang sciencelogo\n"
+                       "library \"consumer\" [\n"
+                       "  import ~s at \"v1.0.0\" as a\n"
+                       "  import ~s at \"v1.0.0\" as b\n"
+                       "  to direct :name [\n"
+                       "    do a.welcome :name\n"
+                       "    do b.message \"Separate\" as note\n"
+                       "    print note\n"
+                       "  ]\n"
+                       "]\n")
+                      a-url b-url))
+      (commit-and-tag c "v1.0.0")
+      (write-library c
+                     (format
+                      (string-append
+                       "#lang sciencelogo\n"
+                       "library \"consumer\" [\n"
+                       "  import ~s at \"v1.0.0\" as a\n"
+                       "  to indirect :name [do a.b.message :name as note print note]\n"
+                       "]\n")
+                      a-url))
+      (commit-and-tag c "v-leak")
+      (write-library b
+                     (format
+                      (string-append
+                       "#lang sciencelogo\n"
+                       "library \"base\" [\n"
+                       "  import ~s at \"v-cycle\" as a\n"
+                       "  to message :name [output :name]\n"
+                       "]\n")
+                      a-url))
+      (commit-and-tag b "v-cycle")
+      (write-library a
+                     (format
+                      (string-append
+                       "#lang sciencelogo\n"
+                       "library \"wrapper\" [\n"
+                       "  import ~s at \"v-cycle\" as b\n"
+                       "  to welcome :name [do b.message :name as greeting print greeting]\n"
+                       "]\n")
+                      b-url))
+      (commit-and-tag a "v-cycle")
+      (use a-url b-url c-url))
+    (lambda () (delete-directory/files base))))
 
 (module+ test
   (check-equal?
@@ -178,4 +388,168 @@
        "investigate \"Invalid\" [\n"
        "  do no-result as note\n"
        "  to no-result [print \"not returned\"]\n"
-       "]\n")))))
+       "]\n"))))
+
+  (check-exn
+   (lambda (e)
+     (and (exn:fail:read? e)
+          (regexp-match? #rx"procedure name cannot contain a dot" (exn-message e))))
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "investigate \"Invalid\" [to local.name []]\n"))))
+
+  (with-library-repo
+   (lambda (url)
+     (check-equal?
+      (output-of
+       (format
+        (string-append
+         "#lang sciencelogo\n"
+         "import ~s at \"v1.0.0\" as hello\n"
+         "investigate \"Use a library\" [\n"
+         "  do hello.say-hello\n"
+         "  do hello.echo \"Researcher\" as name\n"
+         "  print name\n"
+         "]\n")
+        url))
+      "Hello, world!\nResearcher\n")
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"could not resolve library tag or commit"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"main\" as hello\n"
+           "investigate \"Invalid\" [do hello.say-hello]\n")
+          url))))
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"could not verify library revision is on main"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"off-main\" as hello\n"
+           "investigate \"Invalid\" [do hello.say-hello]\n")
+          url))))
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"include cycle through greetings/hello.rkt"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v-cycle\" as hello\n"
+           "investigate \"Invalid\" [do hello.say-hello]\n")
+          url))))
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"include path escapes the library repository"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v-escape\" as hello\n"
+           "investigate \"Invalid\" [do hello.say-hello]\n")
+          url))))))
+
+  (with-dependent-libraries
+   (lambda (a-url b-url c-url)
+     (check-equal?
+      (output-of
+       (format
+        (string-append
+         "#lang sciencelogo\n"
+         "import ~s at \"v1.0.0\" as a\n"
+         "investigate \"Use a dependency\" [do a.welcome \"Scientist\"]\n")
+        a-url))
+      "Scientist\n")
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"unknown procedure b.message" (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v1.0.0\" as a\n"
+           "investigate \"Private alias\" [do b.message \"Scientist\"]\n")
+          a-url))))
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"a library dependency is private"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v1.0.0\" as a\n"
+           "investigate \"Private alias\" [do a.b.message \"Scientist\"]\n")
+          a-url))))
+     (check-equal?
+      (output-of
+       (format
+        (string-append
+         "#lang sciencelogo\n"
+         "import ~s at \"v1.0.0\" as a\n"
+         "import ~s at \"v1.0.0\" as b\n"
+         "investigate \"Import both\" [\n"
+         "  do a.welcome \"Scientist\"\n"
+         "  do b.message \"Researcher\" as name\n"
+         "  print name\n"
+         "]\n")
+        a-url b-url))
+      "Scientist\nResearcher\n")
+     (check-equal?
+      (output-of
+       (format
+        (string-append
+         "#lang sciencelogo\n"
+         "import ~s at \"v1.0.0\" as c\n"
+         "investigate \"Nested direct imports\" [do c.direct \"Scientist\"]\n")
+        c-url))
+      "Scientist\nSeparate\n")
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"a library dependency is private"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v-leak\" as c\n"
+           "investigate \"Private across libraries\" [do c.indirect \"Scientist\"]\n")
+          c-url))))
+     (check-exn
+      (lambda (e)
+        (and (exn:fail:read? e)
+             (regexp-match? #rx"library import cycle through"
+                            (exn-message e))))
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v-cycle\" as a\n"
+           "investigate \"Cycle\" [do a.welcome \"Scientist\"]\n")
+          a-url)))))))

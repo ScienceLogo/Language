@@ -156,9 +156,10 @@ workflow **must** include or preserve and what it **should** consider, with prio
 where useful. For example, a library could encode the applicable
 [PRISMA 2020](https://www.prisma-statement.org/prisma-2020) checklist requirements as
 conditions on a review's method and reporting, while leaving research choices open
-where the source does. The library must identify its source and version, the conditions
-it represents, and how each condition is checked. The exact declaration and import
-syntax remains open.
+where the source does. The import identifies the library's source and revision; the
+standard identifies the conditions it represents and how each condition is checked.
+The library layout and import form are defined in [Libraries](libraries.md). Syntax for
+declaring and applying a standard remains open.
 
 A standard can serve as a template, provide declarations for validating a concrete
 method, and direct checks on an observed run and scientific report. Applying it produces
@@ -215,7 +216,8 @@ standard version does not silently replace the one used by an earlier method or 
 an earlier finding. Reassessing the same work under a later version produces a separate
 assessment. Condition IDs are stable within a version; a library can provide an explicit
 mapping of related conditions across versions when their meaning changes. The spelling
-of versions and the syntax for resolving libraries remain open.
+of standard versions and the syntax for selecting a standard within an imported library
+remain open. The library import form is defined in [Libraries](libraries.md).
 
 ## Trace 1: measuring a plant
 

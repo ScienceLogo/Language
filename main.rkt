@@ -7,6 +7,8 @@
 ;; The reader validates the complete method before producing this representation.
 (define (run-program program)
   (match program
+    [`(library ,_ ,_) (void)]
+    [`(fragment ,_ ,_) (void)]
     [`(investigate ,_ ,forms)
      (define procedures (make-hasheq))
      (for ([form (in-list forms)])
@@ -38,6 +40,7 @@
      (define (run-forms forms inputs scopes return)
        (for ([form (in-list forms)])
          (match form
+           [`(import ,_ ,_ ,_ ,_ ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
            [`(call ,name ,arguments ,result-name)
             (define result

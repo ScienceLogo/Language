@@ -23,6 +23,30 @@ measurement or evidence record. Empty blocks are allowed. Whitespace is flexible
 commands may share a line. `;` ends a line comment, and
 `#| ... |#` is a block comment that may nest.
 
+An investigation may import procedures before its `investigate` declaration:
+
+```text
+import "https://example.org/hello-world.git" at "v1.0.0" as hello
+investigate "Try a library" [do hello.say-hello]
+```
+
+The URL is a placeholder. The real Git repository must have a `main` branch and a
+root `library.rkt` with a `library "name" [ ... ]` declaration. It holds top-level
+`to` definitions, `include "relative/path.rkt"` declarations, or library imports,
+with no executable
+commands. Included files hold top-level `to` and `include` declarations and can be
+nested; paths are relative to the containing file and cannot escape the repository.
+`at` names a tag or full commit ID on `main`, not a branch. Imported procedures use
+`alias.procedure` in calls. Git must be available; the reader fetches and validates
+the library before any commands run. See
+the [hello-world library](libraries.md) for the complete file.
+
+A library may import another library directly inside its `library` block. Its
+procedures may call that dependency using the library's internal alias. The
+importing investigation sees only the first library's own procedures; to call a
+dependency directly, it imports that dependency separately. The reader records
+each resolved revision and rejects import cycles.
+
 A procedure may declare inputs after its name. A call supplies one value per input,
 and may name the returned value with `as`. For example:
 
@@ -41,8 +65,8 @@ This prints `Bean plant` and then `Measure its height each day.` The colon is us
 only for a procedure input inside that procedure. A bare name such as `plan` refers
 to a result named earlier with `as` in the current block or an enclosing block. A value
 can currently be quoted text, a declared input, or a named result. `output` ends the
-procedure call
-and returns one value; a call with `as` requires an `output` in that procedure.
+procedure call and returns one value; a call with `as` requires an `output` in that
+procedure.
 A nested `do [ ... ]` block can read results from its enclosing blocks. An `as` name
 made inside that nested block stays there: enclosing and sibling blocks cannot read it.
 A result name cannot duplicate an input or another result visible in its block, including
@@ -54,9 +78,10 @@ Definitions may appear after their calls, including a call inside another proced
 Names are local to the investigation. Unknown calls, duplicate definitions, malformed
 brackets, wrong input counts, unknown input or result names, calls requesting an absent
 output, unsupported commands, and recursive procedure calls are rejected before
-execution. This first slice has one investigation per file and accepts `to` definitions
-only directly inside it. Recursion, scientific items and measurements, `repeat`, `stage`,
-`must`, standards, agents, and `any order` are not implemented yet.
+execution. An investigation file has one investigation; a library file has one library
+declaration. `to` definitions belong directly in either block or at the top of an
+included file. Recursion, scientific items and measurements, `repeat`, `stage`, `must`,
+standards, agents, and `any order` are not implemented yet.
 
 The [first runnable example](../examples/first-slice.rkt) and
 [inputs and results example](../examples/inputs-and-results.rkt) can be run from an

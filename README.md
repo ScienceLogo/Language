@@ -22,8 +22,9 @@ when AI performs much of the work.
 This repository is the working source for the language. It is set up as a single-collection
 Racket package whose collection name is `sciencelogo`, with package metadata in `info.rkt`.
 The first `#lang sciencelogo` reader and runner are available for a small set of
-commands. The [first-slice contract](spec/first-slice.md) lists what runs today and what
-remains design work. To try the example from a local checkout, install the package with
+commands and Git-based library imports. The [first-slice contract](spec/first-slice.md)
+lists what runs today and what remains design work. To try the example from a local
+checkout, install the package with
 `raco pkg install --link .`, then run `racket examples/first-slice.rkt`.
 
 ## Read the draft
@@ -38,7 +39,8 @@ tests the same ideas in a different kind of investigation.
 
 The [design principles](spec/design-principles.md) state the language's scope, learning
 progression, and tests. The [semantic core](spec/core.md) defines the intended meaning and
-works through valid and invalid runs. The
+works through valid and invalid runs. The [library specification](spec/libraries.md)
+shows a hello-world library and its import. The
 [prompt and obligation design](spec/prompts-and-obligations.md) develops
 named LLM requests and `must` rules; the [LLM variation design](spec/llm-variation.md)
 develops context selection, repeated attempts, replication, and control. The
