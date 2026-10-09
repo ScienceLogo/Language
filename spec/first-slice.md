@@ -47,6 +47,55 @@ importing investigation sees only the first library's own procedures; to call a
 dependency directly, it imports that dependency separately. The reader records
 each resolved revision and rejects import cycles.
 
+## Describe and assess required parts
+
+A separate `#lang sciencelogo` file can declare an interface for parts of a method:
+
+```text
+interface "Assessment process" [
+  version "1"
+  require collect
+  require review
+  require report
+  affects collect review
+  affects review report
+]
+```
+
+An interface needs exactly one nonempty `version` and at least one `require`.
+Required part names must be unique. Each `affects source target` names two required
+parts; it says that a missing source can affect the target. This is a structural
+dependency, not a measured uncertainty calculation.
+
+An investigation can map those parts to implementation references:
+
+```text
+investigate "How will we review the data?" [
+  implements "requirements/review.rkt" as review-process [
+    provide collect by "methods/collection.md"
+    provide review by "methods/review.md"
+    provide report by "methods/report.md"
+  ]
+]
+```
+
+The path after `implements` is relative to the investigation file. A `provide`
+reference is nonempty text naming where to inspect an implementation; the assessor
+does not open or verify that reference. `implements` is a declaration and does not
+run the named work. The assessor checks whether the interface file exists, reports
+missing, unknown, or duplicate provisions, and follows `affects` links from missing
+parts to downstream parts. It also reports duplicate interface aliases. An issue
+causes the command to exit with status 1:
+
+```text
+racket -l sciencelogo/assessor -- path/to/investigation.rkt
+```
+
+The [self-description example](../examples/meta-assessor/README.md) is a complete
+interface and investigation pair, with an incomplete method for testing impact
+reports. Interface versions are displayed in assessments; this slice does not
+compare versions or judge scientific adequacy.
+
 A procedure may declare inputs after its name. A call supplies one value per input,
 and may name the returned value with `as`. For example:
 
@@ -81,7 +130,8 @@ output, unsupported commands, and recursive procedure calls are rejected before
 execution. An investigation file has one investigation; a library file has one library
 declaration. `to` definitions belong directly in either block or at the top of an
 included file. Recursion, scientific items and measurements, `repeat`, `stage`, `must`,
-standards, agents, and `any order` are not implemented yet.
+standards beyond this structural interface check, agents, and `any order` are not
+implemented yet.
 
 The [first runnable example](../examples/first-slice.rkt) and
 [inputs and results example](../examples/inputs-and-results.rkt) can be run from an

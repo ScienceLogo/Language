@@ -22,7 +22,8 @@ when AI performs much of the work.
 This repository is the working source for the language. It is set up as a single-collection
 Racket package whose collection name is `sciencelogo`, with package metadata in `info.rkt`.
 The first `#lang sciencelogo` reader and runner are available for a small set of
-commands and Git-based library imports. The [first-slice contract](spec/first-slice.md)
+commands and Git-based library imports. A structural assessor checks declared
+interface parts and their downstream dependencies. The [first-slice contract](spec/first-slice.md)
 lists what runs today and what remains design work. To try the example from a local
 checkout, install the package with
 `raco pkg install --link .`, then run `racket examples/first-slice.rkt`.
@@ -31,6 +32,8 @@ checkout, install the package with
 
 The [design examples](examples/README.md) are provisional workflows. The
 [first runnable example](examples/first-slice.rkt) exercises the implemented subset.
+The [assessor self-description](examples/meta-assessor/README.md) is a runnable
+interface, investigation, and missing-part assessment.
 Start with [plant growth](examples/plant-growth.md) for the small Logo-like form,
 then [the plant-growth standard](examples/plant-growth-standard.md) for a reusable template
 and nuanced assessment. [Knowledge synthesis](examples/knowledge-synthesis.md) introduces

@@ -9,6 +9,7 @@
   (match program
     [`(library ,_ ,_) (void)]
     [`(fragment ,_ ,_) (void)]
+    [`(interface ,_ ,_) (void)]
     [`(investigate ,_ ,forms)
      (define procedures (make-hasheq))
      (for ([form (in-list forms)])
@@ -41,6 +42,7 @@
        (for ([form (in-list forms)])
          (match form
            [`(import ,_ ,_ ,_ ,_ ,_) (void)]
+           [`(implements ,_ ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
            [`(call ,name ,arguments ,result-name)
             (define result

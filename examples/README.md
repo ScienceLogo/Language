@@ -6,6 +6,8 @@ It prints a method reminder; it does not record scientific evidence. The support
 syntax is listed in the [first-slice contract](../spec/first-slice.md).
 The [inputs and results example](inputs-and-results.rkt) shows a procedure receiving
 one item and returning a named result.
+The [assessor self-description](meta-assessor/README.md) is also runnable. It shows
+the implemented structural interface check and its missing-part impact report.
 
 The other examples are **provisional language sketches**, not executable ScienceLogo programs.
 Their words and bracketed structure are candidates to test with scientists and learners.

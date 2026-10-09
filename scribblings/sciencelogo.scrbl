@@ -130,6 +130,51 @@ in the investigation. The reader records the resolved commits of dependencies
 and rejects import cycles. Library imports belong directly in the root
 @tt{library} block.
 
+@section{Check required parts of a method}
+
+An interface file can name required parts and show which later parts depend on
+earlier ones:
+
+@verbatim|{
+#lang sciencelogo
+interface "Assessment process" [
+  version "1"
+  require collect
+  require review
+  require report
+  affects collect review
+  affects review report
+]
+}|
+
+In another file, an investigation can reference that interface and name where
+each part is implemented:
+
+@verbatim|{
+#lang sciencelogo
+investigate "How will we review the data?" [
+  implements "requirements/review.rkt" as review-process [
+    provide collect by "methods/collection.md"
+    provide review by "methods/review.md"
+    provide report by "methods/report.md"
+  ]
+]
+}|
+
+The interface path is relative to the investigation file. Each @tt{provide} line
+is a claim with a text reference to an implementation. The assessor checks the
+declared names and follows @tt{affects} links when a required part is missing. It
+does not open the implementation references or decide whether the work is
+scientifically adequate. Run an assessment with
+@tt{racket -l sciencelogo/assessor -- path/to/investigation.rkt}. It exits with
+status 1 when it reports a structural issue. An interface must have one nonempty
+version and at least one required part. The version appears in the report; this
+first assessor does not compare versions.
+
+The @hyperlink["https://github.com/ScienceLogo/Language/tree/main/examples/meta-assessor"]{assessor self-description}
+provides a working template and an incomplete variant that demonstrates a
+downstream impact report.
+
 @section{Commands available today}
 
 @itemlist[
@@ -138,6 +183,10 @@ and rejects import cycles. Library imports belong directly in the root
         investigation or directly inside a library block.}
   @item{@tt{investigate "question" [ ... ]} starts the one investigation in a file.}
   @item{@tt{library "name" [ ... ]} declares the procedures in a library file.}
+  @item{@tt{interface "name" [version "..." require part ... affects source target ...]}
+        declares required parts and structural impact links in a separate file.}
+  @item{@tt{implements "relative/path.rkt" as alias [provide part by "reference" ...]}
+        maps interface parts to text references inside an investigation.}
   @item{@tt{include "relative/path.rkt"} loads declarations from a file in that
         library repository. It belongs directly in a library or included file.}
   @item{@tt{to name :input ... [ ... ]} defines a procedure with optional inputs.
@@ -171,8 +220,9 @@ the investigation.
 
 @section{What is still being designed}
 
-Scientific items, measurements, repetition, stages, standards, declarative obligations,
-agents, and evidence are not implemented in this first slice. The
+Scientific items, measurements, repetition, stages, standards beyond the structural
+interface check, declarative obligations, agents, and evidence are not implemented
+in this first slice. The
 @hyperlink["https://github.com/ScienceLogo/Language"]{source repository}
 contains further examples. Those examples explore
 how human review, traceability, and control of AI work might become part of a

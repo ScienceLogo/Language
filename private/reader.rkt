@@ -9,7 +9,7 @@
          racket/system
          syntax/readerr)
 
-(provide sciencelogo-read sciencelogo-read-syntax)
+(provide sciencelogo-read sciencelogo-read-syntax parse-sciencelogo-file)
 
 (struct token (kind value line column position source) #:transparent)
 (struct node (kind value children at) #:transparent)
@@ -76,8 +76,10 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "print" "output" "include"))
-  (define reserved (append commands '("as" "at" "import" "investigate" "library")))
+  (define commands '("to" "do" "print" "output" "include" "implements"))
+  (define reserved
+    (append commands '("as" "at" "import" "investigate" "library"
+                       "interface" "version" "require" "affects" "provide" "by")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -176,6 +178,34 @@
        (unless imports-allowed?
          (read-error source command "import belongs directly in a library or before an investigation"))
        (parse-import command)]
+      ["implements"
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "implements belongs directly in an investigation"))
+       (define path (token-value (expect 'string "a quoted interface file path")))
+       (when (or (string=? path "")
+                 (not (relative-path? (string->path path))))
+         (read-error source command "interface file path must be relative"))
+       (expect-word "as")
+       (define alias (named-word "an interface alias"))
+       (expect 'open "[ after the interface alias")
+       (define provisions
+         (let loop ([backward '()])
+           (define found (current))
+           (case (token-kind found)
+             [(close) (advance!) (reverse backward)]
+             [(eof) (read-error source found "expected ] before end of file")]
+             [else
+              (define start (expect-word "provide"))
+              (define part (named-word "a required part name"))
+              (expect-word "by")
+              (define locator
+                (token-value (expect 'string "a quoted implementation reference")))
+              (when (string=? locator "")
+                (read-error source start "implementation reference cannot be empty"))
+              (loop (cons (node 'provide (list part locator) '() start)
+                          backward))])))
+       (node 'implements (list path alias) provisions command)]
       ["do"
        (if (eq? (token-kind (current)) 'open)
            (begin
@@ -204,23 +234,46 @@
       [_ (read-error source command
                      (format "unsupported command ~a in the first ScienceLogo slice"
                              (token-value command)))]))
+  (define (parse-interface-body)
+    (let loop ([backward '()])
+      (define found (current))
+      (case (token-kind found)
+        [(close) (advance!) (reverse backward)]
+        [(eof) (read-error source found "expected ] before end of file")]
+        [else
+         (define command (expect 'word "version, require, or affects"))
+         (define form
+           (match (token-value command)
+             ["version"
+              (node 'version (token-value (expect 'string "a quoted interface version"))
+                    '() command)]
+             ["require"
+              (node 'require (named-word "a required part name") '() command)]
+             ["affects"
+              (node 'affects
+                    (list (named-word "a source part name")
+                          (named-word "an affected part name"))
+                    '() command)]
+             [_ (read-error source command
+                            "an interface accepts only version, require, and affects")]))
+         (loop (cons form backward))])))
   (define imports
     (let loop ([backward '()])
       (if (and (eq? (token-kind (current)) 'word)
                (string=? (token-value (current)) "import"))
           (loop (cons (parse-import (advance!)) backward))
           (reverse backward))))
-  (define start (expect 'word "investigate, library, or library fragment"))
+  (define start (expect 'word "investigate, library, interface, or library fragment"))
   (define kind
     (if (member (token-value start) '("to" "include"))
         "fragment"
         (token-value start)))
-  (unless (member kind '("investigate" "library" "fragment"))
-    (read-error source start "expected investigate, library, or library fragment"))
+  (unless (member kind '("investigate" "library" "interface" "fragment"))
+    (read-error source start "expected investigate, library, interface, or library fragment"))
   (when (and expected-kind (not (string=? kind expected-kind)))
     (read-error source start (format "expected ~a declaration" expected-kind)))
   (when (and (not (string=? kind "investigate")) (pair? imports))
-    (read-error source start "library imports belong inside library [ ]"))
+    (read-error source start "top-level imports belong before an investigation"))
   (define title
     (and (not (string=? kind "fragment"))
          (token-value (expect 'string "a quoted investigation question or library name"))))
@@ -234,8 +287,10 @@
           (if (eq? (token-kind (current)) 'eof)
               (reverse backward)
               (loop (cons (parse-form #t #f #t #f) backward))))
-        (parse-body #t #f (string=? kind "library")
-                    (string=? kind "library"))))
+        (if (string=? kind "interface")
+            (parse-interface-body)
+            (parse-body #t #f (string=? kind "library")
+                        (string=? kind "library")))))
   (unless (eq? (token-kind (current)) 'eof)
     (read-error source (current) "expected end of file after investigation or library"))
   (when (member kind '("library" "fragment"))
@@ -248,11 +303,15 @@
   (define result
     (case (string->symbol kind)
       [(library) (node 'library title forms start)]
+      [(interface) (node 'interface title forms start)]
       [(fragment) (node 'fragment #f forms start)]
       [(investigate) (node 'investigate title
                            (append (resolve-imports imports) forms) start)]))
   (cond
     [(eq? (node-kind result) 'fragment) result]
+    [(eq? (node-kind result) 'interface)
+     (validate-interface result source)
+     result]
     [(and (eq? (node-kind result) 'library) (not expand-local?)) result]
     [(eq? (node-kind result) 'library)
      (define directory (path-only (path->complete-path source)))
@@ -483,6 +542,32 @@
         (and (eq? (node-kind form) 'sequence)
              (has-output? (node-children form))))))
 
+(define (validate-interface interface source)
+  (define versions
+    (filter (lambda (form) (eq? (node-kind form) 'version))
+            (node-children interface)))
+  (unless (= (length versions) 1)
+    (read-error source (node-at interface)
+                "an interface needs exactly one version declaration"))
+  (when (string=? (node-value (car versions)) "")
+    (read-error source (node-at (car versions)) "interface version cannot be empty"))
+  (define required (make-hasheq))
+  (for ([form (in-list (node-children interface))]
+        #:when (eq? (node-kind form) 'require))
+    (define part (node-value form))
+    (when (hash-has-key? required part)
+      (read-error source (node-at form) (format "duplicate required part ~a" part)))
+    (hash-set! required part #t))
+  (when (zero? (hash-count required))
+    (read-error source (node-at interface)
+                "an interface needs at least one required part"))
+  (for ([form (in-list (node-children interface))]
+        #:when (eq? (node-kind form) 'affects))
+    (for ([part (in-list (node-value form))])
+      (unless (hash-has-key? required part)
+        (read-error source (node-at form)
+                    (format "impact references unknown part ~a" part))))))
+
 (define (validate-program program source)
   (define definitions (make-hasheq))
   (for ([form (in-list (node-children program))]
@@ -504,7 +589,7 @@
   (define (check-forms forms inputs results)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import) visible]
+        [(to import implements) visible]
         [(sequence)
          (check-forms (node-children form) inputs visible)
          visible]
@@ -553,10 +638,15 @@
 
 (define (node->datum form)
   (case (node-kind form)
-    [(investigate library fragment) (list (node-kind form) (node-value form)
-                                          (map node->datum (node-children form)))]
+    [(investigate library fragment interface)
+     (list (node-kind form) (node-value form)
+           (map node->datum (node-children form)))]
     [(import) (cons 'import (node-value form))]
     [(include) (list 'include (node-value form))]
+    [(implements)
+     (list 'implements (node-value form) (map node->datum (node-children form)))]
+    [(provide affects) (cons (node-kind form) (node-value form))]
+    [(version require) (list (node-kind form) (node-value form))]
     [(to) (list 'to (procedure-name form) (procedure-inputs form)
                 (map node->datum (node-children form)))]
     [(call) (list 'call (call-name form) (map node->datum (node-children form))
@@ -564,6 +654,17 @@
     [(sequence) (list 'sequence (map node->datum (node-children form)))]
     [(print output) (list (node-kind form) (node->datum (node-value form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))
+
+(define (parse-sciencelogo-file path)
+  (define full (path->complete-path path))
+  (call-with-input-file full
+    (lambda (in)
+      (port-count-lines! in)
+      (define first-line (read-line in 'any))
+      (unless (and (string? first-line)
+                   (string=? (string-trim first-line) "#lang sciencelogo"))
+        (error 'parse-sciencelogo-file "expected #lang sciencelogo in ~a" full))
+      (parse-program in (path->string full)))))
 
 (define (sciencelogo-read in)
   (list (list 'run-program (list 'quote (parse-program in (object-name in))))))
