@@ -101,6 +101,67 @@
     (lambda () (delete-file staged-source))))
 
 (module+ test
+  (define loop-source (make-temporary-file "sciencelogo-loops-~a.rkt"))
+  (dynamic-wind
+    void
+    (lambda ()
+      (call-with-output-file loop-source
+        (lambda (out)
+          (display
+           (string-append
+            "#lang sciencelogo\n"
+            "set lengths to range 0.25 to 1 step 0.25\n"
+            "for each length in lengths [\n"
+            "  if length < 1 [print length] else [print \"last\"]\n"
+            "]\n"
+            "repeat 2 [print \"again\"]\n"
+            "set continue to true\n"
+            "while continue [set continue to false]\n"
+            "print continue\n"
+            "repeat [set done to true] until done\n")
+           out))
+        #:exists 'truncate)
+      (define model (read-workflow-model loop-source))
+      (define activities (workflow-model-activities model))
+      (define items (workflow-model-items model))
+      (define links (workflow-model-relations model))
+      (define loop
+        (findf (lambda (a) (eq? (activity-model-kind a) 'for-each)) activities))
+      (define named-range
+        (findf (lambda (i) (eq? (item-model-name i) 'lengths)) items))
+      (define iteration
+        (findf (lambda (i) (eq? (item-model-name i) 'length)) items))
+      (check-true (relation? 'uses (activity-model-id loop)
+                             (item-model-id named-range) links))
+      (check-true (relation? 'produces (activity-model-id loop)
+                                 (item-model-id iteration) links))
+      (check-equal? (item-model-role iteration) 'iteration)
+      (check-equal? (length (filter (lambda (a) (eq? (activity-model-kind a) 'branch))
+                                    activities)) 2)
+      (define continue-item
+        (findf (lambda (i) (eq? (item-model-name i) 'continue)) items))
+      (check-true
+       (for/or ([relation (in-list links)])
+         (and (eq? (relation-model-kind relation) 'updates)
+              (equal? (relation-model-to relation)
+                      (item-model-id continue-item)))))
+      (define update-site
+        (for/first ([relation (in-list links)]
+                    #:when (and (eq? (relation-model-kind relation) 'updates)
+                                (equal? (relation-model-to relation)
+                                        (item-model-id continue-item))))
+          (relation-model-from relation)))
+      (define later-print
+        (findf (lambda (a)
+                 (and (eq? (activity-model-kind a) 'print)
+                      (equal? (activity-model-parent a) (workflow-model-id model))))
+               activities))
+      (check-true (relation? 'depends-on (activity-model-id later-print)
+                             update-site links))
+      (check-equal? (assessment-findings (assess-workflow model)) '()))
+    (lambda () (delete-file loop-source))))
+
+(module+ test
   (define method (read-workflow-model pendulum))
   (check-equal? (workflow-model-title method)
                 "How does length affect a pendulum's period?")

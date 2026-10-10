@@ -81,10 +81,12 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "print" "output" "include" "implements" "must" "workflow"))
+  (define commands '("to" "do" "stage" "print" "output" "include" "implements" "must" "workflow" "repeat" "for" "while" "if" "else" "set"))
   (define reserved
     (append commands '("as" "at" "import" "workflow" "library"
-                       "interface" "version" "require" "affects" "provide" "by")))
+                       "interface" "version" "require" "affects" "provide" "by"
+                       "each" "in" "until" "range" "step" "true" "false"
+                       "unknown" "=" "!=" "<" "<=" ">" ">=")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -111,6 +113,15 @@
   (define (parse-value)
     (define found (current))
     (case (token-kind found)
+      [(open)
+       (advance!)
+       (node 'list #f
+             (let loop ([backward '()])
+               (case (token-kind (current))
+                 [(close) (advance!) (reverse backward)]
+                 [(eof) (read-error source (current) "expected ] after list values")]
+                 [else (loop (cons (parse-value) backward))]))
+             found)]
       [(string)
        (advance!)
        (node 'literal (token-value found) '() found)]
@@ -118,6 +129,17 @@
        (define text (token-value found))
        (advance!)
        (cond
+         [(string=? text "range")
+          (define start (parse-value))
+          (expect-word "to")
+          (define end (parse-value))
+          (expect-word "step")
+          (node 'range #f (list start end (parse-value)) found)]
+         [(member text '("true" "false" "unknown"))
+          (node 'literal (cond [(string=? text "unknown") 'unknown]
+                               [else (string=? text "true")]) '() found)]
+         [(regexp-match? #px"^[+-]?[0-9]+(?:[.][0-9]+)?$" text)
+          (node 'literal (string->number (string-append "#e" text)) '() found)]
          [(and (> (string-length text) 1) (char=? (string-ref text 0) #\:))
           (node 'parameter (string->symbol (substring text 1)) '() found)]
          [(or (member text reserved)
@@ -125,6 +147,35 @@
           (read-error source found "expected a value")]
          [else (node 'result (string->symbol text) '() found)])]
       [else (read-error source found "expected a value")]))
+  (define comparisons '("=" "!=" "<" "<=" ">" ">="))
+  (define (parse-condition)
+    (define left (parse-value))
+    (define found (current))
+    (if (and (eq? (token-kind found) 'word)
+             (member (token-value found) comparisons))
+        (begin
+          (advance!)
+          (node 'compare (string->symbol (token-value found))
+                (list left (parse-value)) found))
+        left))
+  (define (parse-if command in-procedure?)
+    (define (branch start condition)
+      (expect 'open "[ after if condition or else")
+      (node 'branch condition (parse-body #f in-procedure? #f #f) start))
+    (define first (branch command (parse-condition)))
+    (define more
+      (let loop ([backward '()])
+        (if (and (eq? (token-kind (current)) 'word)
+                 (string=? (token-value (current)) "else"))
+            (let ([else-at (advance!)])
+              (if (and (eq? (token-kind (current)) 'word)
+                       (string=? (token-value (current)) "if"))
+                  (begin
+                    (advance!)
+                    (loop (cons (branch else-at (parse-condition)) backward)))
+                  (reverse (cons (branch else-at #f) backward))))
+            (reverse backward))))
+    (node 'if #f (cons first more) command))
   (define (call-end?)
     (define found (current))
     (or (memq (token-kind found) '(close eof))
@@ -270,6 +321,33 @@
                     (string=? (token-value (current)) "as")
                     (begin (advance!) (named-word "a result name"))))
              (node 'call (cons name result-name) arguments command)))]
+      ["repeat"
+       (if (eq? (token-kind (current)) 'open)
+           (begin
+             (advance!)
+             (let ([body (parse-body #f in-procedure? #f #f)])
+               (expect-word "until")
+               (node 'repeat-until (parse-condition) body command)))
+           (let ([count (parse-value)])
+             (expect 'open "[ after repeat count")
+             (node 'repeat count (parse-body #f in-procedure? #f #f) command)))]
+      ["for"
+       (expect-word "each")
+       (define name (named-word "a loop variable"))
+       (expect-word "in")
+       (define collection (parse-value))
+       (expect 'open "[ after the collection")
+       (node 'for-each (cons name collection)
+             (parse-body #f in-procedure? #f #f) command)]
+      ["set"
+       (define name (named-word "a value name"))
+       (expect-word "to")
+       (node 'set (cons name (parse-value)) '() command)]
+      ["while"
+       (define condition (parse-condition))
+       (expect 'open "[ after while condition")
+       (node 'while condition (parse-body #f in-procedure? #f #f) command)]
+      ["if" (parse-if command in-procedure?)]
       ["print"
        (node 'print (parse-value) '() command)]
       ["output"
@@ -495,7 +573,7 @@
      (struct-copy node form
                   [value (cons (qualified (call-name form))
                                (cdr (node-value form)))])]
-    [(sequence)
+    [(sequence repeat repeat-until for-each while if branch)
      (struct-copy node form
                   [children (map (lambda (child) (qualify-library-form child alias))
                                  (node-children form))])]
@@ -583,7 +661,8 @@
   (for/fold ([calls '()]) ([form (in-list forms)])
     (case (node-kind form)
       [(call) (cons form calls)]
-      [(sequence to) (append (calls-in (node-children form)) calls)]
+      [(sequence repeat repeat-until for-each while if branch to)
+       (append (calls-in (node-children form)) calls)]
       [else calls])))
 
 (define (check-direct-calls forms source)
@@ -599,7 +678,8 @@
 (define (has-output? forms)
   (for/or ([form (in-list forms)])
     (or (eq? (node-kind form) 'output)
-        (and (eq? (node-kind form) 'sequence)
+        (and (memq (node-kind form)
+                   '(sequence repeat repeat-until for-each while if branch))
              (has-output? (node-children form))))))
 
 (define (validate-interface interface source)
@@ -645,11 +725,15 @@
          (when (hash-has-key? stage-names name)
            (read-error source (node-at form) (format "duplicate stage ~s" name)))
          (hash-set! stage-names name #t)]
-        [(to sequence) (check-stage-names (node-children form))]
+        [(to sequence repeat repeat-until for-each while if branch)
+         (check-stage-names (node-children form))]
         [else (void)])))
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
+      [(list range compare)
+       (for ([part (in-list (node-children value))])
+         (check-value part inputs results))]
       [(parameter)
        (unless (memq (node-value value) inputs)
          (read-error source (node-at value)
@@ -658,13 +742,50 @@
        (unless (memq (node-value value) results)
          (read-error source (node-at value)
                      (format "unknown result ~a" (node-value value))))]))
-  (define (check-forms forms inputs results)
+  (define (check-forms forms inputs results [settable '()])
+    (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
         [(to import implements must-call must-stage-order stage) visible]
         [(sequence)
-         (check-forms (node-children form) inputs visible)
+         (check-forms (node-children form) inputs visible writable)
          visible]
+        [(repeat)
+         (check-value (node-value form) inputs visible)
+         (check-forms (node-children form) inputs visible writable)
+         visible]
+        [(while)
+         (check-value (node-value form) inputs visible)
+         (check-forms (node-children form) inputs visible writable)
+         visible]
+        [(repeat-until)
+         (define after-body (check-forms (node-children form) inputs visible writable))
+         (check-value (node-value form) inputs after-body)
+         visible]
+        [(if)
+         (for ([branch (in-list (node-children form))])
+           (define condition (node-value branch))
+           (when condition (check-value condition inputs visible))
+           (check-forms (node-children branch) inputs visible writable))
+         visible]
+        [(for-each)
+         (define name (car (node-value form)))
+         (check-value (cdr (node-value form)) inputs visible)
+         (when (or (memq name inputs) (memq name visible))
+           (read-error source (node-at form)
+                       (format "loop variable ~a shadows a visible name" name)))
+         (check-forms (node-children form) inputs (cons name visible) writable)
+         visible]
+        [(set)
+         (define name (car (node-value form)))
+         (check-value (cdr (node-value form)) inputs visible)
+         (when (or (memq name inputs)
+                   (and (memq name visible) (not (memq name writable))))
+           (read-error source (node-at form)
+                       (format "cannot set protected name ~a" name)))
+         (unless (memq name writable)
+           (set! writable (cons name writable)))
+         (if (memq name visible) visible (cons name visible))]
         [(print output)
          (check-value (node-value form) inputs visible)
          visible]
@@ -736,7 +857,24 @@
     [(call) (list 'call (call-name form) (map node->datum (node-children form))
                   (cdr (node-value form)))]
     [(sequence) (list 'sequence (map node->datum (node-children form)))]
+    [(repeat) (list 'repeat (node->datum (node-value form))
+                    (map node->datum (node-children form)))]
+    [(repeat-until while)
+     (list (node-kind form) (node->datum (node-value form))
+           (map node->datum (node-children form)))]
+    [(if) (list 'if (map node->datum (node-children form)))]
+    [(branch) (list 'branch (and (node-value form)
+                                (node->datum (node-value form)))
+                    (map node->datum (node-children form)))]
+    [(for-each) (list 'for-each (car (node-value form))
+                      (node->datum (cdr (node-value form)))
+                      (map node->datum (node-children form)))]
+    [(set) (list 'set (car (node-value form))
+                 (node->datum (cdr (node-value form))))]
     [(print output) (list (node-kind form) (node->datum (node-value form)))]
+    [(list range) (list (node-kind form) (map node->datum (node-children form)))]
+    [(compare) (list 'compare (node-value form)
+                     (map node->datum (node-children form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))
 
 (define (parse-sciencelogo-tree-file path)

@@ -238,6 +238,110 @@
     "#lang sciencelogo\ndo greet\nto greet [print \"Hello\"]\n")
    "Hello\n")
 
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set lengths to range 0.25 to 1.00 step 0.25\n"
+     "for each length in lengths [print length]\n"
+     "for each length in lengths [if length >= 0.75 [print length]]\n"))
+   "0.25\n0.5\n0.75\n1\n0.75\n1\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set stop to 0.3\n"
+     "print range 0.1 to stop step 0.1\n"
+     "print range 0.1 to 0.35 step 0.1\n"
+     "print range 1 to 1 step -1\n"))
+   "[0.1 0.2 0.3]\n[0.1 0.2 0.3]\n[1]\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set lengths to range 1 to 3 step 1\n"
+     "for each length in lengths [print length]\n"
+     "do [set lengths to [4 5]]\n"
+     "for each length in lengths [print length]\n"))
+   "1\n2\n3\n4\n5\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "do sweep 1\n"
+     "to sweep :limit [\n"
+     "  set values to range 0 to :limit step 0.5\n"
+     "  for each value in values [print value]\n"
+     "]\n"))
+   "0\n0.5\n1\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set values to [1 2 true \"ready\"]\n"
+     "repeat 2 [print values]\n"
+     "if 1 > 2 [print \"wrong\"] "
+     "else if 2 = 2 [print \"matched\"] "
+     "else [print \"wrong\"]\n"
+     "set continue to true\n"
+     "while continue [print \"once\" set continue to false]\n"
+     "repeat [print \"once\"] until true\n"))
+   "[1 2 true ready]\n[1 2 true ready]\nmatched\nonce\nonce\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "for each outer in [1 2] ["
+     "for each inner in range 3 to 1 step -1 [print inner]]\n"
+     "to decide :answer [output :answer]\n"
+     "repeat [do decide true as finished] until finished\n"))
+   "3\n2\n1\n3\n2\n1\n")
+
+  (check-exn
+   #rx"condition is undetermined"
+   (lambda () (output-of
+               "#lang sciencelogo\nif unknown [print \"yes\"] else [print \"no\"]\n")))
+
+  (check-exn
+   #rx"condition is undetermined"
+   (lambda () (output-of
+               "#lang sciencelogo\nif unknown = false [print \"yes\"] else [print \"no\"]\n")))
+
+  (check-exn
+   #rx"range step must not be zero"
+   (lambda () (output-of
+               "#lang sciencelogo\nfor each x in range 1 to 2 step 0 [print x]\n")))
+
+  (check-exn
+   #rx"range step must move toward the end"
+   (lambda () (output-of
+               "#lang sciencelogo\nfor each x in range 1 to 2 step -1 [print x]\n")))
+
+  (check-exn
+   #rx"unknown result length"
+   (lambda () (output-of
+               "#lang sciencelogo\nfor each length in [1] [print length]\nprint length\n")))
+
+  (check-exn
+   #rx"cannot set protected name length"
+   (lambda () (output-of
+               "#lang sciencelogo\nfor each length in [1] [set length to 2]\n")))
+
+  (check-exn
+   #rx"cannot set protected name result"
+   (lambda () (output-of
+               "#lang sciencelogo\ndo echo 1 as result\nset result to 2\nto echo :x [output :x]\n")))
+
+  (check-exn
+   #rx"cannot set protected name x"
+   (lambda () (output-of
+               "#lang sciencelogo\nto change :x [set x to 2]\n")))
+
   (check-exn
    #rx"workflow title appears only once"
    (lambda ()

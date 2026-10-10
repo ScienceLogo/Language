@@ -111,7 +111,8 @@
       (case kind
         [(contains)
          (and (or (memq from-type '(workflow procedure stage))
-                  (eq? (activity-kind from) 'sequence))
+                  (memq (activity-kind from)
+                        '(sequence repeat repeat-until for-each while if branch)))
               (memq to-type '(stage activity item))
               (equal? from (parent-of to)))]
         [(defines) (and (eq? from-type 'workflow) (eq? to-type 'procedure))]
@@ -124,8 +125,11 @@
         [(uses)
          (and (eq? from-type 'activity) (eq? to-type 'item))]
         [(produces)
-         (and (eq? (activity-kind from) 'call) (eq? to-type 'item)
+         (and (memq (activity-kind from) '(call for-each set)) (eq? to-type 'item)
               (equal? (item-model-producer (cdr (hash-ref elements to))) from))]
+        [(updates)
+         (and (eq? (activity-kind from) 'set) (eq? to-type 'item)
+              (eq? (item-model-role (cdr (hash-ref elements to))) 'value))]
         [(depends-on precedes)
          (and (eq? from-type 'activity) (eq? to-type 'activity))]
         [else #f]))

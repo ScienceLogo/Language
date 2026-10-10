@@ -15,6 +15,17 @@ These forms are implemented in the current reader and assessor.
   @item{@tt{do name value ... as result} calls a procedure, optionally supplying
         values and naming its returned result.}
   @item{@tt{do [ ... ]} runs its commands once, in order.}
+  @item{@tt{set name to value} creates or updates a named value. A new name
+        belongs to the current block; a visible name created by @tt{set} can
+        be updated from a nested block.}
+  @item{@tt{repeat count [ ... ]} runs a block a fixed number of times.}
+  @item{@tt{for each name in sequence [ ... ]} runs a block for each item in
+        an ordered sequence. @tt{name} is local to each iteration.}
+  @item{@tt{while condition [ ... ]} tests before each iteration.}
+  @item{@tt{repeat [ ... ] until condition} runs at least once, then tests
+        after each iteration. Its condition may refer to a value named in the block.}
+  @item{@tt{if condition [ ... ] else if condition [ ... ] else [ ... ]}
+        chooses the first true branch, or the optional @tt{else} branch.}
   @item{@tt{stage "name"} labels the following commands until the next stage header
         at the same nesting level or the end of the block. It is a section and
         checkpoint, not a command to run or a procedure to call. Stage names must be
@@ -38,10 +49,33 @@ These forms are implemented in the current reader and assessor.
         maps interface parts to text references inside an investigation.}
 ]
 
-A value can currently be quoted text, a declared @tt{:input} inside its
-procedure, or a result named earlier with @tt{as}. A nested @tt{do [ ... ]}
-block can read results from its enclosing blocks. Results named inside the
-nested block stay there; enclosing and sibling blocks cannot read them. A
+A value can be quoted text, a number, @tt{true}, @tt{false}, @tt{unknown}, a
+list such as @tt{[1 2 3]}, a numeric range, a declared @tt{:input} inside its
+procedure, or a name introduced earlier by @tt{as} or @tt{set}. For example:
+
+@verbatim|{
+set lengths to range 0.25 to 1.00 step 0.25
+for each length in lengths [print length]
+}|
+
+The range includes its end only when an exact step lands on it. Bounds and
+step may be numbers, procedure inputs, or named values. The step must be
+nonzero and move toward the end; decimal inputs use exact arithmetic. Lists
+can contain values and other lists. A @tt{for each} collection must evaluate
+to an ordered list; separate loops can reuse one named list or range.
+
+Conditions accept a boolean value or a comparison of two values with
+@tt{=}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>}, or @tt{>=}. Ordered comparisons
+require numbers. @tt{unknown}, or any nonboolean condition, stops execution
+with an explicit error; it never selects @tt{else} by default. The runner
+stops a @tt{while} or @tt{repeat ... until} loop after 10,000 iterations
+with a nontermination error.
+
+A nested block can read values from its enclosing blocks and update a visible
+@tt{set} name. New names introduced inside @tt{do}, a loop, or a branch stay
+there; enclosing and sibling blocks cannot read them. Procedure inputs,
+@tt{as} results, and @tt{for each} iteration names cannot be updated with
+@tt{set}. The @tt{for each} name is available only in that loop body. A
 procedure sees only its declared inputs, not the caller's result names.
 Stage headers do not change this visibility: a result named before one stage
 can be used in a later stage of the same block. A @tt{to} definition placed
@@ -62,7 +96,7 @@ can each define a procedure or stage with the same original name.
 
 @section{Still being designed}
 
-Scientific items, measurements, repetition, standards beyond the
+Scientific items, measurements, standards beyond the
 current structural checks, other declarative obligations, agents, and evidence are
 not implemented. The @hyperlink[(source-directory-url "spec")]{design specifications}
 explore these concepts; their examples are not executable ScienceLogo programs.

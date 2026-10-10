@@ -93,6 +93,7 @@
   (define imports '())
   (define implementations '())
   (define conditions '())
+  (define update-sites (make-hash))
   (define (add-relation kind from to at)
     (set! relations (cons (relation-model kind from to (origin at)) relations)))
   (define (add-activity form parent [name #f])
@@ -116,15 +117,22 @@
             (hash-ref (car remaining) (node-value value))]
            [else (loop (cdr remaining))]))]))
   (define (add-use activity-id value inputs scopes)
-    (define item-id (resolve-item value inputs scopes))
-    (when item-id
-      (add-relation 'uses activity-id item-id (node-at value))
-      (define producer
-        (for/first ([item (in-list items)]
-                    #:when (equal? (item-model-id item) item-id))
-          (item-model-producer item)))
-      (when producer
-        (add-relation 'depends-on activity-id producer (node-at value)))))
+    (case (node-kind value)
+      [(list range compare)
+       (for ([part (in-list (node-children value))])
+         (add-use activity-id part inputs scopes))]
+      [else
+       (define item-id (resolve-item value inputs scopes))
+       (when item-id
+         (add-relation 'uses activity-id item-id (node-at value))
+         (define producer
+           (for/first ([item (in-list items)]
+                       #:when (equal? (item-model-id item) item-id))
+             (item-model-producer item)))
+         (when producer
+           (add-relation 'depends-on activity-id producer (node-at value)))
+         (for ([updater (in-list (hash-ref update-sites item-id '()))])
+           (add-relation 'depends-on activity-id updater (node-at value))))]))
   (define (build-block body parent inputs scopes)
     (define previous #f)
     (define current-stage #f)
@@ -139,7 +147,7 @@
                      stages))
          (add-relation 'contains parent id (node-at form))
          (set! current-stage id)]
-        [(memq kind '(call sequence print output))
+        [(memq kind '(call sequence repeat repeat-until for-each while if set print output))
          (define section (or current-stage parent))
          (define name (and (eq? kind 'call) (car (node-value form))))
          (define id (add-activity form section name))
@@ -150,6 +158,61 @@
            [(sequence)
             (build-block (node-children form) id inputs
                          (cons (make-hasheq) scopes))]
+           [(repeat)
+            (add-use id (node-value form) inputs scopes)
+            (build-block (node-children form) id inputs
+                         (cons (make-hasheq) scopes))]
+           [(while)
+            (add-use id (node-value form) inputs scopes)
+            (build-block (node-children form) id inputs
+                         (cons (make-hasheq) scopes))]
+           [(repeat-until)
+            (define local-scope (make-hasheq))
+            (build-block (node-children form) id inputs
+                         (cons local-scope scopes))
+            (add-use id (node-value form) inputs
+                     (cons local-scope scopes))]
+           [(if)
+            (for ([branch (in-list (node-children form))])
+              (define branch-id (add-activity branch id))
+              (when (node-value branch)
+                (add-use branch-id (node-value branch) inputs scopes))
+              (build-block (node-children branch) branch-id inputs
+                           (cons (make-hasheq) scopes)))]
+           [(for-each)
+            (add-use id (cdr (node-value form)) inputs scopes)
+            (define name (car (node-value form)))
+            (define item-id (format "~a/iteration:~a" id name))
+            (set! items
+                  (cons (item-model item-id name 'iteration id id
+                                    (origin (node-at form)))
+                        items))
+            (add-relation 'contains id item-id (node-at form))
+            (add-relation 'produces id item-id (node-at form))
+            (define loop-scope (make-hasheq))
+            (hash-set! loop-scope name item-id)
+            (build-block (node-children form) id inputs
+                         (cons loop-scope scopes))]
+           [(set)
+            (add-use id (cdr (node-value form)) inputs scopes)
+            (define name (car (node-value form)))
+            (define existing
+              (for/first ([scope (in-list scopes)]
+                          #:when (hash-has-key? scope name))
+                (hash-ref scope name)))
+            (if existing
+                (begin
+                  (add-relation 'updates id existing (node-at form))
+                  (hash-update! update-sites existing
+                                (lambda (sites) (cons id sites)) '()))
+                (let ([item-id (format "~a/value:~a" id name)])
+                  (set! items
+                        (cons (item-model item-id name 'value section id
+                                          (origin (node-at form)))
+                              items))
+                  (hash-set! (car scopes) name item-id)
+                  (add-relation 'contains section item-id (node-at form))
+                  (add-relation 'produces id item-id (node-at form))))]
            [(call)
             (add-relation 'invokes id (hash-ref procedure-ids name) (node-at form))
             (for ([argument (in-list (node-children form))])

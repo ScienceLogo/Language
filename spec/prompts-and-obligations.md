@@ -39,7 +39,9 @@ iterations or procedure calls, with each occurrence distinguished in a run trace
 Stage declarations have distinct names across a workflow and its local procedures;
 imported library stages carry their alias. Procedure definitions also have distinct
 names, with imported procedures qualified by their alias.
-`repeat count [ ... ]` is the looping form. A procedure may measure,
+`repeat count [ ... ]`, `for each name in sequence [ ... ]`,
+`while condition [ ... ]`, and `repeat [ ... ] until condition` are the
+implemented looping forms. A procedure may measure,
 record, or ask someone to act, so it need not be a pure function returning a value.
 Whether `do` must prefix every top-level activity is still open; the
 [pendulum method](../examples/pendulum-method.rkt) shows the explicit form.

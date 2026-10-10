@@ -167,6 +167,9 @@ the workflow revision reflects its source and resolved library definitions. Dire
 imports record their resolved Git commits; imported procedures retain source references.
 A `do` call has an `invokes` relation to its procedure. Sequential
 commands have `precedes` relations; a named result has `produces` and `uses` relations.
+The first `set` of a name produces a value slot; later `set` commands record
+`updates` links to that slot. A later read records possible dependencies on
+both its creation and earlier update sites.
 For example, `do collect as observations` followed by `do analyze observations`
 expresses that the analysis depends on the collection through the named result. The
 reader checks the result's scope, and the model records this `depends-on` relation.
@@ -202,8 +205,9 @@ The procedure returns the plan; the caller prints it. A procedure may also decla
 inputs after its name. For instance, `to echo :text [output :text]` returns the one
 value supplied by `do echo "Pendulum P1" as subject`. The colon is used only for an
 input inside that procedure. A bare name such as `plan` or `subject` refers to a
-result named earlier with `as` in the current block or an enclosing block. A value
-can currently be quoted text, a declared input, or a named result. `output` ends
+value named earlier with `as` or `set` in the current block or an enclosing block. A value
+can be quoted text, an exact decimal or integer, `true`, `false`, `unknown`,
+a list, a numeric range, a declared input, or a named value. `output` ends
 the procedure call and returns one value; a call with `as` requires an `output`
 in that procedure.
 A nested `do [ ... ]` block can read results from its enclosing blocks. An `as` name
@@ -212,6 +216,58 @@ A result name cannot duplicate an input or another result visible in its block, 
 one from an enclosing block. Separate sibling blocks may use the same result name. A
 procedure sees only its declared inputs, not the caller's result names.
 
+## Lists, ranges, loops, and choices
+
+`set name to value` creates a local name or updates a visible name previously
+created with `set`. This separates a range's definition from its uses. For
+instance, the same range can drive two parameter sweeps:
+
+```text
+workflow "Which pendulum lengths should we compare?"
+set lengths to range 0.25 to 1.00 step 0.25
+for each length in lengths [print length]
+for each length in lengths [
+  if length >= 0.75 [print "longer trial"]
+]
+```
+
+The range is an ordered sequence of exact numbers. It includes the end only
+when a whole number of steps lands on it. Its bounds and step can also be
+procedure inputs or previously named values. A zero step or a step moving away
+from the end is an error. `[0.25 0.50 0.75]` is a list literal; lists can contain
+other values or lists. A `for each` collection must evaluate to a list. Nested
+`for each` blocks express combinations of parameters. These forms describe and
+run the iteration of the written method; `print` still only displays text.
+
+`repeat 3 [ ... ]` runs a block a fixed number of times; its count must be a
+nonnegative integer. `while condition [ ... ]` tests before each iteration.
+`repeat [ ... ] until condition` runs at least once and tests afterward. The
+post-test condition can use a value named inside the block for that iteration.
+Each iteration has a fresh local scope, so new names do not leak into the
+next iteration or the surrounding block. A `set` inside that block can update
+a visible `set` name from an enclosing block. Procedure inputs, `as` results,
+and `for each` iteration names cannot be updated this way. This makes a
+terminating condition possible, for example:
+
+```text
+set continue to true
+while continue [
+  print "One planned pass"
+  set continue to false
+]
+```
+
+`if condition [ ... ] else if another-condition [ ... ] else [ ... ]` runs the
+first branch whose condition is true, or the optional `else` branch. Conditions
+can be `true`, `false`, a named boolean value, a procedure input, or an infix
+comparison with `=`, `!=`, `<`, `<=`, `>`, or `>=`. Ordered comparisons require
+numbers. `unknown` explicitly represents an undetermined value; an undetermined
+or nonboolean condition raises an error rather than selecting `else`. A branch
+has its own local scope. The runner stops `while` and `repeat ... until` loops
+after 10,000 iterations with a nontermination error. The static method model
+records loop bodies and alternative branches, but does not claim that they ran
+or that a particular condition was resolved.
+
 The reader parses and validates the complete investigation before any command runs.
 Definitions may appear after their calls, including a call inside another procedure.
 Names are local to the investigation. Unknown calls, duplicate definitions, malformed
@@ -219,12 +275,13 @@ brackets, wrong input counts, unknown input or result names, calls requesting an
 output, unsupported commands, and recursive procedure calls are rejected before
 execution. A workflow file has at most one optional title line; a library file has one library
 declaration. `to` definitions belong directly in the workflow file or library block, or at the top of an
-included file. Recursion, scientific items and measurements, `repeat`,
+included file. Recursion, scientific items and measurements,
 other `must` rules, standards beyond these structural checks, agents, and `any order` are not
 implemented yet.
 
 The [first runnable example](../examples/first-slice.rkt),
 [return-a-plan example](../examples/return-a-plan.rkt), and
-[pendulum planning example](../examples/pendulum-method.rkt) can be run from an
+[pendulum planning example](../examples/pendulum-method.rkt), along with the
+[parameter sweep example](../examples/parameter-sweep.rkt), can be run from an
 installed package. The [pendulum period design case](../examples/pendulum-period.md)
 describes measurements and run checks beyond the current runnable slice.
