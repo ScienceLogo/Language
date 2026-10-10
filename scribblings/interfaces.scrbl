@@ -1,7 +1,7 @@
 #lang scribble/manual
-@(require "site-links.rkt")
+@(require "site-head.rkt" "site-links.rkt")
 
-@title[#:tag "interfaces"]{Structural assessment}
+@title[#:style (page-style) #:tag "interfaces"]{Structural assessment}
 
 An interface can state which named parts a particular method must provide and how
 an omission may affect later parts. This is a structural check, not a judgment of

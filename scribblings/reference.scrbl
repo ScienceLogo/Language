@@ -1,7 +1,7 @@
 #lang scribble/manual
-@(require "site-links.rkt")
+@(require "site-head.rkt" "site-links.rkt")
 
-@title[#:tag "reference"]{Syntax available today}
+@title[#:style (page-style) #:tag "reference"]{Syntax available today}
 
 @itemlist[
   @item{@tt{investigate "question" [ ... ]} starts the one investigation in a file.}

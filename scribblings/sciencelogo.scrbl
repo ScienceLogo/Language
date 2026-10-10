@@ -1,10 +1,10 @@
 #lang scribble/manual
-@(require racket/runtime-path "site-links.rkt")
+@(require racket/runtime-path "site-head.rkt" "site-links.rkt")
 @(define-runtime-path logo-path "../assets/logo.png")
 @(define release-tag (getenv "SCIENCELOGO_RELEASE_TAG"))
 @(define doc-commit (getenv "SCIENCELOGO_DOC_COMMIT"))
 
-@title[#:style '(toc)]{ScienceLogo}
+@title[#:style (page-style #:toc? #t)]{ScienceLogo}
 @author{Riccardo Boero}
 
 @image[logo-path #:scale 0.12]{ScienceLogo logo}

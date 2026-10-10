@@ -1,11 +1,24 @@
-/* Keep the page tree; the per-page list repeats its entries. */
+/* The current page's section links appear in its tree branch below. */
 .tocset .tocsub {
   display: none;
 }
 
-/* The left tree lists the entrance and its direct pages only. */
-.tocset .tocviewlist:not(.tocviewlisttopspace) {
+/* The selected page is already named in the main page list. */
+.tocset .tocviewlist:not(.tocviewlisttopspace) > table {
   display: none;
+}
+
+.tocset .tocviewlist:not(.tocviewlisttopspace)::before {
+  content: "On this page";
+  display: block;
+  margin: 0.5em 0.6em;
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+/* Show the current page's headings without turning them into separate pages. */
+.tocset .tocviewsublistbottom {
+  display: block !important;
 }
 
 /* Keep the contents toggle, but omit linear page navigation controls. */
