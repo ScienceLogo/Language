@@ -1,7 +1,7 @@
 #lang scribble/manual
 @(require "site-links.rkt")
 
-@title[#:style '(toc) #:tag "libraries"]{Libraries}
+@title[#:tag "libraries"]{Libraries}
 
 A ScienceLogo library is one Git repository with a @tt{main} branch and a
 @tt{library.rkt} file at its root. An investigation imports a tagged version of

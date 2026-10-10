@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@title[#:style '(toc) #:tag "getting-started"]{Getting started}
+@title[#:tag "getting-started"]{Getting started}
 
 Install from a local checkout with @tt{raco pkg install --link .}. The two programs
 below are in the repository's @tt{examples} directory.

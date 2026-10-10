@@ -3,6 +3,11 @@
   display: none;
 }
 
+/* The left tree lists the entrance and its direct pages only. */
+.tocset .tocviewlist:not(.tocviewlisttopspace) {
+  display: none;
+}
+
 /* Keep the contents toggle, but omit linear page navigation controls. */
 .navsettop .navright,
 .navsetbottom {
