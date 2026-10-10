@@ -26,12 +26,10 @@ through its local alias:
 ```text
 #lang sciencelogo
 
+workflow "Try a library"
 import "file:///absolute/path/to/hello-world" at "v1.0.0" as hello
-
-investigate "Try a library" [
-  do hello.greeting as message
-  print message
-]
+do hello.greeting as message
+print message
 ```
 
 Replace the example `file://` URL with the absolute path to your local Git
@@ -91,15 +89,13 @@ its own alias:
 ```text
 #lang sciencelogo
 
+workflow "Use both libraries"
 import "file:///absolute/path/to/welcome" at "v1.0.0" as welcome
 import "file:///absolute/path/to/messages" at "v1.0.0" as messages
-
-investigate "Use both libraries" [
-  do welcome.opening as opening
-  print opening
-  do messages.greeting as direct
-  print direct
-]
+do welcome.opening as opening
+print opening
+do messages.greeting as direct
+print direct
 ```
 
 Replace both example URLs with the absolute paths to the respective repositories.

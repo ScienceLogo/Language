@@ -5,7 +5,8 @@ checking `to`, `do`, forward references, ordered blocks, and Logo's `print` comm
 It prints a method reminder; it does not record scientific evidence. The supported
 syntax is listed in the [first-slice contract](../spec/first-slice.md).
 The [return-a-plan example](return-a-plan.rkt) shows a procedure returning a named
-result to its caller.
+result to its caller. The [pendulum method](pendulum-method.rkt) uses that syntax to
+print a timing plan; it does not perform a measurement.
 The [assessor self-description](meta-assessor/README.md) is also runnable. It shows
 the implemented structural interface check and its missing-part impact report.
 
@@ -24,10 +25,11 @@ be a checkable declaration, alongside named method components such as `prompt` a
 The [LLM variation design](../spec/llm-variation.md) expands the synthesis example with
 multiple recorded suggestions and a stated review policy.
 
-Each activity also needs a scientific context. `measure height` must eventually identify a
-plant, date, and unit; screening changes a paper's status; fitting creates a model tied to
-particular data. The first sketch leaves some details open for a beginner, while later
-sketches test how the language makes context explicit before an AI activity uses it.
+Each activity also needs a scientific context. Timing a pendulum must eventually identify
+its length, swing count, elapsed time, and units; screening changes a paper's status;
+fitting creates a model tied to particular data. The first sketch leaves some details
+open for a beginner, while later sketches test how the language makes context explicit
+before an AI activity uses it.
 
 The synthesis example also sketches a named agent's working environment: its given material,
 model, prompt, available tools, memory, and stopping rule. The run must retain what the agent
@@ -36,12 +38,11 @@ context. This tests whether one language can describe both forms of AI use.
 
 | Example | Main design question |
 | --- | --- |
-| [Plant growth](plant-growth.md) | Can a beginner read the method and its evidence rule, then grow into more advanced science in the same language? |
-| [Plant-growth standard](plant-growth-standard.md) | Can one reusable standard scaffold a method, validate its stages, check a run, and give prioritized advice? |
+| [Pendulum period](pendulum-period.md) | Can a learner build from a readable timing plan to repeated measurements, uncertainty, and an evidence-backed comparison? |
 | [Knowledge synthesis](knowledge-synthesis.md) | Can LLM-assisted screening and extraction remain traceable to sources and human decisions? |
 | [Rainfall modelling](rainfall-modelling.md) | Can the same concepts cover data preparation, model comparison, LLM proposals, and held-out evaluation? |
 
-The plant example starts without an LLM. Its later extension gives an LLM a limited role in
-describing photographs while preserving the original observations. This progression matters:
+The pendulum example starts without an LLM. Its later extension lets an LLM suggest an
+interpretation while retaining the timings and human review. This progression matters:
 ScienceLogo is a language for scientific workflows in the AI era, including investigations
 that do not use AI.

@@ -34,9 +34,8 @@ The [design examples](examples/README.md) are provisional workflows. The
 [first runnable example](examples/first-slice.rkt) exercises the implemented subset.
 The [assessor self-description](examples/meta-assessor/README.md) is a runnable
 interface, investigation, and missing-part assessment.
-Start with [plant growth](examples/plant-growth.md) for the small Logo-like form,
-then [the plant-growth standard](examples/plant-growth-standard.md) for a reusable template
-and nuanced assessment. [Knowledge synthesis](examples/knowledge-synthesis.md) introduces
+Start with [the pendulum period](examples/pendulum-period.md) for the young Galileo
+progression. [Knowledge synthesis](examples/knowledge-synthesis.md) introduces
 AI participation and human review. [Rainfall modelling](examples/rainfall-modelling.md)
 tests the same ideas in a different kind of investigation.
 

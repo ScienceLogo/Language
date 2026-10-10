@@ -7,7 +7,7 @@ in the Racket package catalog.
 ## Release target
 
 The working target is a small, runnable first draft of `#lang sciencelogo`. Its documented
-features should match its implementation. The [plant growth example](examples/plant-growth.md)
+features should match its implementation. The [pendulum period example](examples/pendulum-period.md)
 is the first readability test; the [knowledge synthesis](examples/knowledge-synthesis.md) and
 [rainfall modelling](examples/rainfall-modelling.md) examples exercise AI participation,
 obligations, evidence, and human review. These examples are currently design sketches.

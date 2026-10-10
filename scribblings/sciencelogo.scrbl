@@ -32,11 +32,11 @@ methods readable while giving people ways to inspect and supervise work performe
 with AI. The language is under development: the current runnable subset is small,
 and broader scientific and AI constructs are still being designed.
 
-Start with @secref["getting-started"], then read @secref["libraries"] for reusable
-procedures or @secref["interfaces"] for structural assessment. @secref["reference"]
-lists the syntax that runs today.
+Start with @secref["getting-started"], then use @secref["reference"] for the
+syntax that runs today. @secref["libraries"] explains reusable procedures, and
+@secref["interfaces"] covers structural assessment.
 
 @include-section["getting-started.scrbl"]
+@include-section["reference.scrbl"]
 @include-section["libraries.scrbl"]
 @include-section["interfaces.scrbl"]
-@include-section["reference.scrbl"]

@@ -1,8 +1,9 @@
 # ScienceLogo design principles (draft)
 
 **Status:** goals and tests for the language, not adopted syntax or a claim that the
-current reader implements them. The [semantic core](core.md) defines the intended
-context, method, and run records; the [first runnable slice](first-slice.md) lists
+current reader implements them. The [semantic core](core.md) defines the shared
+workflow elements and distinguishes a method from other records when present; the
+[first runnable slice](first-slice.md) lists
 what works today.
 
 ## Scope of a scientific workflow
@@ -33,12 +34,13 @@ learner can read a command, try it, see its effect, and build larger methods fro
 parts. Scientific activities, obligations, evidence, and run records require meanings
 that ordinary turtle movement alone does not supply.
 
-The [young Galileo plant investigation](../examples/plant-growth.md) is a progression
-test. A learner starts by observing and comparing plants, then adds dates, units,
-controls, missing observations, uncertainty, and evidence behind a conclusion. The
+The [young Galileo pendulum investigation](../examples/pendulum-period.md) is a
+progression test. A learner starts by timing swings at different lengths, then
+adds units, repeated trials, controlled release conditions, missing timings,
+uncertainty, and evidence behind a conclusion. The
 same language should later accommodate AI assistance without making the first lesson
 hard to read. A turtle may help teach what an action changes: `forward` changes its
-position, while `measure height` should create an observation in an investigation.
+position, while `time ten swings` should create a timing record in an investigation.
 The turtle is an optional teaching example, not a required entity in ScienceLogo.
 
 Named, nested parts should give a larger investigation structure while keeping each
@@ -77,9 +79,9 @@ publication.
 ScienceLogo should produce a machine-readable account that preserves scientific
 context, prescribed conditions, specified procedure, and observed events as distinct
 parts. It must represent loops, branches, exceptions, and human interventions; a
-simple acyclic step graph alone would lose some of that meaning. A typed intermediate
-representation is a possible implementation, but its exact shape and interchange
-format remain open. Tools must not turn an intended action into a claim that it
+simple acyclic step graph alone would lose some of that meaning. The current slice
+uses a typed method model; its broader shape and interchange format remain open.
+Tools must not turn an intended action into a claim that it
 happened or an unverified suggestion into a finding.
 
 Racket is the current tool for implementing the reader, validator, and language
@@ -108,4 +110,4 @@ against both knowledge synthesis and modelling or analysis workflows. It should:
 
 The wording and interpretation of these results should be tested with scientists and
 learners, not only with parser tests. The [semantic core's acceptance checks](core.md#acceptance-checks-for-a-later-semantic-prototype)
-give concrete plant and agent traces for this work.
+give concrete pendulum and agent traces for this work.

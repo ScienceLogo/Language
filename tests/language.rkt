@@ -156,7 +156,7 @@
                      (string-append
                       "#lang sciencelogo\n"
                       "library \"base\" [\n"
-                      "  to message :name [output :name]\n"
+                      "  to message :name [stage \"Review\" output :name]\n"
                       "]\n"))
       (commit-and-tag b "v1.0.0")
       (make-directory (build-path a "greetings"))
@@ -166,6 +166,7 @@
            (string-append
             "#lang sciencelogo\n"
             "to welcome :name [\n"
+            "  stage \"Review\"\n"
             "  do b.message :name as greeting\n"
             "  print greeting\n"
             "]\n")
@@ -234,13 +235,113 @@
 (module+ test
   (check-equal?
    (output-of
+    "#lang sciencelogo\ndo greet\nto greet [print \"Hello\"]\n")
+   "Hello\n")
+
+  (check-exn
+   #rx"workflow title appears only once"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "workflow \"First title\"\n"
+       "workflow \"Second title\"\n"))))
+
+  (check-exn
+   #rx"workflow title is not allowed in a library"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "library \"No workflow title here\" [\n"
+       "  workflow \"Forbidden\"\n"
+       "]\n"))))
+
+  (check-exn
+   #rx"workflow title appears only once at the top"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "to greeting [output \"Hello\"]\n"
+       "workflow \"Too late\"\n"))))
+
+  (check-exn
+   #rx"workflow title appears only once at the top"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "import \"file:///not-used\" at \"v1\" as example\n"
+       "workflow \"After import\"\n"))))
+
+  (check-equal?
+   (output-of
     (string-append
      "#lang sciencelogo\n"
-     "investigate \"Plant growth\" [\n"
+     "workflow \"A staged plan\"\n"
+     "  stage \"Prepare\"\n"
+     "  do make-plan as plan\n"
+     "  to make-plan [output \"ready\"]\n"
+     "  stage \"Review\"\n"
+     "  print plan\n"
+     "\n"))
+   "ready\n")
+
+  (check-exn
+   #rx"unknown procedure Review"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "workflow \"Stages are labels\"\nstage \"Review\" do Review\n"))))
+
+  (check-exn
+   #rx"duplicate stage \"Review\""
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nstage \"Review\" stage \"Review\"\n")))
+
+  (check-exn
+   #rx"duplicate stage \"Review\""
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "to prepare [stage \"Review\"]\n"
+       "to analyze [stage \"Review\"]\n"))))
+
+  (check-exn
+   #rx"duplicate stage \"Review\""
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "library \"Repeated stage\" [\n"
+       "  to prepare [stage \"Review\"]\n"
+       "  to analyze [stage \"Review\"]\n"
+       "]\n"))))
+
+  (check-exn
+   #rx"duplicate procedure prepare"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "library \"Repeated procedure\" [\n"
+       "  to prepare []\n"
+       "  to prepare []\n"
+       "]\n"))))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "workflow \"Pendulum period\"\n"
      "  do [do first print \"last\"]\n"
      "  to first [print \"first\" do second]\n"
      "  to second [print \"second\"]\n"
-     "]\n"))
+     "\n"))
    "first\nsecond\nlast\n")
 
   (check-equal?
@@ -248,11 +349,65 @@
     (string-append
      "#lang sciencelogo\n"
      "#| outer #| nested |# comment |#\n"
-     "investigate \"Notes\" [\n"
+     "workflow \"Notes\"\n"
      "  ; the brackets in the string are ordinary text\n"
-     "  print \"height [cm]\"\n"
-     "]\n"))
-   "height [cm]\n")
+     "  print \"period [s]\"\n"
+     "\n"))
+   "period [s]\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "workflow \"Call requirement\"\n"
+     "  must do compare-periods\n"
+     "  print \"requirement declared\"\n"
+     "  to compare-periods [print \"called\"]\n"
+     "\n"))
+   "requirement declared\n")
+
+  (check-exn
+   #rx"must belongs directly in a workflow file"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "workflow \"Invalid\"\ndo [must do compare-periods] "
+       "to compare-periods []\n"))))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "workflow \"Ordered stages\"\n"
+     "must stages in order [\"Prepare\" \"Time\"]\n"
+     "stage \"Prepare\"\n"
+     "stage \"Time\"\n"))
+   "")
+
+  (check-exn
+   #rx"must stages in order needs at least two stage names"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nmust stages in order [\"Prepare\"]\n")))
+
+  (check-exn
+   #rx"duplicate required stage"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nmust stages in order [\"Time\" \"Time\"]\n")))
+
+  (check-exn
+   #rx"must belongs directly in a workflow file"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\ndo [must stages in order [\"Prepare\" \"Time\"]]\n")))
+
+  (check-exn
+   #rx"expected a procedure name"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nworkflow \"Invalid\"\nto must []\n")))
 
   (define output-before-error (open-output-string))
   (check-exn
@@ -264,7 +419,7 @@
        (output-of
         (string-append
          "#lang sciencelogo\n"
-         "investigate \"Invalid\" [print \"must not run\" do missing]\n")))))
+         "workflow \"Invalid\"\nprint \"must not run\" do missing\n")))))
   (check-equal? (get-output-string output-before-error) "")
 
   (check-exn
@@ -275,7 +430,7 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [to observe [] to observe []]\n"))))
+       "workflow \"Invalid\"\nto observe [] to observe []\n"))))
 
   (check-exn
    (lambda (e)
@@ -285,7 +440,7 @@
      (output-of
      (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [to first [do second] to second [do first]]\n"))))
+       "workflow \"Invalid\"\nto first [do second] to second [do first]\n"))))
 
   (check-exn
    (lambda (e)
@@ -295,48 +450,48 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [do [print \"incomplete\"]\n"))))
+       "workflow \"Invalid\"\ndo [print \"incomplete\"\n"))))
 
   (check-equal?
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "investigate \"Plant labels\" [\n"
-     "  do make-note \"Plant B\" as note\n"
+     "workflow \"Pendulum labels\"\n"
+     "  do make-note \"Pendulum P1\" as note\n"
      "  print note\n"
-     "  to make-note :plant [\n"
-     "    do echo :plant as inner\n"
+     "  to make-note :pendulum [\n"
+     "    do echo :pendulum as inner\n"
      "    output inner\n"
      "  ]\n"
      "  to echo :item [output :item]\n"
-     "]\n"))
-   "Plant B\n")
+     "\n"))
+   "Pendulum P1\n")
 
   (check-equal?
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "investigate \"Observation day\" [\n"
-     "  do choose-day \"Bean plant\" \"Monday\" as day\n"
+     "workflow \"Timing day\"\n"
+     "  do choose-day \"Pendulum P1\" \"Monday\" as day\n"
      "  print day\n"
-     "  to choose-day :plant :day [\n"
-     "    print :plant\n"
+     "  to choose-day :pendulum :day [\n"
+     "    print :pendulum\n"
      "    do [output :day]\n"
      "  ]\n"
-     "]\n"))
-   "Bean plant\nMonday\n")
+     "\n"))
+   "Pendulum P1\nMonday\n")
 
   (check-equal?
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "investigate \"Nested results\" [\n"
+     "workflow \"Nested results\"\n"
      "  do echo \"outer\" as outer\n"
      "  do [print outer do echo \"first\" as local print local]\n"
      "  do [do echo \"second\" as local print local]\n"
      "  print outer\n"
      "  to echo :value [output :value]\n"
-     "]\n"))
+     "\n"))
    "outer\nfirst\nsecond\nouter\n")
 
   (check-exn
@@ -347,11 +502,11 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [\n"
+       "workflow \"Invalid\"\n"
        "  do echo \"outer\" as outer\n"
        "  do [do echo \"inner\" as outer]\n"
        "  to echo :value [output :value]\n"
-       "]\n"))))
+       "\n"))))
 
   (check-exn
    (lambda (e)
@@ -361,7 +516,7 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [do echo to echo :item [output :item]]\n"))))
+       "workflow \"Invalid\"\ndo echo to echo :item [output :item]\n"))))
 
   (check-exn
    (lambda (e)
@@ -371,11 +526,11 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [\n"
+       "workflow \"Invalid\"\n"
        "  do [do echo \"inside\" as note]\n"
        "  print note\n"
        "  to echo :item [output :item]\n"
-       "]\n"))))
+       "\n"))))
 
   (check-exn
    (lambda (e)
@@ -385,10 +540,10 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [\n"
+       "workflow \"Invalid\"\n"
        "  do no-result as note\n"
        "  to no-result [print \"not returned\"]\n"
-       "]\n"))))
+       "\n"))))
 
   (check-exn
    (lambda (e)
@@ -398,7 +553,7 @@
      (output-of
       (string-append
        "#lang sciencelogo\n"
-       "investigate \"Invalid\" [to local.name []]\n"))))
+       "workflow \"Invalid\"\nto local.name []\n"))))
 
   (with-library-repo
    (lambda (url)
@@ -407,12 +562,12 @@
        (format
         (string-append
          "#lang sciencelogo\n"
+         "workflow \"Use a library\"\n"
          "import ~s at \"v1.0.0\" as hello\n"
-         "investigate \"Use a library\" [\n"
          "  do hello.say-hello\n"
          "  do hello.echo \"Researcher\" as name\n"
          "  print name\n"
-         "]\n")
+         "\n")
         url))
       "Hello, world!\nResearcher\n")
      (check-exn
@@ -426,7 +581,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"main\" as hello\n"
-           "investigate \"Invalid\" [do hello.say-hello]\n")
+           "do hello.say-hello\n")
           url))))
      (check-exn
       (lambda (e)
@@ -439,7 +594,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"off-main\" as hello\n"
-           "investigate \"Invalid\" [do hello.say-hello]\n")
+           "do hello.say-hello\n")
           url))))
      (check-exn
       (lambda (e)
@@ -452,7 +607,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v-cycle\" as hello\n"
-           "investigate \"Invalid\" [do hello.say-hello]\n")
+           "do hello.say-hello\n")
           url))))
      (check-exn
       (lambda (e)
@@ -465,7 +620,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v-escape\" as hello\n"
-           "investigate \"Invalid\" [do hello.say-hello]\n")
+           "do hello.say-hello\n")
           url))))))
 
   (with-dependent-libraries
@@ -476,7 +631,7 @@
         (string-append
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as a\n"
-         "investigate \"Use a dependency\" [do a.welcome \"Scientist\"]\n")
+         "do a.welcome \"Scientist\"\n")
         a-url))
       "Scientist\n")
      (check-exn
@@ -489,7 +644,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v1.0.0\" as a\n"
-           "investigate \"Private alias\" [do b.message \"Scientist\"]\n")
+           "do b.message \"Scientist\"\n")
           a-url))))
      (check-exn
       (lambda (e)
@@ -502,7 +657,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v1.0.0\" as a\n"
-           "investigate \"Private alias\" [do a.b.message \"Scientist\"]\n")
+           "do a.b.message \"Scientist\"\n")
           a-url))))
      (check-equal?
       (output-of
@@ -511,11 +666,10 @@
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as a\n"
          "import ~s at \"v1.0.0\" as b\n"
-         "investigate \"Import both\" [\n"
          "  do a.welcome \"Scientist\"\n"
          "  do b.message \"Researcher\" as name\n"
          "  print name\n"
-         "]\n")
+         "\n")
         a-url b-url))
       "Scientist\nResearcher\n")
      (check-equal?
@@ -524,7 +678,7 @@
         (string-append
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as c\n"
-         "investigate \"Nested direct imports\" [do c.direct \"Scientist\"]\n")
+         "do c.direct \"Scientist\"\n")
         c-url))
       "Scientist\nSeparate\n")
      (check-exn
@@ -538,7 +692,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v-leak\" as c\n"
-           "investigate \"Private across libraries\" [do c.indirect \"Scientist\"]\n")
+           "do c.indirect \"Scientist\"\n")
           c-url))))
      (check-exn
       (lambda (e)
@@ -551,5 +705,5 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v-cycle\" as a\n"
-           "investigate \"Cycle\" [do a.welcome \"Scientist\"]\n")
+           "do a.welcome \"Scientist\"\n")
           a-url)))))))

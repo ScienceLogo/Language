@@ -27,30 +27,32 @@ validator checks that the name resolves in the containing scope or an imported l
 and reports missing or ambiguous names before execution. This does not let a step read
 an `as` result that has not yet been produced.
 
-`stage "name"` is a header for the following executable commands, up to the next stage
+The implemented `stage "name"` form is a header for the following executable commands, up to the next stage
 header at the same bracket depth or the end of that enclosing block. It labels a section
 for documentation and references without defining or calling a procedure, changing name
 visibility, or adding a check. Its end can be a checkpoint for a separately declared
 condition. A `to` definition between stage headers remains a definition in the enclosing
 scope; its position there does not execute it or make it part of that stage's run. In this
-sketch, `do` calls a reusable `to` procedure, not a stage header; whether a stage ever
+slice, `do` calls a reusable `to` procedure, not a stage header; whether a stage ever
 needs a separate call form remains open. The same stage may be reached in several loop
 iterations or procedure calls, with each occurrence distinguished in a run trace.
+Stage declarations have distinct names across a workflow and its local procedures;
+imported library stages carry their alias. Procedure definitions also have distinct
+names, with imported procedures qualified by their alias.
 `repeat count [ ... ]` is the looping form. A procedure may measure,
 record, or ask someone to act, so it need not be a pure function returning a value.
 Whether `do` must prefix every top-level activity is still open; the
-[plant example](../examples/plant-growth.md) shows the explicit form.
+[pendulum method](../examples/pendulum-method.rkt) shows the explicit form.
 The exact syntax for linking a stage to a research protocol remains open.
 
 For example, this source order is valid in the proposed model, even though the definition
 is written after its first call:
 
 ```text
-investigate "Does light change plant growth?" [
-  do measure-plants
-  to measure-plants [
-    measure height
-  ]
+workflow "How does length affect a pendulum's period?"
+do make-timing-plan
+to make-timing-plan [
+  print "Time ten swings at each length."
 ]
 ```
 
@@ -64,13 +66,13 @@ The language also needs a way to say that several activities are required but ma
 in any order. A candidate form is:
 
 ```text
-stage "Observe"
+stage "Prepare"
 any order [
-  do measure-plants as heights
-  do record-weather as weather
+  do measure-length as length
+  do calibrate-timer as calibration
 ]
-stage "Compare"
-do compare heights weather
+stage "Time"
+do time-swings length calibration as timing
 ```
 
 `any order` would run both calls once. The group would expose their `as` results to the
@@ -78,10 +80,10 @@ enclosing block only after both complete; neither call may use the other's resul
 inside the group. A runtime may execute them one after another or concurrently; the
 method does not require either choice. The run records each call's start, completion,
 result, and any failure; overlapping calls need not be given a fictional order.
-`Compare` cannot start until both results are available. A failed child cannot silently
+`Time` cannot start until both results are available. A failed child cannot silently
 count as completed; recovery and shared-state rules still need design.
 A checker should accept either sequential order or overlap and reject a run that starts
-`Compare` before both finish. General dependencies beyond this shared completion point
+`Time` before both finish. General dependencies beyond this shared completion point
 may need a different form. This is a semantic test and candidate spelling, not adopted
 syntax.
 
@@ -89,18 +91,18 @@ syntax.
 
 Logo [uses `:name`](https://people.eecs.berkeley.edu/~bh/docs/html/usermanual_7.html)
 for the value of a named input or variable. ScienceLogo would use `:` more narrowly: only
-for procedure inputs. The header `to measure-plant :plant [ ... ]` declares a local input
-named `plant`. Within that procedure, `:plant` reads the item supplied by the caller, and
-it can be passed to another procedure in a call. For example, a procedure with inputs
-`:sample` and `:day` may call `do measure-plant :sample :day as observation`. A caller outside
-the procedure names its own input or investigation item; the callee's `:plant` is not visible
+for procedure inputs. The header `to time-pendulum :pendulum [ ... ]` declares a local input
+named `pendulum`. Within that procedure, `:pendulum` reads the caller's item. The procedure
+can pass that item to another procedure in a call. For example, a procedure with inputs
+`:setup` and `:length` may call `do time-pendulum :setup :length as timing`. A caller outside
+the procedure names its own input or investigation item; the callee's `:pendulum` is not visible
 there. The colon is not a pointer or an instruction to change an item.
 
-`as measured-height` names a step's result in the current block; later steps there or in
-nested blocks refer to `measured-height` without a colon. `output observation` returns the
+`as elapsed-time` names a step's result in the current block; later steps there or in
+nested blocks refer to `elapsed-time` without a colon. `output timing` returns the
 named item to the caller. The call
-`do measure-plant P1 "2026-06-01" as first-observation` gives that value a local name in the
-caller. `first-observation` is then used without a colon. A result name does not change the
+`do time-pendulum P1 "0.50 m" as first-timing` gives that value a local name in the
+caller. `first-timing` is then used without a colon. A result name does not change the
 item's scientific status or provenance.
 
 The proposed `any order` group would explicitly export its child result names to the
@@ -109,17 +111,17 @@ enclosing block after completion; the exact scoping rule is part of that candida
 This remains a syntax sketch, not a runnable program:
 
 ```text
-to measure-plant :plant :day [
-  require :plant is a plant
-  require :day is a date
-  must result has plant, height, date, and unit
-  measure height of :plant in cm as measured-height
-  record measured-height for :plant on :day as observation
-  output observation
+to time-pendulum :pendulum :length [
+  require :pendulum is a pendulum
+  require :length has a unit
+  must result has pendulum, length, swing count, duration, and time unit
+  time ten swings of :pendulum at :length as elapsed-time
+  record elapsed-time for :pendulum at :length as timing
+  output timing
 ]
 
-do measure-plant P1 "2026-06-01" as first-observation
-require first-observation has date and unit
+do time-pendulum P1 "0.50 m" as first-timing
+require first-timing has duration and time unit
 ```
 
 Here `result` in the `must` rule means the item returned at a successful procedure exit.
@@ -163,13 +165,13 @@ satisfy a scientific obligation or establish that an LLM suggestion is true.
 For example, the procedure could begin with:
 
 ```text
-to measure-plant :plant :day [
-  about "Measure a plant's height and record its date and unit.
+to time-pendulum :pendulum :length [
+  about "Time ten swings and record the pendulum length and duration with units.
 
 ## Why
-These observations allow growth to be compared over time."
-  require :plant is a plant
-  require :day is a date
+Repeated timings allow periods to be compared across lengths."
+  require :pendulum is a pendulum
+  require :length has a unit
   ...
 ]
 ```
@@ -179,8 +181,11 @@ can be decided with the rules for publishing workflows.
 
 ### A small vocabulary for conditions
 
-These forms have different jobs. Their exact spelling is still open, but a prototype should
-preserve the distinctions:
+These forms have different jobs. The runnable slice currently implements
+`must do name` and `must stages in order ["First" "Second" ...]` as structural
+obligations checked against the written method. The broader forms below are
+still design work, and a prototype
+should preserve their distinctions:
 
 | Form | Meaning | When it is checked |
 | --- | --- | --- |
@@ -195,7 +200,7 @@ conformance violation. `should` is a possible word. Its spelling, the syntax for
 linking a concrete workflow to a standard, and the form of a generic comparison
 remain open. A comparison should return structured results identifying each condition,
 target, applicability, outcome, priority where relevant, and evidence.
-One candidate is `use standard "Plant growth" version "0.1"` in an investigation to
+One candidate is `use standard "Pendulum timing" version "0.1"` in an investigation to
 record the intended specification, followed by an `assess` operation on an identified
 method, run, or report. The link alone neither executes default procedures nor asserts
 compliance. Resolution to a library source, version locking, and the exact `assess`
@@ -223,7 +228,7 @@ in this run. The `must` rule says what every applicable run owes. A failed or un
 retained as a violation, according to the containing procedure's policy.
 
 The readable text after `must` cannot be arbitrary prose if the language promises a check.
-The first parser should support a small, explicit grammar for relations such as `before`,
+Broader obligations need a small, explicit grammar for relations such as `before`,
 `has`, `from`, and `when`. A sentence outside that grammar must be rejected or marked as a
 human assessment, never silently treated as a verified rule. Each parsed obligation needs:
 
@@ -239,14 +244,17 @@ For example, `must when screening suggestion is unsure [ human decision before f
 decision ]` is a scoped rule. A checker can verify that the named events occurred in order
 for each affected paper. It cannot decide whether the human's scientific judgment was good.
 The proposed `must` form may also contain a nested group of such rules. A simple beginner's
-rule remains one line: `must record a date for every height`.
+rule remains one line: `must record a time unit for every duration`.
 
-A list can make a standard's structure easier to read. Candidate forms include
-`must stages in order ["Observe" "Compare"]` for required presence and sequence, and
-`must all [ ... ]` for independent required conditions whose order is irrelevant.
-`must every recorded height has [plant value date unit]` similarly lists required
-fields without ordering them. The rule supplies the list's meaning; brackets alone do
-not imply an obligation or an ordering rule. Each condition still needs its own
+A list can make a standard's structure easier to read. The implemented
+`must stages in order ["Observe" "Compare"]` checks top-level stage presence and
+source order in one workflow file; it does not assess a run or a separate standard.
+`must all [ ... ]` remains a candidate for independent required conditions whose
+order is irrelevant.
+`must every timing has [pendulum length length-unit swing-count duration time-unit]`
+similarly lists required fields without ordering them. The rule supplies the list's
+meaning; brackets alone do not imply an obligation or an ordering rule. Each condition
+still needs its own
 inspectable finding and evidence. An `about` paragraph may contain Markdown numbered
 or bullet lists, but those remain documentation, not executable conditions.
 

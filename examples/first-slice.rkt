@@ -1,16 +1,15 @@
 #lang sciencelogo
 
-investigate "How will we study plant growth?" [
-  do [
-    do introduce
-    do finish
-  ]
+workflow "How will we study a pendulum?"
+do [
+  do introduce
+  do finish
+]
 
-  to finish [
-    print "Keep each observation with its date."
-  ]
+to finish [
+  print "Keep each timing with its length and unit."
+]
 
-  to introduce [
-    print "Measure plant height each day."
-  ]
+to introduce [
+  print "Time ten swings at each length."
 ]

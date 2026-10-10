@@ -10,7 +10,7 @@
     [`(library ,_ ,_) (void)]
     [`(fragment ,_ ,_) (void)]
     [`(interface ,_ ,_) (void)]
-    [`(investigate ,_ ,forms)
+    [`(workflow ,_ ,forms)
      (define procedures (make-hasheq))
      (for ([form (in-list forms)])
        (match form
@@ -43,6 +43,9 @@
          (match form
            [`(import ,_ ,_ ,_ ,_ ,_) (void)]
            [`(implements ,_ ,_) (void)]
+           [`(must-call ,_) (void)]
+           [`(must-stage-order ,_) (void)]
+           [`(stage ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
            [`(call ,name ,arguments ,result-name)
             (define result

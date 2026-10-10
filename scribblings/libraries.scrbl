@@ -38,12 +38,10 @@ Save the following investigation in another file. Replace the example
 @verbatim|{
 #lang sciencelogo
 
+workflow "Try a library"
 import "file:///absolute/path/to/hello-world" at "v1.0.0" as hello
-
-investigate "Try a library" [
-  do hello.greeting as message
-  print message
-]
+do hello.greeting as message
+print message
 }|
 
 The @tt{at} value selects a tag or full commit ID reachable from @tt{main}; it

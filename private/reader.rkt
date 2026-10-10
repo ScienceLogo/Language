@@ -9,7 +9,12 @@
          racket/system
          syntax/readerr)
 
-(provide sciencelogo-read sciencelogo-read-syntax parse-sciencelogo-file)
+(provide sciencelogo-read
+         sciencelogo-read-syntax
+         parse-sciencelogo-file
+         parse-sciencelogo-tree-file
+         (struct-out token)
+         (struct-out node))
 
 (struct token (kind value line column position source) #:transparent)
 (struct node (kind value children at) #:transparent)
@@ -76,9 +81,9 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "print" "output" "include" "implements"))
+  (define commands '("to" "do" "stage" "print" "output" "include" "implements" "must" "workflow"))
   (define reserved
-    (append commands '("as" "at" "import" "investigate" "library"
+    (append commands '("as" "at" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
@@ -176,8 +181,13 @@
              '() command)]
       ["import"
        (unless imports-allowed?
-         (read-error source command "import belongs directly in a library or before an investigation"))
+         (read-error source command "import belongs directly in a library or at the top of a workflow"))
        (parse-import command)]
+      ["workflow"
+       (read-error source command
+                   (if includes-allowed?
+                       "workflow title is not allowed in a library"
+                       "workflow title appears only once at the top of a workflow file"))]
       ["implements"
        (unless (and definitions-allowed? (not in-procedure?)
                     (not includes-allowed?) (not imports-allowed?))
@@ -206,6 +216,41 @@
               (loop (cons (node 'provide (list part locator) '() start)
                           backward))])))
        (node 'implements (list path alias) provisions command)]
+      ["must"
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "must belongs directly in a workflow file"))
+       (define form (expect 'word "do or stages after must"))
+       (match (token-value form)
+         ["do" (node 'must-call (named-word "a procedure name") '() command)]
+         ["stages"
+          (expect-word "in")
+          (expect-word "order")
+          (expect 'open "[ after must stages in order")
+          (define names
+            (let loop ([backward '()])
+              (case (token-kind (current))
+                [(close) (advance!) (reverse backward)]
+                [(eof) (read-error source (current) "expected ] after stage names")]
+                [else
+                 (define at (current))
+                 (define name (token-value (expect 'string "a quoted stage name")))
+                 (when (string=? name "")
+                   (read-error source at "stage name cannot be empty"))
+                 (when (member name backward)
+                   (read-error source at (format "duplicate required stage ~s" name)))
+                 (loop (cons name backward))])))
+          (when (< (length names) 2)
+            (read-error source command "must stages in order needs at least two stage names"))
+          (node 'must-stage-order names '() command)]
+         [_ (read-error source form "expected do or stages after must")])]
+      ["stage"
+       (when (or includes-allowed? imports-allowed?)
+         (read-error source command "stage belongs in a workflow or procedure"))
+       (define name (token-value (expect 'string "a quoted stage name")))
+       (when (string=? name "")
+         (read-error source command "stage name cannot be empty"))
+       (node 'stage name '() command)]
       ["do"
        (if (eq? (token-kind (current)) 'open)
            (begin
@@ -257,42 +302,54 @@
              [_ (read-error source command
                             "an interface accepts only version, require, and affects")]))
          (loop (cons form backward))])))
-  (define imports
+  (define (parse-to-eof definitions-allowed? includes-allowed?)
     (let loop ([backward '()])
-      (if (and (eq? (token-kind (current)) 'word)
-               (string=? (token-value (current)) "import"))
-          (loop (cons (parse-import (advance!)) backward))
-          (reverse backward))))
-  (define start (expect 'word "investigate, library, interface, or library fragment"))
+      (case (token-kind (current))
+        [(eof) (reverse backward)]
+        [(close) (read-error source (current) "unexpected ] at top level")]
+        [else
+         (loop (cons (parse-form definitions-allowed? #f includes-allowed? #f)
+                     backward))])))
+  (define start (current))
+  (define first-word
+    (and (eq? (token-kind start) 'word) (token-value start)))
   (define kind
-    (if (member (token-value start) '("to" "include"))
-        "fragment"
-        (token-value start)))
-  (unless (member kind '("investigate" "library" "interface" "fragment"))
-    (read-error source start "expected investigate, library, interface, or library fragment"))
+    (cond
+      [(member first-word '("library" "interface")) first-word]
+      [(or (equal? first-word "include")
+           (and (equal? expected-kind "fragment")
+                (member first-word '("to" "include"))))
+       "fragment"]
+      [else "workflow"]))
   (when (and expected-kind (not (string=? kind expected-kind)))
     (read-error source start (format "expected ~a declaration" expected-kind)))
-  (when (and (not (string=? kind "investigate")) (pair? imports))
-    (read-error source start "top-level imports belong before an investigation"))
-  (define title
-    (and (not (string=? kind "fragment"))
-         (token-value (expect 'string "a quoted investigation question or library name"))))
-  (unless (string=? kind "fragment")
-    (expect 'open "[ after the investigation question or library name"))
-  (when (string=? kind "fragment")
-    (set! index (sub1 index)))
-  (define forms
-    (if (string=? kind "fragment")
-        (let loop ([backward (list (parse-form #t #f #t #f))])
-          (if (eq? (token-kind (current)) 'eof)
-              (reverse backward)
-              (loop (cons (parse-form #t #f #t #f) backward))))
-        (if (string=? kind "interface")
-            (parse-interface-body)
-            (parse-body #t #f (string=? kind "library")
-                        (string=? kind "library")))))
+  (define-values (title imports forms)
+    (cond
+      [(string=? kind "workflow")
+       (define leading-title
+         (and (equal? first-word "workflow")
+              (begin
+                (advance!)
+                (token-value (expect 'string "a quoted workflow title")))))
+       (define imports
+         (let loop ([backward '()])
+           (if (and (eq? (token-kind (current)) 'word)
+                    (string=? (token-value (current)) "import"))
+               (loop (cons (parse-import (advance!)) backward))
+               (reverse backward))))
+       (values leading-title imports (parse-to-eof #t #f))]
+      [(string=? kind "fragment")
+       (values #f '() (parse-to-eof #t #t))]
+      [else
+       (advance!)
+       (define title (token-value (expect 'string "a quoted library or interface name")))
+       (expect 'open "[ after the library or interface name")
+       (values title '()
+               (if (string=? kind "interface")
+                   (parse-interface-body)
+                   (parse-body #t #f #t #t)))]))
   (unless (eq? (token-kind (current)) 'eof)
-    (read-error source (current) "expected end of file after investigation or library"))
+    (read-error source (current) "expected end of file after library or interface"))
   (when (member kind '("library" "fragment"))
     (for ([form (in-list forms)])
       (unless (memq (node-kind form) (if (string=? kind "library")
@@ -305,7 +362,7 @@
       [(library) (node 'library title forms start)]
       [(interface) (node 'interface title forms start)]
       [(fragment) (node 'fragment #f forms start)]
-      [(investigate) (node 'investigate title
+      [(workflow) (node 'workflow title
                            (append (resolve-imports imports) forms) start)]))
   (cond
     [(eq? (node-kind result) 'fragment) result]
@@ -339,7 +396,7 @@
      (validate-program checked source)
      checked]
     [else
-     (when (eq? (node-kind result) 'investigate)
+     (when (eq? (node-kind result) 'workflow)
        (check-direct-calls forms source))
      (validate-program result source)
      result]))
@@ -425,6 +482,9 @@
   (define (qualified name)
     (string->symbol (format "~a.~a" alias name)))
   (case (node-kind form)
+    [(stage)
+     (struct-copy node form
+                  [value (format "~a.~a" alias (node-value form))])]
     [(to)
      (struct-copy node form
                   [value (cons (qualified (procedure-name form))
@@ -576,6 +636,18 @@
     (when (hash-has-key? definitions name)
       (read-error source (node-at form) (format "duplicate procedure ~a" name)))
     (hash-set! definitions name form))
+  (define stage-names (make-hash))
+  (define (check-stage-names forms)
+    (for ([form (in-list forms)])
+      (case (node-kind form)
+        [(stage)
+         (define name (node-value form))
+         (when (hash-has-key? stage-names name)
+           (read-error source (node-at form) (format "duplicate stage ~s" name)))
+         (hash-set! stage-names name #t)]
+        [(to sequence) (check-stage-names (node-children form))]
+        [else (void)])))
+  (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
       [(parameter)
@@ -589,7 +661,7 @@
   (define (check-forms forms inputs results)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import implements) visible]
+        [(to import implements must-call must-stage-order stage) visible]
         [(sequence)
          (check-forms (node-children form) inputs visible)
          visible]
@@ -617,6 +689,15 @@
                          (format "duplicate result ~a" result-name))))
          (if result-name (cons result-name visible) visible)])))
   (check-forms (node-children program) '() '())
+  (for ([form (in-list (node-children program))]
+        #:when (eq? (node-kind form) 'must-call))
+    (define name (node-value form))
+    (when (regexp-match? #rx"[.].*[.]" (symbol->string name))
+      (read-error source (node-at form)
+                  "a library dependency is private; import it directly to name it"))
+    (unless (hash-has-key? definitions name)
+      (read-error source (node-at form)
+                  (format "unknown procedure ~a in must do" name))))
   (for ([definition (in-hash-values definitions)])
     (check-forms (node-children definition)
                  (procedure-inputs definition) '()))
@@ -638,7 +719,7 @@
 
 (define (node->datum form)
   (case (node-kind form)
-    [(investigate library fragment interface)
+    [(workflow library fragment interface)
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
     [(import) (cons 'import (node-value form))]
@@ -647,6 +728,9 @@
      (list 'implements (node-value form) (map node->datum (node-children form)))]
     [(provide affects) (cons (node-kind form) (node-value form))]
     [(version require) (list (node-kind form) (node-value form))]
+    [(must-call) (list 'must-call (node-value form))]
+    [(must-stage-order) (list 'must-stage-order (node-value form))]
+    [(stage) (list 'stage (node-value form))]
     [(to) (list 'to (procedure-name form) (procedure-inputs form)
                 (map node->datum (node-children form)))]
     [(call) (list 'call (call-name form) (map node->datum (node-children form))
@@ -655,7 +739,7 @@
     [(print output) (list (node-kind form) (node->datum (node-value form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))
 
-(define (parse-sciencelogo-file path)
+(define (parse-sciencelogo-tree-file path)
   (define full (path->complete-path path))
   (call-with-input-file full
     (lambda (in)
@@ -663,8 +747,11 @@
       (define first-line (read-line in 'any))
       (unless (and (string? first-line)
                    (string=? (string-trim first-line) "#lang sciencelogo"))
-        (error 'parse-sciencelogo-file "expected #lang sciencelogo in ~a" full))
-      (parse-program in (path->string full)))))
+        (error 'parse-sciencelogo-tree-file "expected #lang sciencelogo in ~a" full))
+      (parse-tree in (path->string full)))))
+
+(define (parse-sciencelogo-file path)
+  (node->datum (parse-sciencelogo-tree-file path)))
 
 (define (sciencelogo-read in)
   (list (list 'run-program (list 'quote (parse-program in (object-name in))))))
