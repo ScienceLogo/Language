@@ -1,4 +1,9 @@
-/* The single-page site already lists every section in .tocsub. */
-.tocset .tocview {
+/* Keep the page tree; the per-page list repeats its entries. */
+.tocset .tocsub {
+  display: none;
+}
+
+/* Scribble's version box shows the Racket version, not ScienceLogo's release. */
+.versionbox {
   display: none;
 }

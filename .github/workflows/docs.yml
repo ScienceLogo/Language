@@ -3,9 +3,13 @@ name: Documentation
 on:
   push:
     branches: [main]
+    tags: ["v*"]
     paths:
       - "scribblings/**"
       - "assets/logo.png"
+      - "examples/first-slice.rkt"
+      - "examples/return-a-plan.rkt"
+      - "examples/meta-assessor/**"
       - "info.rkt"
       - ".github/workflows/docs.yml"
   pull_request:
@@ -15,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -26,6 +30,16 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: Identify release and documentation source
+        shell: bash
+        run: |
+          release_tag="$(git tag --merged HEAD --sort=-version:refname --list 'v*' | head -n 1)"
+          if [ -n "$release_tag" ]; then
+            echo "SCIENCELOGO_RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          fi
+          echo "SCIENCELOGO_DOC_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up Racket
         uses: Bogdanp/setup-racket@v1.15
@@ -35,20 +49,20 @@ jobs:
           version: "9.3"
 
       - name: Build HTML manual
-        run: raco scribble --html ++style scribblings/pages.css --dest "$RUNNER_TEMP/site" --dest-name index.html scribblings/sciencelogo.scrbl
+        run: raco scribble --html-tree 2 ++style scribblings/pages.css --dest "$RUNNER_TEMP" --dest-name site scribblings/sciencelogo.scrbl
 
       - name: Prepare GitHub Pages
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: actions/configure-pages@v6
 
       - name: Upload HTML manual
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/site
 
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-24.04
     environment:

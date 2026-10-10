@@ -4,8 +4,8 @@ The [first runnable slice](first-slice.rkt) is a small `#lang sciencelogo` progr
 checking `to`, `do`, forward references, ordered blocks, and Logo's `print` command.
 It prints a method reminder; it does not record scientific evidence. The supported
 syntax is listed in the [first-slice contract](../spec/first-slice.md).
-The [inputs and results example](inputs-and-results.rkt) shows a procedure receiving
-one item and returning a named result.
+The [return-a-plan example](return-a-plan.rkt) shows a procedure returning a named
+result to its caller.
 The [assessor self-description](meta-assessor/README.md) is also runnable. It shows
 the implemented structural interface check and its missing-part impact report.
 
