@@ -46,6 +46,10 @@ small procedure understandable. This borrows the useful grouping idea from objec
 oriented programming without requiring classes or inheritance. Procedure calls,
 stages, and scientific items must retain their distinct meanings; nesting alone must
 not turn a stage label into an executable procedure.
+Author-written names serve references and reuse; ordinary activities and items need not
+all carry one.
+The [abstract workflow core](core.md#workflow-as-the-abstract-core) defines the
+structural types that a method, standard, and assessor should share.
 
 ## Make relevant context visible
 

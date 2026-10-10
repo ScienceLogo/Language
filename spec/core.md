@@ -9,7 +9,7 @@ wording. This document states the minimum meaning the prototype should preserve.
 
 ScienceLogo must keep three related things distinguishable:
 
-1. **Scientific context:** the named things, relationships, and available knowledge that make
+1. **Scientific context:** the things, relationships, and available knowledge that make
    an activity meaningful.
 2. **Specified method:** the activities and possible paths, together with obligations they
    must honour.
@@ -19,6 +19,92 @@ ScienceLogo must keep three related things distinguishable:
 The specified method may include loops, branches, agent actions, and human interventions.
 An observed run follows one path through it. A run record must not turn an intended action
 into a claim that it happened.
+
+## Workflow as the abstract core
+
+A **workflow specification** describes possible work and the conditions on that work. An
+investigation is a workflow with a research question; a reusable procedure describes a
+smaller piece that a workflow may call; a standard constrains workflows of a stated kind.
+An observed run is an occurrence of a specified workflow, not another specification.
+This distinction lets the same method be assessed before any work occurs and then compared
+with several observed runs.
+
+The language needs these abstract types and relationships. They describe structure; they
+do not prescribe a catalogue of scientific steps or domain data types.
+
+| Abstract type | Role in a workflow |
+| --- | --- |
+| Workflow | Contains possible activities, paths, conditions, and references to reusable procedures. It can be nested or reused without implying that source order is execution order. Its source and revision matter when it is shared or assessed. |
+| Activity | Describes work or a decision that may occur. It has possible inputs and outputs, an actor or authority where relevant, and possible success, failure, and handoff paths. A declaration is not a claim that it occurred. |
+| Scientific item | Something an activity can use, create, change, or assess. Its scientific kind and fields come from a library or investigation; its origin, status, and identity must be available when a reference or run trace needs them. |
+| Actor | A person, program, or agent that may perform an activity, with the authority and context needed for that role. |
+| Condition | A requirement, guard, check, or advisory rule with a target, scope, checkpoint, and evidence needed to assess it. These forms have distinct effects. |
+| Relation | A typed link among workflow elements: containment, use or production of an item, required order, dependency, influence, or evidential support. The link's kind determines what can be inferred from it. |
+| Run event | A recorded occurrence of an activity or decision, linked to its specification and to the actual actor, inputs, outputs, and evidence. |
+| Assessment | A finding about a specified workflow, observed run, or report under an identified condition or standard. It records what was checked and what remains undetermined. |
+
+This model does not require an author-written name for every activity or item. An element
+needs an identity when another element, condition, standard, run event, or publication
+points to it; the representation may assign that identity within an identified method
+version. A reusable procedure has an author-written name because it can be called; a stage
+has one because it is a readable reference and checkpoint boundary. Other work can remain
+unnamed in the source. A reference must identify its target unambiguously; an assessor must
+not infer a target from nearby prose or source position alone.
+
+Relations carry different meanings. Containment groups a workflow; input and output links
+describe what an activity may use or produce; an order link constrains possible execution;
+a dependency says what another activity or result relies on; an influence link supports
+tracing the possible effects of a missing or uncertain source. None of these links alone
+asserts that work happened or that a scientific claim is true. A stage groups part of the
+workflow for reading and checkpoints, but is not itself an activity. `to` defines a
+reusable procedure, while `do` calls it or executes a block.
+
+An uncertainty source may concern an activity, an item, or a relation. A structural
+assessment can distinguish a required source that was **declared** from one that was
+**omitted**, then follow stated dependencies to identify possibly affected work. Its
+magnitude, scientific importance, or claim of negligibility needs a stated method and
+evidence; those judgments do not follow from the abstract workflow types alone.
+
+The abstract types remain the same across disciplines. A library may describe a particular
+kind of observation, dataset, model, prompt, or report, together with its fields and
+specialized checks. A standard may then require typed elements and relations, including
+named ones where a protocol needs them. The language supplies the structural types,
+reference rules, and general assessment logic; the library or investigation supplies
+scientific meanings and conditions. An interface can require a named capability without
+turning that name into a built-in workflow type.
+
+The [assessor self-description](../examples/meta-assessor/README.md) is a small test of
+this separation. Its workflow is the assessment process; parsing, library resolution,
+interface checking, impact tracing, and reporting are activities named by that particular
+interface. Source files, parsed declarations, and findings are possible items. The
+`affects` links currently encode only a narrow dependency between required named parts.
+The runnable assessor can detect missing names and follow those links; it does not yet
+represent the full workflow types, their inputs and outputs, or run events. In the
+[plant-growth example](../examples/plant-growth.md), measuring and comparing are activities,
+plants and dated observations are items, and the date rule is a condition. Neither example
+requires the language to define what every scientific activity or item must be called.
+
+### Structural validation contract
+
+The next reader and assessor slice should preserve these checks before adding discipline
+specific types:
+
+- Every reference resolves to one element of the expected abstract type. An input or
+  output link targets an item; an order link targets activities. A wrong-type or ambiguous
+  reference is a structural error.
+- A workflow may contain unnamed activities and items. A required named role is checked
+  only when an interface, standard, or another explicit condition asks for it.
+- Declaring two activities does not order them. Only sequence, control flow, or an explicit
+  order relation can require one to happen before the other.
+- A missing required element or relation can affect dependents through stated links. The
+  assessment reports the missing source and affected targets separately. Declaring an
+  element or a `provide` reference does not prove that its work occurred or succeeded.
+- A method assessment uses specified structure; a run assessment uses observed events;
+  scientific adequacy may remain undetermined. Each finding identifies its target and the
+  condition that produced it.
+
+These checks can be exercised on the assessor workflow and the plant investigation. They
+do not require a fixed list of named steps for either one.
 
 ## What it means to account for AI
 
@@ -68,23 +154,24 @@ uncertain, and what changed between runs? This readable account is an output of 
 alongside the machine-checkable representation and run record. ScienceLogo supports scrutiny
 of scientific claims; it cannot guarantee their truth.
 
-## Core concepts
+## Roles built on the abstract core
 
-| Core concept | Minimum meaning |
+| Role | Minimum meaning |
 | --- | --- |
 | Investigation | Names the research question and scopes its context, method, obligations, and runs. |
 | Stage | A named section of executable method commands, beginning at a header and ending at the next header at the same nesting level or the enclosing block's end. It supports documentation, references, and checkpoints without performing an action or check itself. |
-| Scientific item | Has an identity, kind, origin, and status. It may be a plant, source, dataset, criterion, observation, claim, model, or decision. A suggestion is not automatically an accepted finding. |
-| Actor | A person, program, or agent with a named role and authority for an activity. |
-| Activity | Names its actor, readable inputs, permitted actions, possible outputs, and effect on the investigation's state. Its failure and handoff paths matter too. |
 | Agent setup | Defines the model, prompt, settings, knowledge and context it may receive, tools and permissions, memory scope, and stopping or retry rule for an agent activity. |
-| Obligation | Names what must hold, its scope and checkpoint, and what evidence could establish or refute it. It can apply to an activity, a path, or a whole run. |
+| Obligation | A condition stating what must hold, with a scope, checkpoint, and evidence that could establish or refute it. It can apply to an activity, a path, or a whole run. |
 | Standard | A reusable workflow specification in a library: stages, relationships, conditions, open choices, and optional default procedures. A research protocol can be represented this way. |
-| Assessment | Application of a named standard to a concrete method, run, or scientific report. It retains each condition's applicability, outcome, priority where relevant, and evidence or missing evidence. |
-| Run event | Records one observed activity or decision, including its actor, actual inputs and context, outputs, state change, time, and evidence references. Corrections retain the earlier record. |
 
-An activity changes the state of named scientific items and emits run evidence. The same
-written activity may have different outcomes: a measurement can be missing, an agent can be
+An assessment applying a named standard to a concrete method, run, or report retains
+each condition's applicability, outcome, priority where relevant, and evidence or missing
+evidence. Run events retain the actual actor, inputs, context, outputs, state change, time,
+and evidence references; corrections retain the earlier record.
+
+An activity specification describes possible changes to scientific items. An observed
+occurrence records what changed and the evidence available for it. The same specified
+activity may have different outcomes: a measurement can be missing, an agent can be
 uncertain, and a human can reject a suggestion. ScienceLogo therefore needs to represent
 possible transitions, not assume one predetermined result.
 
@@ -166,7 +253,8 @@ method, and direct checks on an observed run and scientific report. Applying it 
 a structured assessment. Both the standard and the concrete workflow are ScienceLogo
 representations; the language can provide a general comparison operation, while a
 library may add reusable `to` procedures for specialized checks. The method, run, and
-scientific report must be inspectable as named items rather than raw source text. A user
+scientific report must be inspectable as identifiable representations rather than raw
+source text. A user
 must be able to apply a named standard to a particular workflow; the same standard can
 assess many workflows, and one workflow may be assessed against several standards.
 The method's reference to a standard identifies a library source and exact version. It

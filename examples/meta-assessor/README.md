@@ -19,6 +19,11 @@ project, rename the parts, describe their dependencies with `affects`, and repla
 the implementation references. The interface file stays separate from the method
 that claims to implement it.
 
+The five part names belong to this assessor interface. They are not built-in ScienceLogo
+workflow types, and a workflow does not have to name every activity or item. The
+[abstract workflow model](../../spec/core.md#workflow-as-the-abstract-core) describes
+the broader types and relationships being developed.
+
 This first assessor checks **declarations and impact links**. A `provide` line is
 an implementation claim, not proof that the referenced code performs the named
 work. The assessor does not execute the scientific activities or inspect the
