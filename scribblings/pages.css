@@ -3,6 +3,12 @@
   display: none;
 }
 
+/* Keep the contents toggle, but omit linear page navigation controls. */
+.navsettop .navright,
+.navsetbottom {
+  display: none;
+}
+
 /* Scribble's version box shows the Racket version, not ScienceLogo's release. */
 .versionbox {
   display: none;
