@@ -3,6 +3,7 @@
 (require racket/list
          racket/path
          racket/string
+         "private/call-paths.rkt"
          "workflow-model.rkt")
 
 (provide assess-file
@@ -32,9 +33,9 @@
   (and (equal? (condition-model-scope condition) (workflow-model-id method))
        (eq? (condition-model-checkpoint condition) 'method)
        (case (condition-model-kind condition)
-         [(reachable-call)
+         [(required-call)
           (and (eq? (type-of (condition-model-target condition)) 'procedure)
-               (eq? (condition-model-evidence condition) 'reachable-call))]
+               (eq? (condition-model-evidence condition) 'method-paths))]
          [(stage-order)
           (and (stage-order-target? (condition-model-target condition))
                (eq? (condition-model-evidence condition) 'stage-headers))]
@@ -168,78 +169,38 @@
   (reverse issues))
 
 (define (assess-required-calls method)
-  ;; Only calls reachable from the investigation body count. A procedure that is
-  ;; merely defined, or called only by an unused procedure, does not satisfy must do.
-  (define activities
-    (for/hash ([activity (in-list (workflow-model-activities method))])
-      (values (activity-model-id activity) activity)))
-  (define stages
-    (for/hash ([stage (in-list (workflow-model-stages method))])
-      (values (stage-model-id stage) stage)))
   (define procedures
     (for/hash ([procedure (in-list (workflow-model-procedures method))])
       (values (procedure-model-id procedure) procedure)))
-  (define links (make-hash))
-  (for ([relation (in-list (workflow-model-relations method))]
-        #:when
-        (case (relation-model-kind relation)
-          [(contains)
-           (define activity (hash-ref activities (relation-model-to relation) #f))
-           (define stage (hash-ref stages (relation-model-to relation) #f))
-           (or (and activity
-                    (equal? (activity-model-parent activity)
-                            (relation-model-from relation)))
-               (and stage
-                    (equal? (stage-model-parent stage)
-                            (relation-model-from relation))))]
-          [(invokes)
-           (define activity (hash-ref activities (relation-model-from relation) #f))
-           (and activity (eq? (activity-model-kind activity) 'call)
-                (hash-has-key? procedures (relation-model-to relation)))]
-          [else #f]))
-    (hash-update! links (relation-model-from relation)
-                  (lambda (targets) (cons (relation-model-to relation) targets)) '()))
-  (define reachable (make-hash))
-  (define (visit id)
-    (unless (hash-has-key? reachable id)
-      (hash-set! reachable id #t)
-      (for ([target (in-list (hash-ref links id '()))]) (visit target))))
-  (visit (workflow-model-id method))
-  (define names
-    (for/hash ([id (in-hash-keys procedures)])
-      (values id (procedure-model-name (hash-ref procedures id)))))
-  (define call-sites (make-hash))
-  (for ([relation (in-list (workflow-model-relations method))]
-        #:when (and (eq? (relation-model-kind relation) 'invokes)
-                    (hash-has-key? reachable (relation-model-from relation))
-                    (let ([activity
-                           (hash-ref activities (relation-model-from relation) #f)])
-                      (and activity (eq? (activity-model-kind activity) 'call)))
-                    (hash-has-key? procedures (relation-model-to relation))))
-    (hash-update! call-sites (relation-model-to relation)
-                  (lambda (calls) (cons (relation-model-from relation) calls)) '()))
   (define checks '())
   (define findings '())
   (for ([condition (in-list (workflow-model-conditions method))]
-        #:when (and (eq? (condition-model-kind condition) 'reachable-call)
+        #:when (and (eq? (condition-model-kind condition) 'required-call)
                     (hash-has-key? procedures (condition-model-target condition))
                     (equal? (condition-model-scope condition)
                             (workflow-model-id method))
                     (eq? (condition-model-checkpoint condition) 'method)
-                    (eq? (condition-model-evidence condition) 'reachable-call)))
+                    (eq? (condition-model-evidence condition) 'method-paths)))
     (define target (condition-model-target condition))
-    (define calls (reverse (hash-ref call-sites target '())))
-    (define satisfied? (pair? calls))
+    (define-values (outcome calls) (required-call-paths method target))
     (set! checks
           (cons (condition-check (condition-model-id condition) target
-                                 (if satisfied? 'satisfied 'violated)
-                                 calls (if satisfied? #f 'missing-reachable-call))
+                                 outcome calls
+                                 (case outcome
+                                   [(satisfied) #f]
+                                   [(undetermined) 'conditional-call]
+                                   [else 'missing-required-call]))
                 checks))
-    (unless satisfied?
+    (unless (eq? outcome 'satisfied)
       (set! findings
-            (cons (finding 'missing-required-call #f (hash-ref names target target)
-                           '() (condition-model-id condition) target
-                           'violated (list (condition-model-source condition)))
+            (cons (finding (if (eq? outcome 'undetermined)
+                               'conditional-required-call
+                               'missing-required-call)
+                           #f (procedure-model-name (hash-ref procedures target))
+                           '() (condition-model-id condition) target outcome
+                           (if (eq? outcome 'undetermined)
+                               calls
+                               (list (condition-model-source condition))))
                   findings))))
   (values (reverse checks) (reverse findings)))
 
@@ -484,7 +445,10 @@
            (fprintf out "Multiple containment relations for ~a.\n"
                     (finding-target issue))]
           [(missing-required-call)
-           (fprintf out "Required call to ~a is absent from the investigation.\n"
+           (fprintf out "Required call to ~a is absent from feasible method paths.\n"
+                    (finding-part issue))]
+          [(conditional-required-call)
+           (fprintf out "Required call to ~a is conditional in the written method.\n"
                     (finding-part issue))]
           [(missing-required-stage)
            (fprintf out "Required stage ~s is absent from the workflow.\n"

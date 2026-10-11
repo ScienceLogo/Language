@@ -26,6 +26,75 @@
       (use interface-path method-path))
     (lambda () (delete-directory/files directory))))
 
+(define (assess-required-method body)
+  (with-sources
+   ""
+   (string-append "#lang sciencelogo\nmust do target\n"
+                  body "\nto target []\n")
+   (lambda (_interface method) (assess-file method))))
+
+(module+ test
+  (for ([body (in-list
+               '("if false [do target]"
+                 "if false [do target] else if 2 < 1 [do target]"
+                 "if false and unknown [do target]"
+                 "if ready of [ready = false] [do target]"
+                 "if item 1 of [false true] [do target]"
+                 "repeat 0 [do target]"
+                 "while false [do target]"
+                 "for each item in [] [do target]"
+                 "while true [] do target"
+                 "do helper to helper [output \"done\" do target]"))])
+    (define result (assess-required-method body))
+    (check-equal? (condition-check-outcome (first (assessment-checks result)))
+                  'violated)
+    (check-equal? (map finding-kind (assessment-findings result))
+                  '(missing-required-call)))
+
+  (for ([body (in-list
+               '("if true [do target]"
+                 "if 1 < 2 [do target]"
+                 "if 1 + 2 = 3 and not false [do target]"
+                 "if true xor false [do target]"
+                 "if true or unknown [do target]"
+                 "if ready of [ready = true note = \"planned\"] [do target]"
+                 "if ready of ([ready = false] but [ready = true]) [do target]"
+                 "if item 2 of [false true] [do target]"
+                 "if item 2 of [unknown true] [do target]"
+                 "if false [do target] else [do target]"
+                 "if false [do target] else if 1 < 2 [do target]"
+                 "if false [do target] do target"
+                 "repeat 2 [do target]"
+                 "for each item in [1] [do target]"
+                 "for each item in range 0.25 to 1 step 0.25 [do target]"
+                 "repeat [do target] until unknown"
+                 "do helper to helper [if true [do target]]"))])
+    (define result (assess-required-method body))
+    (check-equal? (condition-check-outcome (first (assessment-checks result)))
+                  'satisfied)
+    (check-equal? (assessment-findings result) '()))
+
+  (for ([body (in-list
+               '("if unknown [do target]"
+                 "if unknown xor true [do target]"
+                 "if ready of [ready = unknown] [do target]"
+                 "if [value = unknown] = [value = unknown] [do target]"
+                 "if item 1 of [unknown true] [do target]"
+                 "if unknown [do target] else [do target]"
+                 "set condition to true if condition [do target]"
+                 "repeat 2 [if unknown [do target]]"))])
+    (define result (assess-required-method body))
+    (define check (first (assessment-checks result)))
+    (check-equal? (condition-check-outcome check) 'undetermined)
+    (check-equal? (condition-check-gap check) 'conditional-call)
+    (check-equal? (map finding-kind (assessment-findings result))
+                  '(conditional-required-call)))
+
+  (define conditional (assess-required-method "if unknown [do target]"))
+  (check-regexp-match
+   #rx"Required call to target is conditional"
+   (with-output-to-string (lambda () (render-assessment conditional)))))
+
 (module+ test
   (define complete (assess-file complete-example))
   (check-equal? (assessment-findings complete) '())
@@ -119,6 +188,9 @@
      (check-equal? (length (condition-check-evidence
                             (first (assessment-checks result)))) 1)
      (define model (read-workflow-model method))
+     (check-equal? (condition-model-kind
+                    (first (workflow-model-conditions model)))
+                   'required-call)
      (define bad-condition
        (struct-copy condition-model (first (workflow-model-conditions model))
                     [target (workflow-model-id model)]))

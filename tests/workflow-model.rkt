@@ -77,6 +77,10 @@
             "  to make-plan [output \"ready\"]\n"
             "  stage \"Review\"\n"
             "  print plan\n"
+            "  set bundle to [summary = plan]\n"
+            "  set revised to bundle but [summary = plan]\n"
+            "  print summary of bundle\n"
+            "  print item 1 of [plan]\n"
             "\n")
            out))
         #:exists 'truncate)
@@ -97,6 +101,32 @@
                              (activity-model-id display-step) links))
       (check-true (relation? 'depends-on (activity-model-id display-step)
                                 (activity-model-id call) links))
+      (define bundle-step
+        (findf (lambda (a) (eq? (activity-model-kind a) 'set)) activities))
+      (define field-step
+        (second (filter (lambda (a) (eq? (activity-model-kind a) 'print))
+                        activities)))
+      (define bundle
+        (findf (lambda (i) (eq? (item-model-name i) 'bundle))
+               (workflow-model-items staged)))
+      (check-true (relation? 'depends-on (activity-model-id bundle-step)
+                             (activity-model-id call) links))
+      (define revised-step
+        (findf (lambda (a) (and (eq? (activity-model-kind a) 'set)
+                                (not (equal? (activity-model-id a)
+                                             (activity-model-id bundle-step)))))
+               activities))
+      (check-true (relation? 'depends-on (activity-model-id revised-step)
+                             (activity-model-id bundle-step) links))
+      (check-true (relation? 'depends-on (activity-model-id revised-step)
+                             (activity-model-id call) links))
+      (check-true (relation? 'uses (activity-model-id field-step)
+                             (item-model-id bundle) links))
+      (define indexed-step
+        (third (filter (lambda (a) (eq? (activity-model-kind a) 'print))
+                       activities)))
+      (check-true (relation? 'depends-on (activity-model-id indexed-step)
+                             (activity-model-id call) links))
       (check-equal? (assessment-findings (assess-workflow staged)) '()))
     (lambda () (delete-file staged-source))))
 
@@ -112,7 +142,7 @@
             "#lang sciencelogo\n"
             "set lengths to range 0.25 to 1 step 0.25\n"
             "for each length in lengths [\n"
-            "  if length < 1 [print length] else [print \"last\"]\n"
+            "  if length + 0.25 <= 1 and not false [print length] else [print \"last\"]\n"
             "]\n"
             "repeat 2 [print \"again\"]\n"
             "set continue to true\n"
@@ -127,6 +157,7 @@
       (define links (workflow-model-relations model))
       (define loop
         (findf (lambda (a) (eq? (activity-model-kind a) 'for-each)) activities))
+      (check-equal? (activity-model-control loop) '(result lengths))
       (define named-range
         (findf (lambda (i) (eq? (item-model-name i) 'lengths)) items))
       (define iteration
@@ -138,6 +169,10 @@
       (check-equal? (item-model-role iteration) 'iteration)
       (check-equal? (length (filter (lambda (a) (eq? (activity-model-kind a) 'branch))
                                     activities)) 2)
+      (define first-branch
+        (findf (lambda (a) (eq? (activity-model-kind a) 'branch)) activities))
+      (check-true (relation? 'uses (activity-model-id first-branch)
+                             (item-model-id iteration) links))
       (define continue-item
         (findf (lambda (i) (eq? (item-model-name i) 'continue)) items))
       (check-true

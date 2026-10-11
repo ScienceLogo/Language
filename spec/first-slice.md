@@ -105,12 +105,25 @@ to prepare-comparison [do compare-periods]
 to compare-periods []
 ```
 
-`must do name` belongs directly in an investigation. The assessor checks that the
-method has a call to `name` reachable from the investigation body, including calls
-through other procedures. A definition alone, or a call inside an unused procedure,
-does not satisfy it. The reader rejects an unknown procedure name. This is a check
-of the written method; it does not prove that a run took place or that the procedure
-did adequate scientific work. The declaration does not call the procedure.
+`must do name` belongs directly in an investigation. The assessor checks the
+written method's paths, including calls through other procedures. A call that
+every established path reaches is **satisfied**. A definition alone, a call
+inside an unused procedure, or one confined to `if false`, `while false`,
+`repeat 0`, or an empty `for each` collection is **violated**. If the call
+depends on a condition or count that cannot be established from literal values,
+the result is **undetermined**. An unresolved condition also prevents a
+guaranteed result. The reader rejects an unknown procedure name. This check
+does not prove that a run took place or that the procedure did adequate
+scientific work. The declaration does not call the procedure.
+
+This first path check resolves literal booleans and comparisons, fixed counts,
+and whether literal lists or valid literal ranges are empty. It follows nested
+blocks, procedure calls, and early `output`. Named values, procedure inputs,
+and procedure results remain unknown to this check, even when another line
+sets a name to a literal. For a loop known to run, the checker analyzes its
+first iteration for a required call; it does not infer later state changes.
+Undetermined findings remain visible in the assessor report and cause a
+nonzero command exit status.
 
 The workflow can require an ordered set of top-level stage headers:
 
@@ -189,8 +202,10 @@ a possible downstream impact as undetermined. The assessor also rejects malforme
 typed relations in a constructed method model. The parser validates names and call
 references before a model is built. Every stage, activity, and named item must have exactly
 one containment link to its recorded parent; the assessor reports a missing,
-duplicate, or mismatched link. `must do` conditions are also retained in the method
-model and reported as satisfied or violated by the assessor.
+duplicate, or mismatched link. Control activities retain their condition or
+collection expression so the assessor can distinguish reachable, conditional,
+and impossible calls. `must do` conditions are retained in the method model
+and reported as satisfied, violated, or undetermined by the assessor.
 
 A procedure can return a value, which its caller may name with `as`. For example:
 
@@ -207,7 +222,9 @@ value supplied by `do echo "Pendulum P1" as subject`. The colon is used only for
 input inside that procedure. A bare name such as `plan` or `subject` refers to a
 value named earlier with `as` or `set` in the current block or an enclosing block. A value
 can be quoted text, an exact decimal or integer, `true`, `false`, `unknown`,
-a list, a numeric range, a declared input, or a named value. `output` ends
+a list, a numeric range, a declared input, or a named value. Values can be
+combined into arithmetic and Boolean expressions. Write spaces around
+operators; use parentheses to group expressions. `output` ends
 the procedure call and returns one value; a call with `as` requires an `output`
 in that procedure.
 A nested `do [ ... ]` block can read results from its enclosing blocks. An `as` name
@@ -215,6 +232,48 @@ made inside that nested block stays there: enclosing and sibling blocks cannot r
 A result name cannot duplicate an input or another result visible in its block, including
 one from an enclosing block. Separate sibling blocks may use the same result name. A
 procedure sees only its declared inputs, not the caller's result names.
+
+## Named fields
+
+Brackets beginning with `name = value` create a value with named fields:
+
+```text
+set trial to [
+  temperature = 0.8
+  prompt = "tell me the capital of Peru"
+]
+print temperature of trial
+```
+
+The field names are labels, and the values can be quoted text, exact numbers,
+expressions, lists, or other values with named fields. Field names are unique.
+`temperature of trial` reads a field and raises an error if `trial` has no
+named fields or lacks `temperature`. Field order does not affect equality.
+The brackets still denote an ordinary list when they do not begin with
+`name = value`: `[x y]` contains two named values, and `[[1 2] [3 4]]`
+contains two rows. Parenthesize a comparison meant to be a list item, as in
+`[(x = y)]`. The language supplies this generic structure; libraries can
+define what particular fields mean.
+
+`record but [field = value ...]` makes a new named-field value from `record`.
+Fields in the brackets replace existing fields or add new ones; other fields
+are retained. The original value is unchanged. The value before `but` must
+have named fields, and the brackets after `but` must contain named fields.
+For example:
+
+```text
+set human to [species = "human" gender = "unspecified"]
+set john to human but [gender = "male"]
+set earlier to john
+set john to john but [height = 193]
+```
+
+`earlier` still has the value it received before the last assignment, while
+`john` now also has `height`. A plain `set another to john` assigns
+the same immutable value without needing `but`. Quoted text such as `"male"`
+is literal; an unquoted name refers to a value defined earlier. A reusable
+record can supply defaults, while an interface states structural obligations;
+an interface is not itself a record of default values.
 
 ## Lists, ranges, loops, and choices
 
@@ -239,6 +298,15 @@ other values or lists. A `for each` collection must evaluate to a list. Nested
 `for each` blocks express combinations of parameters. These forms describe and
 run the iteration of the written method; `print` still only displays text.
 
+List positions start at 1. `item 1 of lengths` reads the first value;
+`item 0 of lengths` is an error. An index can be a named value or expression,
+as in `item position of lengths` or `item 1 + 1 of lengths`. It must be an
+exact positive integer within the list. A matrix represented as a list of
+rows uses the same rule at each level: `item 2 of item 1 of grid` reads the
+second value of the first row. `item` needs a list; named fields use
+`field of value`. A numeric range may still start at zero because its values
+are not list positions.
+
 `repeat 3 [ ... ]` runs a block a fixed number of times; its count must be a
 nonnegative integer. `while condition [ ... ]` tests before each iteration.
 `repeat [ ... ] until condition` runs at least once and tests afterward. The
@@ -257,12 +325,28 @@ while continue [
 ]
 ```
 
+A changing count can be written `set attempts to attempts + 1`. Arithmetic
+supports `+`, `-`, `*`, and `/` on exact numbers. A finite decimal quotient
+is displayed as a decimal; another rational quotient is displayed as a
+fraction, such as `1/3`. Division by zero is an error. Expressions also work
+in range bounds and steps, repeat counts, lists, outputs, and procedure
+arguments. For example, `do add 1 + 2 (3 * 4) as total` supplies two inputs.
+
 `if condition [ ... ] else if another-condition [ ... ] else [ ... ]` runs the
 first branch whose condition is true, or the optional `else` branch. Conditions
-can be `true`, `false`, a named boolean value, a procedure input, or an infix
-comparison with `=`, `!=`, `<`, `<=`, `>`, or `>=`. Ordered comparisons require
-numbers. `unknown` explicitly represents an undetermined value; an undetermined
-or nonboolean condition raises an error rather than selecting `else`. A branch
+can combine Boolean values and comparisons with `=`, `!=`, `<`, `<=`, `>`, or
+`>=`. Ordered comparisons require numbers. `not` reverses a Boolean value,
+`and` needs both sides true, `or` needs either side true, and `xor` needs
+exactly one side true. Precedence from strongest to weakest is parentheses,
+unary `-`, `*` and `/`, `+` and `-`, comparisons, `not`, `and`, `xor`, then
+`or`. Field access with `of` binds more tightly than `but`, which binds more
+tightly than unary `-` and arithmetic. Operators at one level associate left to
+right. Comparisons cannot be
+chained; combine them with `and`. `unknown` explicitly represents an
+undetermined value. `false and unknown` resolves to `false`, and `true or
+unknown` resolves to `true`; other uses of `unknown` remain undetermined. An
+undetermined or nonboolean condition raises an error rather than selecting
+`else`. A branch
 has its own local scope. The runner stops `while` and `repeat ... until` loops
 after 10,000 iterations with a nontermination error. The static method model
 records loop bodies and alternative branches, but does not claim that they ran

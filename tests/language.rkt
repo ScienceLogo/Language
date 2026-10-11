@@ -302,6 +302,188 @@
      "repeat [do decide true as finished] until finished\n"))
    "3\n2\n1\n3\n2\n1\n")
 
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "print 1 + 2 * 3\n"
+     "print (1 + 2) * 3\n"
+     "print 1 / 4 + 0.5\n"
+     "print 5 - 2 - 1\n"
+     "print - 2 * 3\n"
+     "print 1 / 3\n"
+     "set steps to range 0 to (2 + 2) step 1 + 1\n"
+     "print steps\n"
+     "print [1 + 2 4]\n"))
+   "7\n9\n0.75\n2\n-6\n1/3\n[0 2 4]\n[3 4]\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "print true or false and false\n"
+     "print true xor true\n"
+     "print true xor false\n"
+     "print not true or false\n"
+     "print not 1 = 2\n"
+     "print true and not false\n"
+     "print false and unknown\n"
+     "print true or unknown\n"
+     "print unknown xor true\n"
+     "print true xor true and false\n"
+     "print true or true xor true\n"
+     "print false and (1 / 0)\n"
+     "print true or (1 / 0)\n"))
+   "true\nfalse\ntrue\nfalse\ntrue\ntrue\nfalse\ntrue\nunknown\ntrue\ntrue\nfalse\ntrue\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set attempts to 0\n"
+     "while attempts < 3 and not (attempts = 2) ["
+     "set attempts to attempts + 1 print attempts]\n"
+     "do add 1 + 2 (3 * 4) as total\n"
+     "print total\n"
+     "to add :a :b [output :a + :b]\n"))
+   "1\n2\n15\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set trial to [temperature = 0.5 + 0.3 "
+     "prompt = \"tell me the capital of Peru\"]\n"
+     "print temperature of trial\n"
+     "print temperature of trial + 0.2\n"
+     "print prompt of trial\n"
+     "print trial\n"
+     "do echo trial as copy\n"
+     "print temperature of copy\n"
+     "if trial = [prompt = \"tell me the capital of Peru\" "
+     "temperature = 0.8] [print \"same fields\"]\n"
+     "set nested to [measurement = [unit = \"C\"]]\n"
+     "print unit of measurement of nested\n"
+     "set x to 1 set y to 2 print [x y]\n"
+     "print [[1 2] [3 4]]\n"
+     "print [(1 = 1)]\n"
+     "to echo :item [output :item]\n"))
+   (string-append
+    "0.8\n1\ntell me the capital of Peru\n"
+    "[prompt = \"tell me the capital of Peru\" temperature = 0.8]\n"
+    "0.8\nsame fields\nC\n[1 2]\n[[1 2] [3 4]]\n[true]\n"))
+
+  (check-exn
+   #rx"duplicate field temperature"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nset trial to [temperature = 0.8 temperature = 0.9]\n")))
+
+  (check-exn
+   #rx"missing field period"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nset trial to [temperature = 0.8]\nprint period of trial\n")))
+
+  (check-exn
+   #rx"field temperature needs a named-field value"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nset trial to [0.8]\nprint temperature of trial\n")))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set human to [species = \"human\" gender = \"unspecified\"]\n"
+     "set john to human but [gender = \"male\"]\n"
+     "set earlier to john\n"
+     "set john to john but [height = 193]\n"
+     "print gender of human\n"
+     "print gender of earlier\n"
+     "print height of john\n"
+     "print earlier\n"
+     "print height of (john but [height = 194])\n"
+     "print height of john\n"))
+   (string-append
+    "unspecified\nmale\n193\n"
+    "[gender = \"male\" species = \"human\"]\n"
+    "194\n193\n"))
+
+  (check-exn
+   #rx"but needs a named-field value"
+   (lambda ()
+     (output-of "#lang sciencelogo\nprint 1 but [height = 193]\n")))
+
+  (check-exn
+   #rx"but needs named fields in"
+   (lambda ()
+     (output-of "#lang sciencelogo\nprint [height = 170] but [193]\n")))
+
+  (check-exn
+   #rx"duplicate field height"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nprint [height = 170] but [height = 193 height = 194]\n")))
+
+  (check-exn
+   #rx"condition is undetermined"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\nif [value = unknown] = [value = unknown] [print \"same\"]\n")))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "set lengths to [0.25 0.5 0.75]\n"
+     "print item 1 of lengths\n"
+     "print item 3 of lengths\n"
+     "set position to 2\n"
+     "print item position of lengths\n"
+     "print item 1 + 1 of lengths\n"
+     "set grid to [[10 20] [30 40]]\n"
+     "print item 2 of grid\n"
+     "print item 2 of item 1 of grid\n"
+     "for each item in [1 2] [print item]\n"
+     "set trial to [item = \"label\"]\n"
+     "print item of trial\n"
+     "print item unknown of lengths\n"))
+   "0.25\n0.75\n0.5\n0.5\n[30 40]\n20\n1\n2\nlabel\nunknown\n")
+
+  (check-exn
+   #rx"item index must be a positive integer starting at 1"
+   (lambda () (output-of "#lang sciencelogo\nprint item 0 of [1 2]\n")))
+
+  (check-exn
+   #rx"item index must be a positive integer starting at 1"
+   (lambda () (output-of "#lang sciencelogo\nprint item 1.5 of [1 2]\n")))
+
+  (check-exn
+   #rx"item index 3 is outside a list of 2 items"
+   (lambda () (output-of "#lang sciencelogo\nprint item 3 of [1 2]\n")))
+
+  (check-exn
+   #rx"item needs an ordered list"
+   (lambda ()
+     (output-of "#lang sciencelogo\nprint item 1 of [temperature = 0.8]\n")))
+
+  (check-exn
+   #rx"division by zero"
+   (lambda () (output-of "#lang sciencelogo\nprint 1 / 0\n")))
+
+  (check-exn
+   #rx"Boolean operator needs true or false"
+   (lambda () (output-of "#lang sciencelogo\nif 1 and true [print \"yes\"]\n")))
+
+  (check-exn
+   #rx"comparison cannot be chained"
+   (lambda () (output-of "#lang sciencelogo\nif 1 < 2 < 3 [print \"yes\"]\n")))
+
+  (check-exn
+   #rx"condition is undetermined"
+   (lambda () (output-of "#lang sciencelogo\nif unknown xor true [print \"yes\"]\n")))
+
   (check-exn
    #rx"condition is undetermined"
    (lambda () (output-of

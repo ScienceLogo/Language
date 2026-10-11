@@ -21,6 +21,8 @@ These forms are implemented in the current reader and assessor.
   @item{@tt{repeat count [ ... ]} runs a block a fixed number of times.}
   @item{@tt{for each name in sequence [ ... ]} runs a block for each item in
         an ordered sequence. @tt{name} is local to each iteration.}
+  @item{@tt{item position of sequence} reads one item from an ordered list.
+        Positions start at 1.}
   @item{@tt{while condition [ ... ]} tests before each iteration.}
   @item{@tt{repeat [ ... ] until condition} runs at least once, then tests
         after each iteration. Its condition may refer to a value named in the block.}
@@ -40,8 +42,10 @@ These forms are implemented in the current reader and assessor.
         a workflow file, before method forms, or directly inside a library block.}
   @item{@tt{interface "name" [version "..." require part ... affects source target ...]}
         declares required names and structural impact links in a separate file.}
-  @item{@tt{must do name} declares that the investigation's written method must
-        contain a reachable call to @tt{name}. It belongs directly in an investigation.}
+  @item{@tt{must do name} requires a call to @tt{name} on the written method's
+        established paths. The assessor reports satisfied, violated, or
+        undetermined when the call depends on unresolved control flow. It
+        belongs directly in an investigation.}
   @item{@tt{must stages in order ["First" "Second" ...]} requires at least two
         distinct top-level stage headers in that order. Other stages may occur
         between them. It belongs directly in a workflow file.}
@@ -51,11 +55,17 @@ These forms are implemented in the current reader and assessor.
 
 A value can be quoted text, a number, @tt{true}, @tt{false}, @tt{unknown}, a
 list such as @tt{[1 2 3]}, a numeric range, a declared @tt{:input} inside its
-procedure, or a name introduced earlier by @tt{as} or @tt{set}. For example:
+procedure, or a name introduced earlier by @tt{as} or @tt{set}. Values can be
+combined into expressions. Write spaces around operators; use parentheses to
+group an expression. For example:
 
 @verbatim|{
 set lengths to range 0.25 to 1.00 step 0.25
 for each length in lengths [print length]
+set attempts to 0
+while attempts < 3 and not (attempts = 2) [
+  set attempts to attempts + 1
+]
 }|
 
 The range includes its end only when an exact step lands on it. Bounds and
@@ -64,12 +74,73 @@ nonzero and move toward the end; decimal inputs use exact arithmetic. Lists
 can contain values and other lists. A @tt{for each} collection must evaluate
 to an ordered list; separate loops can reuse one named list or range.
 
-Conditions accept a boolean value or a comparison of two values with
-@tt{=}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>}, or @tt{>=}. Ordered comparisons
-require numbers. @tt{unknown}, or any nonboolean condition, stops execution
-with an explicit error; it never selects @tt{else} by default. The runner
-stops a @tt{while} or @tt{repeat ... until} loop after 10,000 iterations
-with a nontermination error.
+Brackets beginning with @tt{name = value} make a value with named fields:
+
+@verbatim|{
+set trial to [
+  temperature = 0.8
+  prompt = "tell me the capital of Peru"
+]
+print temperature of trial
+}|
+
+The field names are unquoted labels; each field's value may be quoted text,
+a number, an expression, a list, or another value with named fields. Field
+names must be distinct. @tt{temperature of trial} reads a field; it raises
+an error if @tt{trial} has no named fields or lacks @tt{temperature}. Field
+order does not affect equality. Brackets without an initial @tt{name =}
+remain lists: @tt{[x y]} is a list of two named values, and
+@tt{[[1 2] [3 4]]} is a list of rows. To put a comparison in a list, group
+it: @tt{[(x = y)]}.
+
+Use @tt{record but [field = value ...]} to create a new record, replacing or
+adding the listed fields while keeping the others. The original record does
+not change. The left side must have named fields, and the right side must be
+named-field brackets:
+
+@verbatim|{
+set human to [species = "human" gender = "unspecified"]
+set john to human but [gender = "male"]
+set earlier to john
+set john to john but [height = 193]
+}|
+
+@tt{earlier} retains the value assigned before the last line. A plain
+@tt{set another to john} assigns the same immutable value without
+@tt{but}. @tt{"male"} is literal text; an unquoted name refers to a value
+named earlier. A record can supply defaults; an interface declares structural
+requirements and does not supply a record of defaults.
+
+List positions start at 1. @tt{item 1 of lengths} reads the first value;
+@tt{item 0 of lengths} is an error. The position can be a named value or an
+expression, as in @tt{item position of lengths} or
+@tt{item 1 + 1 of lengths}. It must be an exact positive integer within the
+list. A matrix represented as a list of rows follows the same rule for each
+level: @tt{item 2 of item 1 of grid} reads the second value of the first row.
+@tt{item} requires a list, so named fields are read with @tt{field of value}.
+Numeric ranges can still begin with zero; their numbers are values, not
+list positions.
+
+Arithmetic uses @tt{+}, @tt{-}, @tt{*}, and @tt{/}, with exact numbers. Division
+by zero is an error; a quotient that has no finite decimal form is displayed
+as a fraction, such as @tt{1/3}. The same operators work in range bounds,
+counts, and procedure arguments. Each argument is an expression: for example,
+@tt{do add 1 + 2 (3 * 4) as total} supplies two arguments.
+
+Conditions accept a Boolean expression or a comparison with @tt{=}, @tt{!=},
+@tt{<}, @tt{<=}, @tt{>}, or @tt{>=}. Ordered comparisons require numbers.
+@tt{not} reverses a Boolean value; @tt{and} needs both sides true; @tt{or}
+needs either side true; @tt{xor} needs exactly one side true. From strongest
+to weakest, precedence is parentheses, access with @tt{of}, @tt{but}, unary
+@tt{-}, @tt{*} and @tt{/},
+@tt{+} and @tt{-}, comparisons, @tt{not}, @tt{and}, @tt{xor}, then @tt{or}.
+Operators at the same level associate left to right. Use @tt{and} to combine
+comparisons rather than chaining them. @tt{false and unknown} is @tt{false};
+@tt{true or unknown} is @tt{true}; other Boolean uses of @tt{unknown} remain
+undetermined. An undetermined or nonboolean condition stops execution with an
+explicit error; it never selects @tt{else} by default. The runner stops a
+@tt{while} or @tt{repeat ... until} loop after 10,000 iterations with a
+nontermination error.
 
 A nested block can read values from its enclosing blocks and update a visible
 @tt{set} name. New names introduced inside @tt{do}, a loop, or a branch stay

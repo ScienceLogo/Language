@@ -13,6 +13,7 @@
          sciencelogo-read-syntax
          parse-sciencelogo-file
          parse-sciencelogo-tree-file
+         node->datum
          (struct-out token)
          (struct-out node))
 
@@ -47,7 +48,7 @@
   (define (word-char? c)
     (and (char? c)
          (not (char-whitespace? c))
-         (not (memv c '(#\[ #\] #\; #\" #\#)))))
+         (not (memv c '(#\[ #\] #\( #\) #\; #\" #\#)))))
   (let loop ([backward '()])
     (define start (at 'pending #f))
     (define c (peek-char in))
@@ -66,6 +67,12 @@
       [(char=? c #\])
        (read-char in)
        (loop (cons (struct-copy token start [kind 'close] [value "]"]) backward))]
+      [(char=? c #\()
+       (read-char in)
+       (loop (cons (struct-copy token start [kind 'left-paren] [value "("]) backward))]
+      [(char=? c #\))
+       (read-char in)
+       (loop (cons (struct-copy token start [kind 'right-paren] [value ")"]) backward))]
       [(char=? c #\")
        (define value (read in))
        (loop (cons (struct-copy token start [kind 'string] [value value]) backward))]
@@ -86,7 +93,8 @@
     (append commands '("as" "at" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
-                       "unknown" "=" "!=" "<" "<=" ">" ">=")))
+                       "unknown" "=" "!=" "<" "<=" ">" ">="
+                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -110,18 +118,93 @@
                    (char=? (string-ref text 0) #\:)))
       (read-error source found (format "expected ~a" description)))
     (string->symbol text))
-  (define (parse-value)
+  (define comparisons '("=" "!=" "<" "<=" ">" ">="))
+  (define (operator-precedence name)
+    (cond [(string=? name "of") 80]
+          [(string=? name "but") 75]
+          [(member name '("*" "/")) 60]
+          [(member name '("+" "-")) 50]
+          [(member name comparisons) 40]
+          [(string=? name "and") 30]
+          [(string=? name "xor") 20]
+          [(string=? name "or") 10]
+          [else #f]))
+  (define (parse-value [minimum 0] [stop-word #f])
+    (define left (parse-atom stop-word))
+    (let loop ([left left])
+      (define found (current))
+      (define operator
+        (and (eq? (token-kind found) 'word)
+             (not (and stop-word (string=? (token-value found) stop-word)))
+             (operator-precedence (token-value found))))
+      (if (and operator (>= operator minimum))
+          (begin
+            (when (and (= operator 40) (eq? (node-kind left) 'compare))
+              (read-error source found "comparison cannot be chained; use and"))
+            (when (and (= operator 80) (not (eq? (node-kind left) 'result)))
+              (read-error source found "expected a field name before of"))
+            (advance!)
+            (let ([right (if (= operator 75)
+                             (let ([value (parse-atom stop-word)])
+                               (unless (eq? (node-kind value) 'fields)
+                                 (read-error source found
+                                             "but needs named fields in [name = value]"))
+                               value)
+                             (parse-value (if (= operator 80)
+                                              operator
+                                              (add1 operator))
+                                          stop-word))])
+              (loop (cond
+                      [(= operator 80)
+                       (node 'field-ref (node-value left) (list right) found)]
+                      [(= operator 75)
+                       (node 'but #f (list left right) found)]
+                      [else
+                       (node (if (= operator 40) 'compare 'binary)
+                             (string->symbol (token-value found))
+                             (list left right) found)]))))
+          left)))
+  (define (parse-atom [stop-word #f])
     (define found (current))
     (case (token-kind found)
+      [(left-paren)
+       (advance!)
+       (define value (parse-value))
+       (expect 'right-paren ") after grouped expression")
+       value]
       [(open)
        (advance!)
-       (node 'list #f
-             (let loop ([backward '()])
-               (case (token-kind (current))
-                 [(close) (advance!) (reverse backward)]
-                 [(eof) (read-error source (current) "expected ] after list values")]
-                 [else (loop (cons (parse-value) backward))]))
-             found)]
+       (define fields?
+         (and (eq? (token-kind (current)) 'word)
+              (< (add1 index) (vector-length tokens))
+              (let ([next (vector-ref tokens (add1 index))])
+                (and (eq? (token-kind next) 'word)
+                     (string=? (token-value next) "=")))))
+       (if fields?
+           (node 'fields #f
+                 (let loop ([backward '()] [seen '()])
+                   (case (token-kind (current))
+                     [(close) (advance!) (reverse backward)]
+                     [(eof) (read-error source (current) "expected ] after named fields")]
+                     [else
+                      (define field-at (current))
+                      (define name (named-word "a field name"))
+                      (when (memq name seen)
+                        (read-error source field-at
+                                    (format "duplicate field ~a" name)))
+                      (expect-word "=")
+                      (define value (parse-value))
+                      (loop (cons (node 'field-entry name (list value) field-at)
+                                  backward)
+                            (cons name seen))]))
+                 found)
+           (node 'list #f
+                 (let loop ([backward '()])
+                   (case (token-kind (current))
+                     [(close) (advance!) (reverse backward)]
+                     [(eof) (read-error source (current) "expected ] after list values")]
+                     [else (loop (cons (parse-value) backward))]))
+                 found))]
       [(string)
        (advance!)
        (node 'literal (token-value found) '() found)]
@@ -129,6 +212,24 @@
        (define text (token-value found))
        (advance!)
        (cond
+         [(string=? text "not")
+          (node 'unary 'not (list (parse-value 40 stop-word)) found)]
+         [(string=? text "-")
+          (node 'unary '- (list (parse-value 70 stop-word)) found)]
+         [(string=? text "item")
+          (define saved index)
+          (define position
+            (with-handlers ([exn:fail:read? (lambda (_) #f)])
+              (parse-value 0 "of")))
+          (if (and position
+                   (eq? (token-kind (current)) 'word)
+                   (string=? (token-value (current)) "of"))
+              (begin
+                (advance!)
+                (node 'item-ref #f (list position (parse-value 80)) found))
+              (begin
+                (set! index saved)
+                (node 'result 'item '() found)))]
          [(string=? text "range")
           (define start (parse-value))
           (expect-word "to")
@@ -147,17 +248,7 @@
           (read-error source found "expected a value")]
          [else (node 'result (string->symbol text) '() found)])]
       [else (read-error source found "expected a value")]))
-  (define comparisons '("=" "!=" "<" "<=" ">" ">="))
-  (define (parse-condition)
-    (define left (parse-value))
-    (define found (current))
-    (if (and (eq? (token-kind found) 'word)
-             (member (token-value found) comparisons))
-        (begin
-          (advance!)
-          (node 'compare (string->symbol (token-value found))
-                (list left (parse-value)) found))
-        left))
+  (define (parse-condition) (parse-value))
   (define (parse-if command in-procedure?)
     (define (branch start condition)
       (expect 'open "[ after if condition or else")
@@ -731,7 +822,7 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list range compare)
+      [(list fields field-entry field-ref item-ref range compare binary unary but)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
       [(parameter)
@@ -873,8 +964,25 @@
                  (node->datum (cdr (node-value form))))]
     [(print output) (list (node-kind form) (node->datum (node-value form)))]
     [(list range) (list (node-kind form) (map node->datum (node-children form)))]
-    [(compare) (list 'compare (node-value form)
-                     (map node->datum (node-children form)))]
+    [(fields)
+     (list 'fields
+           (for/list ([field (in-list (node-children form))])
+             (list (node-value field)
+                   (node->datum (car (node-children field))))))]
+    [(field-ref)
+     (list 'field-ref (node-value form)
+           (node->datum (car (node-children form))))]
+    [(item-ref)
+     (list 'item-ref
+           (node->datum (first (node-children form)))
+           (node->datum (second (node-children form))))]
+    [(but)
+     (list 'but
+           (node->datum (first (node-children form)))
+           (node->datum (second (node-children form))))]
+    [(compare binary unary)
+     (list (node-kind form) (node-value form)
+           (map node->datum (node-children form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))
 
 (define (parse-sciencelogo-tree-file path)

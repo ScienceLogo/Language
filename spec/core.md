@@ -53,7 +53,7 @@ and results with `item-model`, and explicit links with `relation-model`. An inte
 `assess-workflow` returns an `assessment` with checks and findings. This implements
 only part of the contract: named inputs and results are value slots, and arbitrary
 scientific item kinds and conditions are not yet readable ScienceLogo syntax. The
-assessor checks method structure, reachable required calls, ordered stage requirements,
+assessor checks method structure, required calls across established control paths, ordered stage requirements,
 and interface declarations, not scientific adequacy.
 
 This model does not require an author-written name for every activity or item. An element

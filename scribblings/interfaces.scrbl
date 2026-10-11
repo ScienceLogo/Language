@@ -77,9 +77,12 @@ to compare-periods []
 }|
 
 The assessor reports this condition as satisfied because the investigation calls
-@tt{prepare-comparison}, which calls @tt{compare-periods}. A definition alone, or a
-call inside an unused procedure, does not satisfy it. The declaration does not run
-the procedure. It checks the method's call structure, not whether the work happened
+@tt{prepare-comparison}, which calls @tt{compare-periods} on the written method's
+required path. A definition alone, a call inside an unused procedure, or a call
+only under @tt{if false} or @tt{repeat 0} does not satisfy it. A call that depends
+on an unresolved condition is reported as undetermined. This check resolves
+literal conditions and counts; named values and procedure inputs remain unknown.
+The declaration does not run the procedure or establish that the work happened
 or was scientifically adequate.
 
 @section{Inspect the method model}

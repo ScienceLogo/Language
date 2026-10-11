@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/match racket/string)
+(require racket/list racket/match racket/string)
 
 (provide (all-from-out racket/base) run-program)
 
@@ -47,6 +47,20 @@
          [(boolean? value) (if value "true" "false")]
          [(eq? value 'unknown) "unknown"]
          [(and (rational? value) (exact? value)) (decimal-text value)]
+         [(hash? value)
+          (string-append
+           "["
+           (string-join
+            (for/list ([name (in-list
+                              (sort (hash-keys value) string<?
+                                    #:key symbol->string))])
+              (define field-value (hash-ref value name))
+              (format "~a = ~a" name
+                      (if (string? field-value)
+                          (format "~s" field-value)
+                          (render-value field-value))))
+            " ")
+           "]")]
          [(list? value)
           (string-append "[" (string-join (map render-value value) " ") "]")]
          [else (format "~a" value)]))
@@ -64,16 +78,122 @@
          (if (if (positive? step) (> value end) (< value end))
              (reverse backward)
              (loop (+ value step) (cons value backward)))))
+     (define (boolean-value value)
+       (unless (or (boolean? value) (eq? value 'unknown))
+         (error 'run-program "Boolean operator needs true or false"))
+       value)
+     (define (number-value value)
+       (unless (and (real? value) (exact? value))
+         (error 'run-program "arithmetic needs exact numbers"))
+       value)
+     (define (contains-unknown? value)
+       (cond
+         [(eq? value 'unknown) #t]
+         [(list? value) (ormap contains-unknown? value)]
+         [(hash? value)
+          (for/or ([part (in-hash-values value)])
+            (contains-unknown? part))]
+         [else #f]))
      (define (value-of expression inputs scopes)
        (match expression
          [`(literal ,value) value]
          [`(list ,values)
           (for/list ([value (in-list values)])
             (value-of value inputs scopes))]
+         [`(fields ,entries)
+          (make-immutable-hasheq
+           (for/list ([entry (in-list entries)])
+             (match entry
+               [`(,name ,value)
+                (cons name (value-of value inputs scopes))])))]
+         [`(but ,source ,changes)
+          (define original (value-of source inputs scopes))
+          (unless (hash? original)
+            (error 'run-program "but needs a named-field value"))
+          (define replacements (value-of changes inputs scopes))
+          (for/fold ([record original]) ([(name value) (in-hash replacements)])
+            (hash-set record name value))]
+         [`(field-ref ,name ,receiver)
+          (define record (value-of receiver inputs scopes))
+          (unless (hash? record)
+            (error 'run-program "field ~a needs a named-field value" name))
+          (hash-ref record name
+                    (lambda () (error 'run-program "missing field ~a" name)))]
+         [`(item-ref ,position ,collection)
+          (define n (value-of position inputs scopes))
+          (define items (value-of collection inputs scopes))
+          (cond
+            [(or (eq? n 'unknown) (eq? items 'unknown)) 'unknown]
+            [(not (and (exact-integer? n) (positive? n)))
+             (error 'run-program "item index must be a positive integer starting at 1")]
+            [(not (list? items))
+             (error 'run-program "item needs an ordered list")]
+            [(> n (length items))
+             (error 'run-program "item index ~a is outside a list of ~a items"
+                    n (length items))]
+            [else (list-ref items (sub1 n))])]
          [`(range (,start ,end ,step))
           (numeric-range (value-of start inputs scopes)
                          (value-of end inputs scopes)
                          (value-of step inputs scopes))]
+         [`(unary ,operator (,part))
+          (define value (value-of part inputs scopes))
+          (case operator
+            [(not)
+             (define checked (boolean-value value))
+             (if (eq? checked 'unknown) 'unknown (not checked))]
+            [(-)
+             (if (eq? value 'unknown) 'unknown (- (number-value value)))])]
+         [`(binary ,operator (,left ,right))
+          (define a (value-of left inputs scopes))
+          (case operator
+            [(and or)
+             (define first (boolean-value a))
+             (cond
+               [(and (eq? operator 'and) (eq? first #f)) #f]
+               [(and (eq? operator 'or) (eq? first #t)) #t]
+               [else
+                (define second (boolean-value (value-of right inputs scopes)))
+                (cond [(eq? operator 'and)
+                       (if (eq? second #f) #f
+                           (if (eq? first 'unknown) 'unknown second))]
+                      [else
+                       (if (eq? second #t) #t
+                           (if (eq? first 'unknown) 'unknown second))])])]
+            [(xor)
+             (define first (boolean-value a))
+             (define second (boolean-value (value-of right inputs scopes)))
+             (if (or (eq? first 'unknown) (eq? second 'unknown))
+                 'unknown
+                 (not (eq? first second)))]
+            [else
+             (define b (value-of right inputs scopes))
+             (if (or (eq? a 'unknown) (eq? b 'unknown))
+                 'unknown
+                 (let ([x (number-value a)] [y (number-value b)])
+                   (case operator
+                     [(+) (+ x y)]
+                     [(-) (- x y)]
+                     [(*) (* x y)]
+                     [(/)
+                      (when (zero? y)
+                        (error 'run-program "division by zero"))
+                      (/ x y)])))])]
+         [`(compare ,operator (,left ,right))
+          (define a (value-of left inputs scopes))
+          (define b (value-of right inputs scopes))
+          (cond
+            [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]
+            [(eq? operator '=) (equal? a b)]
+            [(eq? operator '!=) (not (equal? a b))]
+            [else
+             (unless (and (real? a) (real? b))
+               (error 'run-program "ordered comparisons need numbers"))
+             (case operator
+               [(<) (< a b)]
+               [(<=) (<= a b)]
+               [(>) (> a b)]
+               [(>=) (>= a b)])])]
          [`(parameter ,name) (hash-ref inputs name)]
          [`(result ,name)
           (let loop ([remaining scopes])
@@ -83,24 +203,7 @@
                (hash-ref (car remaining) name)]
               [else (loop (cdr remaining))]))]))
      (define (condition-of expression inputs scopes)
-       (define value
-         (match expression
-           [`(compare ,operator (,left ,right))
-            (define a (value-of left inputs scopes))
-            (define b (value-of right inputs scopes))
-            (cond
-              [(or (eq? a 'unknown) (eq? b 'unknown)) 'unknown]
-              [(eq? operator '=) (equal? a b)]
-              [(eq? operator '!=) (not (equal? a b))]
-              [else
-               (unless (and (real? a) (real? b))
-                 (error 'run-program "ordered comparisons need numbers"))
-               (case operator
-                 [(<) (< a b)]
-                 [(<=) (<= a b)]
-                 [(>) (> a b)]
-                 [(>=) (>= a b)])])]
-           [_ (value-of expression inputs scopes)]))
+       (define value (value-of expression inputs scopes))
        (unless (boolean? value)
          (error 'run-program
                 (if (eq? value 'unknown)

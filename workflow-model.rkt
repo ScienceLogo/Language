@@ -27,7 +27,7 @@
                            relations imports implementations conditions) #:transparent)
 (struct stage-model (id name parent source) #:transparent)
 (struct procedure-model (id name inputs source) #:transparent)
-(struct activity-model (id kind name parent source) #:transparent)
+(struct activity-model (id kind name parent source control) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
 (struct relation-model (kind from to source) #:transparent)
 (struct import-model (id url requested-revision commit alias library-name source)
@@ -98,9 +98,15 @@
     (set! relations (cons (relation-model kind from to (origin at)) relations)))
   (define (add-activity form parent [name #f])
     (define id (element-id root (node-kind form) (node-at form) parent))
+    (define control
+      (case (node-kind form)
+        [(repeat repeat-until while branch)
+         (and (node-value form) (node->datum (node-value form)))]
+        [(for-each) (node->datum (cdr (node-value form)))]
+        [else #f]))
     (set! activities
           (cons (activity-model id (node-kind form) name parent
-                                (origin (node-at form)))
+                                (origin (node-at form)) control)
                 activities))
     (add-relation 'contains parent id (node-at form))
     id)
@@ -118,7 +124,7 @@
            [else (loop (cdr remaining))]))]))
   (define (add-use activity-id value inputs scopes)
     (case (node-kind value)
-      [(list range compare)
+      [(list fields field-entry field-ref item-ref range compare binary unary but)
        (for ([part (in-list (node-children value))])
          (add-use activity-id part inputs scopes))]
       [else
@@ -280,9 +286,9 @@
       [(must-call)
        (set! conditions
              (cons (condition-model (element-id root 'must-do (node-at form))
-                                    'reachable-call
+                                    'required-call
                                     (hash-ref procedure-ids (node-value form))
-                                    root 'method 'reachable-call
+                                    root 'method 'method-paths
                                     (origin (node-at form)))
                    conditions))]
       [(must-stage-order)
