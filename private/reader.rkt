@@ -1,13 +1,15 @@
 #lang racket/base
 
-(require racket/file
+(require file/sha1
+         racket/file
          racket/list
          racket/match
          racket/path
          racket/port
          racket/string
          racket/system
-         syntax/readerr)
+         syntax/readerr
+         "record-interfaces.rkt")
 
 (provide sciencelogo-read
          sciencelogo-read-syntax
@@ -94,7 +96,8 @@
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
                        "unknown" "=" "!=" "<" "<=" ">" ">="
-                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement")))
+                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement"
+                       "extends")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -123,6 +126,7 @@
     (and (not (string=? name ""))
          (not (regexp-match? #px"[\\s\\[\\]();\"#]" name))
          (not (regexp-match? #px"^:" name))
+         (not (regexp-match? #rx"[.]" name))
          (not (regexp-match? #px"^[+-]?[0-9]" name))
          (not (member name reserved))))
   (define (operator-precedence name)
@@ -152,10 +156,14 @@
             (advance!)
             (let ([right (if (= operator 75)
                              (let ([value (parse-atom stop-word)])
-                               (unless (eq? (node-kind value) 'fields)
+                               (unless (or (eq? (node-kind value) 'fields)
+                                           (and (eq? (node-kind value) 'list)
+                                                (null? (node-children value))))
                                  (read-error source found
-                                             "but needs named fields in [name = value]"))
-                               value)
+                                             "but needs named fields in [name = value] or []"))
+                               (if (eq? (node-kind value) 'fields)
+                                   value
+                                   (struct-copy node value [kind 'fields])))
                              (parse-value (if (= operator 80)
                                               operator
                                               (add1 operator))
@@ -323,8 +331,8 @@
        (expect 'open "[ after procedure inputs")
        (node 'to (cons name inputs) (parse-body #f #t #f #f) command)]
       ["include"
-       (unless includes-allowed?
-         (read-error source command "include belongs directly in a library file"))
+       (unless (and definitions-allowed? (not in-procedure?))
+         (read-error source command "include belongs directly in a workflow or library file"))
        (node 'include (token-value (expect 'string "a quoted relative file path"))
              '() command)]
       ["import"
@@ -337,9 +345,8 @@
                        "workflow title is not allowed in a library"
                        "workflow title appears only once at the top of a workflow file"))]
       ["interface"
-       (unless (and definitions-allowed? (not in-procedure?)
-                    (not includes-allowed?) (not imports-allowed?))
-         (read-error source command "interface belongs directly in a workflow"))
+       (unless (and definitions-allowed? (not in-procedure?))
+         (read-error source command "interface belongs directly in a workflow or library"))
        (define name (token-value (expect 'string "a quoted interface name")))
        (unless (valid-inline-interface-name? name)
          (read-error source command
@@ -490,9 +497,11 @@
         [(close) (advance!) (reverse backward)]
         [(eof) (read-error source found "expected ] before end of file")]
         [else
-         (define command (expect 'word "an interface field, version, require, or affects"))
+         (define command (expect 'word "an interface field, extends, version, require, or affects"))
          (define form
            (match (token-value command)
+             ["extends"
+              (node 'extends (named-word "a parent interface name") '() command)]
              ["version"
               (node 'version (token-value (expect 'string "a quoted interface version"))
                     '() command)]
@@ -527,11 +536,9 @@
     (and (eq? (token-kind start) 'word) (token-value start)))
   (define kind
     (cond
+      [(equal? expected-kind "workflow-fragment") "workflow-fragment"]
+      [(equal? expected-kind "fragment") "fragment"]
       [(member first-word '("library" "interface")) first-word]
-      [(or (equal? first-word "include")
-           (and (equal? expected-kind "fragment")
-                (member first-word '("to" "include"))))
-       "fragment"]
       [else "workflow"]))
   (define-values (title imports forms)
     (cond
@@ -550,6 +557,8 @@
        (values leading-title imports (parse-to-eof #t #f))]
       [(string=? kind "fragment")
        (values #f '() (parse-to-eof #t #t))]
+      [(string=? kind "workflow-fragment")
+       (values #f '() (parse-to-eof #t #f))]
       [else
        (advance!)
        (define title (token-value (expect 'string "a quoted library or interface name")))
@@ -583,21 +592,30 @@
   (when (member kind '("library" "fragment"))
     (for ([form (in-list forms)])
       (unless (memq (node-kind form) (if (string=? kind "library")
-                                         '(to include import)
-                                         '(to include)))
+                                         '(to include import interface)
+                                         '(to include interface)))
         (read-error source (node-at form)
-                    "a library can contain only to, include, and import declarations"))))
+                    "a library can contain only to, interface, include, and import declarations"))))
+  (define workflow-forms
+    (and (string=? actual-kind "workflow")
+         (expand-workflow-forms actual-forms source)))
   (define result
     (case (string->symbol actual-kind)
       [(library) (node 'library title actual-forms start)]
       [(interface) (node 'interface title actual-forms start)]
       [(fragment) (node 'fragment #f actual-forms start)]
+      [(workflow-fragment) (node 'workflow-fragment #f actual-forms start)]
       [(workflow) (node 'workflow (if inline-first? #f title)
-                           (append (resolve-imports imports) actual-forms) start)]))
+                           (append (resolve-imports imports)
+                                   workflow-forms) start)]))
   (cond
-    [(eq? (node-kind result) 'fragment) result]
+    [(memq (node-kind result) '(fragment workflow-fragment)) result]
     [(eq? (node-kind result) 'interface)
      (validate-interface result source)
+     (for ([form (in-list (node-children result))]
+           #:when (eq? (node-kind form) 'extends))
+       (read-error source (node-at form)
+                   "standalone interfaces cannot extend a local interface"))
      result]
     [(and (eq? (node-kind result) 'library) (not expand-local?)) result]
     [(eq? (node-kind result) 'library)
@@ -627,7 +645,7 @@
      checked]
     [else
      (when (eq? (node-kind result) 'workflow)
-       (check-direct-calls forms source))
+       (check-direct-calls workflow-forms source))
      (validate-program result source)
      result]))
 
@@ -653,7 +671,7 @@
   (define first-line (read-line port 'any))
   (unless (and (string? first-line)
                (string=? (string-trim first-line) "#lang sciencelogo"))
-    (read-error source at "library source must begin with #lang sciencelogo"))
+    (read-error source at "included source must begin with #lang sciencelogo"))
   (parse-tree port source kind #f))
 
 (define (include-path current requested at)
@@ -708,10 +726,94 @@
                  (list form)))))
   (expand forms "library.rkt"))
 
-(define (qualify-library-form form alias)
+(define (expand-workflow-forms forms source)
+  (define entry (simplify-path (path->complete-path source)))
+  (define root #f)
+  (define seen (make-hash))
+  (define active (make-hash))
+  (hash-set! seen entry #t)
+  (hash-set! active entry #t)
+  (define (repository-root at)
+    (unless root
+      (define directory (path-only entry))
+      (set! root
+            (simplify-path
+             (string->path
+              (string-trim
+               (git-output source at "find the workflow Git repository"
+                           "-C" (path->string directory)
+                           "rev-parse" "--show-toplevel")))
+             #t)))
+    root)
+  (define (inside-root? path base)
+    (define relative (find-relative-path base path))
+    (and (relative-path? relative)
+         (not (for/or ([part (in-list (explode-path relative))])
+                (eq? part 'up)))))
+  (define (expand body current)
+    (apply append
+           (for/list ([form (in-list body)])
+             (if (eq? (node-kind form) 'include)
+                 (let* ([requested (node-value form)]
+                        [at (node-at form)]
+                        [base (repository-root at)])
+                   (when (or (string=? requested "")
+                             (not (relative-path? (string->path requested)))
+                             (string-contains? requested "\\"))
+                     (read-error source at "include path must be relative"))
+                   (define candidate
+                     (simplify-path
+                      (build-path (path-only current) (string->path requested))))
+                   (unless (inside-root? candidate base)
+                     (read-error source at "include path escapes the workflow repository"))
+                   (unless (file-exists? candidate)
+                     (read-error source at (format "missing included file ~a" requested)))
+                   (define full (simplify-path candidate #t))
+                   (unless (inside-root? full base)
+                     (read-error source at "include path escapes the workflow repository"))
+                   (when (hash-has-key? active full)
+                     (read-error source at (format "include cycle through ~a" requested)))
+                   (when (hash-has-key? seen full)
+                     (read-error source at (format "duplicate include ~a" requested)))
+                   (hash-set! seen full #t)
+                   (hash-set! active full #t)
+                   (define fragment
+                     (parse-library-file (file->string full) (path->string full)
+                                         "workflow-fragment" at))
+                   (define children (expand (node-children fragment) full))
+                   (hash-remove! active full)
+                   (cons (node 'included-file
+                               (list (path->string full)
+                                     (call-with-input-file full sha1))
+                               '() at)
+                         children))
+                 (list form)))))
+  (expand forms entry))
+
+(define (qualify-library-form form alias interface-names)
   (define (qualified name)
     (string->symbol (format "~a.~a" alias name)))
+  (define (qualify-value value)
+    (cond
+      [(not (node? value)) value]
+      [(and (eq? (node-kind value) 'result)
+            (memq (node-value value) interface-names))
+       (struct-copy node value [value (qualified (node-value value))])]
+      [else
+       (struct-copy node value
+                    [children (map qualify-value (node-children value))])]))
+  (define (qualify-form child)
+    (qualify-library-form child alias interface-names))
   (case (node-kind form)
+    [(interface)
+     (struct-copy node form
+                  [value (symbol->string (qualified (node-value form)))]
+                  [children (map qualify-form (node-children form))])]
+    [(extends)
+     (struct-copy node form [value (qualified (node-value form))])]
+    [(interface-field)
+     (struct-copy node form
+                  [children (map qualify-value (node-children form))])]
     [(stage)
      (struct-copy node form
                   [value (format "~a.~a" alias (node-value form))])]
@@ -719,16 +821,35 @@
      (struct-copy node form
                   [value (cons (qualified (procedure-name form))
                                (procedure-inputs form))]
-                  [children (map (lambda (child) (qualify-library-form child alias))
-                                 (node-children form))])]
+                  [children (map qualify-form (node-children form))])]
     [(call)
      (struct-copy node form
                   [value (cons (qualified (call-name form))
-                               (cdr (node-value form)))])]
-    [(sequence repeat repeat-until for-each while if branch)
+                               (cdr (node-value form)))]
+                  [children (map qualify-value (node-children form))])]
+    [(set)
      (struct-copy node form
-                  [children (map (lambda (child) (qualify-library-form child alias))
-                                 (node-children form))])]
+                  [value (cons (car (node-value form))
+                               (qualify-value (cdr (node-value form))))])]
+    [(print output)
+     (struct-copy node form [value (qualify-value (node-value form))])]
+    [(repeat repeat-until while)
+     (struct-copy node form
+                  [value (qualify-value (node-value form))]
+                  [children (map qualify-form (node-children form))])]
+    [(for-each)
+     (struct-copy node form
+                  [value (cons (car (node-value form))
+                               (qualify-value (cdr (node-value form))))]
+                  [children (map qualify-form (node-children form))])]
+    [(branch)
+     (struct-copy node form
+                  [value (and (node-value form)
+                              (qualify-value (node-value form)))]
+                  [children (map qualify-form (node-children form))])]
+    [(sequence if)
+     (struct-copy node form
+                  [children (map qualify-form (node-children form))])]
     [else form]))
 
 (define (load-library import parent-alias stack)
@@ -784,9 +905,21 @@
                 (node-children expanded)))
       (define dependencies
         (resolve-imports local-imports qualified-alias (cons url stack)))
+      (define alias-prefix (format "~a." qualified-alias))
+      (define interface-names
+        (append
+         (for/list ([form (in-list (node-children expanded))]
+                    #:when (eq? (node-kind form) 'interface))
+           (string->symbol (node-value form)))
+         (for/list ([form (in-list dependencies)]
+                    #:when (and (eq? (node-kind form) 'interface)
+                                (string-prefix? (node-value form) alias-prefix)))
+           (string->symbol
+            (substring (node-value form) (string-length alias-prefix))))))
       (define local-definitions
-        (map (lambda (form) (qualify-library-form form qualified-alias))
-             (filter (lambda (form) (eq? (node-kind form) 'to))
+        (map (lambda (form)
+               (qualify-library-form form qualified-alias interface-names))
+             (filter (lambda (form) (memq (node-kind form) '(to interface)))
                      (node-children expanded))))
       (define definitions (append dependencies local-definitions))
       (validate-program (struct-copy node expanded [children definitions]) source)
@@ -818,10 +951,29 @@
       [else calls])))
 
 (define (check-direct-calls forms source)
+  (define (check-private-name name at)
+    (when (and (symbol? name)
+               (regexp-match? #rx"[.].*[.]" (symbol->string name)))
+      (read-error source at
+                  "a library dependency is private; import it directly to use it")))
   (for ([call (in-list (calls-in forms))])
     (when (regexp-match? #rx"[.].*[.]" (symbol->string (call-name call)))
       (read-error source (node-at call)
-                  "a library dependency is private; import it directly to call it"))))
+                  "a library dependency is private; import it directly to call it")))
+  (define (check-form form)
+    (when (memq (node-kind form) '(result extends))
+      (check-private-name (node-value form) (node-at form)))
+    (case (node-kind form)
+      [(must-implement)
+       (check-private-name (cadr (node-value form)) (node-at form))]
+      [else
+       (define value (node-value form))
+       (cond [(node? value) (check-form value)]
+             [(and (pair? value) (node? (cdr value)))
+              (check-form (cdr value))])])
+    (for ([child (in-list (node-children form))])
+      (check-form child)))
+  (for ([form (in-list forms)]) (check-form form)))
 
 (define (call-name call) (car (node-value call)))
 (define (procedure-name definition) (car (node-value definition)))
@@ -847,6 +999,7 @@
     (read-error source (node-at (car versions)) "interface version cannot be empty"))
   (define required (make-hasheq))
   (define fields (make-hasheq))
+  (define parents (make-hasheq))
   (for ([form (in-list (node-children interface))]
         #:when (eq? (node-kind form) 'require))
     (define part (node-value form))
@@ -859,15 +1012,23 @@
     (when (hash-has-key? fields name)
       (read-error source (node-at form) (format "duplicate interface field ~a" name)))
     (hash-set! fields name #t))
-  (when (and (positive? (hash-count fields))
+  (for ([form (in-list (node-children interface))]
+        #:when (eq? (node-kind form) 'extends))
+    (define parent (node-value form))
+    (when (hash-has-key? parents parent)
+      (read-error source (node-at form) (format "duplicate parent interface ~a" parent)))
+    (hash-set! parents parent #t))
+  (when (and (or (positive? (hash-count fields))
+                 (positive? (hash-count parents)))
              (or (positive? (hash-count required))
                  (for/or ([form (in-list (node-children interface))])
                    (eq? (node-kind form) 'affects))))
     (read-error source (node-at interface)
                 "record fields and workflow parts cannot share one interface"))
-  (when (and (zero? (hash-count required)) (zero? (hash-count fields)))
+  (when (and (zero? (hash-count required)) (zero? (hash-count fields))
+             (zero? (hash-count parents)))
     (read-error source (node-at interface)
-                "an interface needs a field or a required part"))
+                "an interface needs a field, parent, or required part"))
   (for ([form (in-list (node-children interface))]
         #:when (eq? (node-kind form) 'affects))
     (for ([part (in-list (node-value form))])
@@ -884,6 +1045,11 @@
     (when (hash-has-key? interfaces name)
       (read-error source (node-at form) (format "duplicate interface ~a" name)))
     (hash-set! interfaces name form))
+  (resolve-record-interfaces
+   (for/hasheq ([(name form) (in-hash interfaces)])
+     (values name (map node->datum (node-children form))))
+   (lambda (name message)
+     (read-error source (node-at (hash-ref interfaces name)) message)))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'to))
     (define name (procedure-name form))
@@ -925,7 +1091,8 @@
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import interface implements must-call must-stage-order stage) visible]
+        [(to import interface implements must-call must-stage-order stage
+             included-file) visible]
         [(must-implement)
          (define name (car (node-value form)))
          (unless (memq name visible)
@@ -1033,15 +1200,16 @@
 
 (define (node->datum form)
   (case (node-kind form)
-    [(workflow library fragment interface)
+    [(workflow library fragment workflow-fragment interface)
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
     [(import) (cons 'import (node-value form))]
     [(include) (list 'include (node-value form))]
+    [(included-file) (cons 'included-file (node-value form))]
     [(implements)
      (list 'implements (node-value form) (map node->datum (node-children form)))]
     [(provide affects) (cons (node-kind form) (node-value form))]
-    [(version require) (list (node-kind form) (node-value form))]
+    [(version require extends) (list (node-kind form) (node-value form))]
     [(interface-field)
      (list 'interface-field (node-value form)
            (and (pair? (node-children form))

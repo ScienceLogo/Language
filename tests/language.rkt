@@ -2,8 +2,11 @@
 
 (require rackunit
          racket/file
+         racket/path
          racket/port
-         racket/system)
+         racket/system
+         "../assessor.rkt"
+         "../private/reader.rkt")
 
 (define (with-source source use)
   (define path (make-temporary-file "sciencelogo-~a.rkt"
@@ -21,6 +24,26 @@
     (lambda (path)
       (with-output-to-string
         (lambda () (dynamic-require path #f))))))
+
+(define (with-workflow-repo use)
+  (define directory (make-temporary-file "sciencelogo-workflow-~a" 'directory))
+  (dynamic-wind
+    void
+    (lambda ()
+      (unless (zero? (parameterize ([current-output-port (open-output-string)]
+                                    [current-error-port (open-output-string)])
+                       (system*/exit-code (find-executable-path "git")
+                                          "-C" (path->string directory)
+                                          "init" "--initial-branch=main")))
+        (error 'with-workflow-repo "could not initialize Git repository"))
+      (define (write-source relative content)
+        (define path (build-path directory relative))
+        (make-directory* (path-only path))
+        (call-with-output-file path (lambda (out) (display content out))
+          #:exists 'truncate)
+        path)
+      (use directory write-source))
+    (lambda () (delete-directory/files directory))))
 
 (define (with-library-repo use)
   (define repo (make-temporary-file "sciencelogo-library-test-~a" 'directory))
@@ -68,7 +91,12 @@
           (display
            (string-append
             "#lang sciencelogo\n"
-            "to echo :name [output :name]\n")
+            "interface \"Timing\" [duration unit = \"seconds\"]\n"
+            "to echo :name [output :name]\n"
+            "to make-trial :duration [\n"
+            "  set trial to Timing but [duration = :duration]\n"
+            "  output trial\n"
+            "]\n")
            out)))
       (git "add" ".")
       (git "-c" "user.name=ScienceLogo Tests"
@@ -156,6 +184,7 @@
                      (string-append
                       "#lang sciencelogo\n"
                       "library \"base\" [\n"
+                      "  interface \"Timing\" [duration unit = \"seconds\"]\n"
                       "  to message :name [stage \"Review\" output :name]\n"
                       "]\n"))
       (commit-and-tag b "v1.0.0")
@@ -165,10 +194,15 @@
           (display
            (string-append
             "#lang sciencelogo\n"
+            "interface \"TimedPlace\" [extends b.Timing place]\n"
             "to welcome :name [\n"
             "  stage \"Review\"\n"
             "  do b.message :name as greeting\n"
             "  print greeting\n"
+            "]\n"
+            "to make-trial [\n"
+            "  set trial to TimedPlace but [duration = 2 place = \"lab\"]\n"
+            "  output trial\n"
             "]\n")
            out)))
       (write-library a
@@ -233,6 +267,137 @@
     (lambda () (delete-directory/files base))))
 
 (module+ test
+  (with-workflow-repo
+   (lambda (directory write-source)
+     (write-source "shared/plan.rkt"
+                   "#lang sciencelogo\nto plan [output \"ready\"]\n")
+     (write-source "shared/timing.rkt"
+                   "#lang sciencelogo\ninterface \"Timing\" [duration]\n")
+     (write-source "methods/method.rkt"
+                   (string-append
+                    "#lang sciencelogo\n"
+                    "interface \"Timing\" [duration unit = \"seconds\"]\n"
+                    "stage \"Prepare\"\n"
+                    "include \"../shared/plan.rkt\"\n"
+                    "set included-trial to [duration = 2]\n"
+                    "must included-trial implement \"../shared/timing.rkt\"\n"))
+     (define entry
+       (write-source "entry.rkt"
+                     (string-append
+                      "#lang sciencelogo\nworkflow \"Split workflow\"\n"
+                      "include \"methods/method.rkt\"\n"
+                      "set trial to Timing but [duration = 2]\n"
+                      "must trial implement Timing\n"
+                      "do plan as message\nprint message\n")))
+     (check-equal? (with-output-to-string (lambda () (dynamic-require entry #f)))
+                   "ready\n")
+     (check-equal?
+      (map condition-check-outcome (assessment-checks (assess-file entry)))
+      '(satisfied satisfied))
+     (write-source "entry.rkt"
+                   (string-append
+                    "#lang sciencelogo\n"
+                    "include \"methods/method.rkt\"\n"
+                    "include \"methods/../methods/method.rkt\"\n"))
+     (check-exn #rx"duplicate include"
+                (lambda () (parse-sciencelogo-file entry)))
+     (write-source "entry.rkt"
+                   "#lang sciencelogo\ninclude \"../outside.rkt\"\n")
+     (check-exn #rx"include path escapes the workflow repository"
+                (lambda () (parse-sciencelogo-file entry)))
+     (write-source "entry.rkt"
+                   "#lang sciencelogo\ninclude \"methods/method.rkt\"\n")
+     (write-source "shared/plan.rkt"
+                   "#lang sciencelogo\ninclude \"../entry.rkt\"\n")
+     (check-exn #rx"include cycle"
+                (lambda () (parse-sciencelogo-file entry)))))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\nworkflow \"Combined timing\"\n"
+     "interface \"TimedTrial\" [extends Timing extends Site duration unit = \"minutes\"]\n"
+     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+     "interface \"Site\" [place]\n"
+     "set trial to TimedTrial but [duration = 2 place = \"lab\"]\n"
+     "print unit of trial\nprint place of trial\n"))
+   "minutes\nlab\n")
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "interface \"Combined\" [extends First extends Second shared = \"resolved\"]\n"
+     "interface \"First\" [shared = \"first\" a]\n"
+     "interface \"Second\" [shared = \"second\" b]\n"
+     "set record to Combined but [a = 1 b = 2]\n"
+     "print shared of record\n"))
+   "resolved\n")
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "interface \"Combined\" [extends First extends Second]\n"
+     "interface \"First\" [unit = \"seconds\"]\n"
+     "interface \"Second\" [unit = \"seconds\"]\n"
+     "set trial to Combined but []\n"
+     "print unit of trial\n"))
+   "seconds\n")
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "interface \"Leaf\" [extends Middle c]\n"
+     "interface \"Middle\" [extends Base b]\n"
+     "interface \"Base\" [a]\n"
+     "set value to Leaf but [a = 1 b = 2 c = 3]\n"
+     "print a of value\n"))
+   "1\n")
+  (check-exn
+   #rx"duplicate parent interface Base"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "interface \"Leaf\" [extends Base extends Base]\n"
+       "interface \"Base\" [a]\n"))))
+  (check-exn
+   #rx"standalone interfaces cannot extend"
+   (lambda ()
+     (output-of "#lang sciencelogo\ninterface \"Leaf\" [extends Base]\n")))
+  (check-exn
+   #rx"TimedTrial is missing field place"
+   (lambda ()
+     (output-of
+      (string-append
+       "#lang sciencelogo\n"
+       "interface \"TimedTrial\" [extends Timing extends Site]\n"
+       "interface \"Timing\" [duration]\n"
+       "interface \"Site\" [place]\n"
+       "set trial to TimedTrial but [duration = 2]\n"))))
+  (for ([source (in-list
+                 (list
+                  (string-append
+                   "#lang sciencelogo\n"
+                   "interface \"Combined\" [extends First extends Second]\n"
+                   "interface \"First\" [shared = \"first\"]\n"
+                   "interface \"Second\" [shared = \"second\"]\n")
+                  (string-append
+                   "#lang sciencelogo\n"
+                   "interface \"One\" [extends Two]\n"
+                   "interface \"Two\" [extends One]\n")
+                  (string-append
+                   "#lang sciencelogo\n"
+                   "interface \"One\" [extends Missing]\n"
+                   "set trial to One but [value = 1]\n")))]
+        [message (in-list '("conflicting inherited field shared"
+                            "interface extension cycle"
+                            "unknown parent interface Missing"))])
+    (check-exn
+     (lambda (error)
+       (and (exn:fail:read? error)
+            (regexp-match? (regexp message) (exn-message error))))
+     (lambda () (output-of source))))
+
   (check-equal?
    (output-of
     (string-append
@@ -889,6 +1054,34 @@
          "\n")
         url))
       "Hello, world!\nResearcher\n")
+     (check-equal?
+      (output-of
+       (format
+        (string-append
+         "#lang sciencelogo\n"
+         "import ~s at \"v1.0.0\" as hello\n"
+         "interface \"TimedPlace\" [extends hello.Timing place]\n"
+         "set local to TimedPlace but [duration = 2 place = \"lab\"]\n"
+         "must local implement hello.Timing\n"
+         "do hello.make-trial 3 as remote\n"
+         "must remote implement hello.Timing\n"
+         "print unit of local\n"
+         "print duration of remote\n")
+        url))
+      "seconds\n3\n")
+     (with-source
+      (format
+       (string-append
+        "#lang sciencelogo\n"
+        "import ~s at \"v1.0.0\" as hello\n"
+        "set trial to [unit = \"seconds\"]\n"
+        "must trial implement hello.Timing\n")
+       url)
+      (lambda (path)
+        (check-equal?
+         (map condition-check-outcome
+              (assessment-checks (assess-file path)))
+         '(violated))))
      (check-exn
       (lambda (e)
         (and (exn:fail:read? e)
@@ -944,6 +1137,29 @@
 
   (with-dependent-libraries
    (lambda (a-url b-url c-url)
+     (check-equal?
+      (output-of
+       (format
+        (string-append
+         "#lang sciencelogo\n"
+         "import ~s at \"v1.0.0\" as a\n"
+         "set trial to a.TimedPlace but [duration = 3 place = \"field\"]\n"
+         "must trial implement a.TimedPlace\n"
+         "do a.make-trial as other\n"
+         "print unit of trial\n"
+         "print place of other\n")
+        a-url))
+      "seconds\nlab\n")
+     (check-exn
+      #rx"a library dependency is private"
+      (lambda ()
+        (output-of
+         (format
+          (string-append
+           "#lang sciencelogo\n"
+           "import ~s at \"v1.0.0\" as a\n"
+           "set trial to a.b.Timing but [duration = 2]\n")
+          a-url))))
      (check-equal?
       (output-of
        (format

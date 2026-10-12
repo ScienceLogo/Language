@@ -13,18 +13,15 @@
     [`(interface ,_ ,_) (void)]
     [`(workflow ,_ ,forms)
      (define procedures (make-hasheq))
-     (define interfaces (make-hasheq))
+     (define declarations (make-hasheq))
      (for ([form (in-list forms)])
        (match form
          [`(to ,name ,inputs ,body)
           (hash-set! procedures name (cons inputs body))]
          [`(interface ,name ,parts)
-          (hash-set! interfaces (string->symbol name)
-                     (record-interface name
-                                       (for/list ([part (in-list parts)]
-                                                  #:when (eq? (car part) 'interface-field))
-                                         (cons (cadr part) (caddr part)))))]
+          (hash-set! declarations (string->symbol name) parts)]
          [_ (void)]))
+     (define interfaces (resolve-record-interfaces declarations))
      (define no-result (gensym 'no-result))
      (define (decimal-text value)
        (define denominator-value (denominator value))
@@ -244,6 +241,7 @@
        (for ([form (in-list forms)])
          (match form
            [`(import ,_ ,_ ,_ ,_ ,_) (void)]
+           [`(included-file ,_ ,_) (void)]
            [`(implements ,_ ,_) (void)]
            [`(must-call ,_) (void)]
            [`(must-stage-order ,_) (void)]

@@ -1,7 +1,7 @@
 #lang sciencelogo
 
 ; A separate, versioned interface states what this assessor must provide.
-interface "ScienceLogo assessor" [
+interface "Assessor-process" [
   version "0.1"
   require parse
   require resolve-libraries

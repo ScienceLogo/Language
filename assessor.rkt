@@ -5,6 +5,7 @@
          racket/path
          racket/string
          "private/call-paths.rkt"
+         "private/record-interfaces.rkt"
          "workflow-model.rkt")
 
 (provide assess-file
@@ -284,7 +285,10 @@
   (define path (implementation-model-path declaration))
   (define alias (implementation-model-alias declaration))
   (define interface-path
-    (simplify-path (build-path (path-only method-path) (string->path path))))
+    (simplify-path (build-path
+                    (path-only (source-ref-source
+                                (implementation-model-source declaration)))
+                    (string->path path))))
   (if (file-exists? interface-path)
       (assess-existing-interface declaration interface-path)
       (values #f
@@ -399,8 +403,10 @@
        (match source
          [`(result ,name)
           (if (hash-has-key? templates name)
-              (for/hasheq ([field (in-list (hash-ref templates name))]
-                           #:when (cadr field))
+              (for/hasheq ([field (in-list
+                                   (record-interface-fields
+                                    (hash-ref templates name)))]
+                           #:when (cdr field))
                 (values (car field) #t))
               (hash-ref environment name 'undetermined))]
          [_ (record-shape source environment templates)]))
@@ -414,10 +420,16 @@
 (define (assess-record-condition condition method)
   (match-define (list reference earlier local declarations)
     (condition-model-evidence condition))
+  (define templates
+    (resolve-record-interfaces
+     (for/hasheq ([declaration (in-list declarations)])
+       (match-define `(interface ,name ,parts) declaration)
+       (values (string->symbol name) parts))))
   (define method-source (workflow-model-source method))
   (define interface-path
     (and (string? reference)
-         (simplify-path (build-path (path-only method-source)
+         (simplify-path (build-path (path-only (source-ref-source
+                                               (condition-model-source condition)))
                                     (string->path reference)))))
   (define interface
     (cond
@@ -430,10 +442,11 @@
                                 reference)
                         (cadr local) version method-source
                         (workflow-model-revision method)
-                        (for/list ([part (in-list parts)]
-                                   #:when (eq? (car part) 'interface-field))
-                          (condition-model #f 'required-field (cadr part) #f #f
-                                           (caddr part) #f))
+                        (for/list ([field (in-list
+                                           (record-interface-fields
+                                            (hash-ref templates reference)))])
+                          (condition-model #f 'required-field (car field) #f #f
+                                           (cdr field) #f))
                         '())]
       [(file-exists? interface-path) (read-interface-model interface-path)]
       [else #f]))
@@ -457,13 +470,6 @@
                            (interface-model-source interface)
                            (interface-model-id interface)
                            (interface-model-revision interface)))
-     (define templates (make-hasheq))
-     (for ([declaration (in-list declarations)])
-       (match-define `(interface ,name ,parts) declaration)
-       (hash-set! templates (string->symbol name)
-                  (for/list ([part (in-list parts)]
-                             #:when (eq? (car part) 'interface-field))
-                    (cdr part))))
      (define environment (make-hasheq))
      (for ([form (in-list earlier)])
        (match form

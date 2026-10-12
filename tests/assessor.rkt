@@ -12,6 +12,7 @@
 (define-runtime-path complete-example "../examples/meta-assessor/method.rkt")
 (define-runtime-path incomplete-example "../examples/meta-assessor/missing-impact.rkt")
 (define-runtime-path record-example "../examples/record-interface.rkt")
+(define-runtime-path combined-example "../examples/combined-interface.rkt")
 
 (define (with-sources interface-text method-text use)
   (define directory (make-temporary-file "sciencelogo-assessor-~a" 'directory))
@@ -35,7 +36,29 @@
    (lambda (_interface method) (assess-file method))))
 
 (module+ test
+  (with-sources
+   ""
+   (string-append
+    "#lang sciencelogo\nworkflow \"Combined checks\"\n"
+    "interface \"Combined\" [extends Timing extends Site note]\n"
+    "interface \"Timing\" [duration unit = \"seconds\"]\n"
+    "interface \"Site\" [place]\n"
+    "set complete to Combined but [duration = 2 place = \"lab\" note = \"planned\"]\n"
+    "must complete implement Combined\n"
+    "must complete implement Timing\n"
+    "set incomplete to [duration = 2 unit = \"seconds\" note = \"planned\"]\n"
+    "must incomplete implement Combined\n")
+   (lambda (_interface method)
+     (define result (assess-file method))
+     (check-equal? (map condition-check-outcome (assessment-checks result))
+                   '(satisfied satisfied violated))
+     (check-equal? (map finding-kind (assessment-findings result))
+                   '(missing-field))
+     (check-equal? (finding-part (first (assessment-findings result)))
+                   '(place))))
+
   (check-equal? (assessment-findings (assess-file record-example)) '())
+  (check-equal? (assessment-findings (assess-file combined-example)) '())
 
   (with-sources
    "#lang sciencelogo\ninterface \"Timing\" [duration unit = \"seconds\"]\n"

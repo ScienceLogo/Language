@@ -70,6 +70,9 @@
       (format "~s"
               (list (source-revision source)
                     (for/list ([form (in-list forms)]
+                               #:when (eq? (node-kind form) 'included-file))
+                      (node-value form))
+                    (for/list ([form (in-list forms)]
                                #:when (eq? (node-kind form) 'import))
                       (node-value form))
                     (for/list ([form (in-list forms)]
