@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require racket/list racket/match racket/string)
+(require racket/list racket/match racket/string
+         "private/record-interfaces.rkt")
 
 (provide (all-from-out racket/base) run-program)
 
@@ -12,10 +13,17 @@
     [`(interface ,_ ,_) (void)]
     [`(workflow ,_ ,forms)
      (define procedures (make-hasheq))
+     (define interfaces (make-hasheq))
      (for ([form (in-list forms)])
        (match form
          [`(to ,name ,inputs ,body)
           (hash-set! procedures name (cons inputs body))]
+         [`(interface ,name ,parts)
+          (hash-set! interfaces (string->symbol name)
+                     (record-interface name
+                                       (for/list ([part (in-list parts)]
+                                                  #:when (eq? (car part) 'interface-field))
+                                         (cons (cadr part) (caddr part)))))]
          [_ (void)]))
      (define no-result (gensym 'no-result))
      (define (decimal-text value)
@@ -108,11 +116,15 @@
                 (cons name (value-of value inputs scopes))])))]
          [`(but ,source ,changes)
           (define original (value-of source inputs scopes))
-          (unless (hash? original)
-            (error 'run-program "but needs a named-field value"))
           (define replacements (value-of changes inputs scopes))
-          (for/fold ([record original]) ([(name value) (in-hash replacements)])
-            (hash-set record name value))]
+          (cond
+            [(record-interface? original)
+             (interface-record original replacements
+                               (lambda (default) (value-of default inputs scopes)))]
+            [(hash? original)
+             (for/fold ([record original]) ([(name value) (in-hash replacements)])
+               (hash-set record name value))]
+            [else (error 'run-program "but needs a named-field value or interface")])]
          [`(field-ref ,name ,receiver)
           (define record (value-of receiver inputs scopes))
           (unless (hash? record)
@@ -196,12 +208,14 @@
                [(>=) (>= a b)])])]
          [`(parameter ,name) (hash-ref inputs name)]
          [`(result ,name)
-          (let loop ([remaining scopes])
+          (if (hash-has-key? interfaces name)
+              (hash-ref interfaces name)
+              (let loop ([remaining scopes])
             (cond
               [(null? remaining) (error 'run-program "unknown result ~a" name)]
               [(hash-has-key? (car remaining) name)
                (hash-ref (car remaining) name)]
-              [else (loop (cdr remaining))]))]))
+              [else (loop (cdr remaining))])))]))
      (define (condition-of expression inputs scopes)
        (define value (value-of expression inputs scopes))
        (unless (boolean? value)
@@ -233,6 +247,8 @@
            [`(implements ,_ ,_) (void)]
            [`(must-call ,_) (void)]
            [`(must-stage-order ,_) (void)]
+           [`(must-implement ,_ ,_) (void)]
+           [`(interface ,_ ,_) (void)]
            [`(stage ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
            [`(call ,name ,arguments ,result-name)
@@ -247,7 +263,10 @@
            [`(sequence ,body)
             (run-forms body inputs (cons (make-hasheq) scopes) return)]
            [`(set ,name ,expression)
-            (write-name name (value-of expression inputs scopes) scopes)]
+            (define value (value-of expression inputs scopes))
+            (when (record-interface? value)
+              (error 'run-program "an interface needs but [field = value] to construct a record"))
+            (write-name name value scopes)]
            [`(repeat ,count-expression ,body)
             (define count (value-of count-expression inputs scopes))
             (unless (exact-nonnegative-integer? count)

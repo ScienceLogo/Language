@@ -40,8 +40,13 @@ These forms are implemented in the current reader and assessor.
   @item{@tt{import "Git URL" at "tag or commit" as alias} makes procedures in a
         library available through @tt{alias.procedure}. It appears at the top of
         a workflow file, before method forms, or directly inside a library block.}
-  @item{@tt{interface "name" [version "..." require part ... affects source target ...]}
-        declares required names and structural impact links in a separate file.}
+  @item{@tt{interface "name" [field field = default ...]} declares a record
+        interface directly in a workflow or in a separate file. Every field
+        must occur in a matching record; a default supplies its value during
+        construction. @tt{version "..."} is optional.}
+  @item{@tt{interface "name" [require part ... affects source target ...]}
+        declares required workflow parts and structural impact links in a
+        separate file. @tt{version "..."} is optional.}
   @item{@tt{must do name} requires a call to @tt{name} on the written method's
         established paths. The assessor reports satisfied, violated, or
         undetermined when the call depends on unresolved control flow. It
@@ -51,6 +56,9 @@ These forms are implemented in the current reader and assessor.
         between them. It belongs directly in a workflow file.}
   @item{@tt{implements "relative/path.rkt" as alias [provide part by "reference" ...]}
         maps interface parts to text references inside an investigation.}
+  @item{@tt{must record implement InterfaceName} or
+        @tt{must record implement "relative/path.rkt"} checks the record's
+        current fields against a local or separate record interface.}
 ]
 
 A value can be quoted text, a number, @tt{true}, @tt{false}, @tt{unknown}, a
@@ -108,8 +116,8 @@ set john to john but [height = 193]
 @tt{earlier} retains the value assigned before the last line. A plain
 @tt{set another to john} assigns the same immutable value without
 @tt{but}. @tt{"male"} is literal text; an unquoted name refers to a value
-named earlier. A record can supply defaults; an interface declares structural
-requirements and does not supply a record of defaults.
+named earlier. An interface can supply field defaults during construction;
+the resulting record is still an ordinary immutable record.
 
 List positions start at 1. @tt{item 1 of lengths} reads the first value;
 @tt{item 0 of lengths} is an error. The position can be a named value or an

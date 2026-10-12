@@ -90,7 +90,8 @@ interface "Assessment process" [
 ]
 ```
 
-An interface needs exactly one nonempty `version` and at least one `require`.
+An interface may have one nonempty `version`, or omit it. A workflow-part
+interface needs at least one `require`.
 Required part names must be unique. Each `affects source target` names two required
 parts; it says that a missing source can affect the target. This is a structural
 dependency, not a measured uncertainty calculation.
@@ -271,9 +272,29 @@ set john to john but [height = 193]
 `earlier` still has the value it received before the last assignment, while
 `john` now also has `height`. A plain `set another to john` assigns
 the same immutable value without needing `but`. Quoted text such as `"male"`
-is literal; an unquoted name refers to a value defined earlier. A reusable
-record can supply defaults, while an interface states structural obligations;
-an interface is not itself a record of default values.
+is literal; an unquoted name refers to a value defined earlier. A record
+interface may supply defaults when constructing a new record. It also states
+structural obligations that can be checked independently with `must`.
+
+A record interface may be declared directly in a workflow:
+
+```text
+interface "Timing" [duration unit = "seconds"]
+set trial to Timing but [duration = 2]
+must trial implement Timing
+```
+
+`duration` is required; `unit` defaults to `"seconds"` and can be overridden
+with `but [unit = "minutes"]`. Every field named in the interface must be
+present in the resulting record, but additional fields are allowed. There is
+no separate optional-field category. A record made without the constructor
+can also satisfy the interface. `unknown` is an explicit value and counts as
+present; omission does not. A standalone interface file can be checked with
+`must trial implement "relative/path.rkt"`. The assessor checks field
+presence from direct `set` and `but` statements. When the record depends on
+a procedure result or control flow it reports undetermined. Both local and
+standalone interfaces may omit `version`; assessments retain the source
+revision hash.
 
 ## Lists, ranges, loops, and choices
 

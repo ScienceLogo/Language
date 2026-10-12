@@ -11,6 +11,7 @@
 
 (define-runtime-path complete-example "../examples/meta-assessor/method.rkt")
 (define-runtime-path incomplete-example "../examples/meta-assessor/missing-impact.rkt")
+(define-runtime-path record-example "../examples/record-interface.rkt")
 
 (define (with-sources interface-text method-text use)
   (define directory (make-temporary-file "sciencelogo-assessor-~a" 'directory))
@@ -34,6 +35,54 @@
    (lambda (_interface method) (assess-file method))))
 
 (module+ test
+  (check-equal? (assessment-findings (assess-file record-example)) '())
+
+  (with-sources
+   "#lang sciencelogo\ninterface \"Timing\" [duration unit = \"seconds\"]\n"
+   (string-append
+    "#lang sciencelogo\nworkflow \"Check timing\"\n"
+    "interface \"Timing\" [duration unit = \"seconds\"]\n"
+    "set trial to Timing but [duration = unknown]\n"
+    "must trial implement Timing\n"
+    "must trial implement \"requirement.rkt\"\n"
+    "set other to [duration = 2]\n"
+    "must other implement Timing\n"
+    "set other to other but [unit = \"minutes\"]\n"
+    "must other implement \"requirement.rkt\"\n")
+   (lambda (interface method)
+     (define result (assess-file method))
+     (check-equal? (map condition-check-outcome (assessment-checks result))
+                   '(satisfied satisfied violated satisfied))
+     (check-equal? (map finding-kind (assessment-findings result))
+                   '(missing-field))
+     (check-equal? (assessed-interface-revision
+                    (second (assessment-interfaces result)))
+                   (interface-model-revision (read-interface-model interface)))))
+
+  (with-sources
+   "#lang sciencelogo\ninterface \"Timing\" [duration unit]\n"
+   (string-append
+    "#lang sciencelogo\nworkflow \"Check dynamic record\"\n"
+    "to make-record [output [duration = 2 unit = \"seconds\"]]\n"
+    "do make-record as trial\n"
+    "must trial implement \"requirement.rkt\"\n")
+   (lambda (_interface method)
+     (define result (assess-file method))
+     (check-equal? (map condition-check-outcome (assessment-checks result))
+                   '(undetermined))
+     (check-equal? (map finding-kind (assessment-findings result))
+                   '(unknown-record))))
+
+  (with-sources
+   "#lang sciencelogo\ninterface \"Parts\" [require review]\n"
+   (string-append
+    "#lang sciencelogo\n"
+    "set trial to [review = unknown]\n"
+    "must trial implement \"requirement.rkt\"\n")
+   (lambda (_interface method)
+     (check-equal? (map finding-kind (assessment-findings (assess-file method)))
+                   '(wrong-interface-kind))))
+
   (for ([body (in-list
                '("if false [do target]"
                  "if false [do target] else if 2 < 1 [do target]"
@@ -149,7 +198,7 @@
    "#lang sciencelogo\ninterface \"Parts\" [require a]\n"
    "#lang sciencelogo\nworkflow \"Invalid\"\n\n"
    (lambda (interface _method)
-     (check-exn #rx"exactly one version" (lambda () (parse-sciencelogo-file interface)))))
+     (check-not-exn (lambda () (parse-sciencelogo-file interface)))))
 
   (with-sources
    (string-append

@@ -88,13 +88,13 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "print" "output" "include" "implements" "must" "workflow" "repeat" "for" "while" "if" "else" "set"))
+  (define commands '("to" "do" "stage" "print" "output" "include" "implements" "must" "workflow" "interface" "repeat" "for" "while" "if" "else" "set"))
   (define reserved
     (append commands '("as" "at" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
                        "unknown" "=" "!=" "<" "<=" ">" ">="
-                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but")))
+                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -119,6 +119,12 @@
       (read-error source found (format "expected ~a" description)))
     (string->symbol text))
   (define comparisons '("=" "!=" "<" "<=" ">" ">="))
+  (define (valid-inline-interface-name? name)
+    (and (not (string=? name ""))
+         (not (regexp-match? #px"[\\s\\[\\]();\"#]" name))
+         (not (regexp-match? #px"^:" name))
+         (not (regexp-match? #px"^[+-]?[0-9]" name))
+         (not (member name reserved))))
   (define (operator-precedence name)
     (cond [(string=? name "of") 80]
           [(string=? name "but") 75]
@@ -330,6 +336,22 @@
                    (if includes-allowed?
                        "workflow title is not allowed in a library"
                        "workflow title appears only once at the top of a workflow file"))]
+      ["interface"
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "interface belongs directly in a workflow"))
+       (define name (token-value (expect 'string "a quoted interface name")))
+       (unless (valid-inline-interface-name? name)
+         (read-error source command
+                     "an inline interface needs a name usable as a value"))
+       (expect 'open "[ after the interface name")
+       (define declaration (node 'interface name (parse-interface-body) command))
+       (validate-interface declaration source)
+       (when (for/or ([part (in-list (node-children declaration))])
+               (eq? (node-kind part) 'require))
+         (read-error source command
+                     "inline interfaces describe records; put workflow-part interfaces in a separate file"))
+       declaration]
       ["implements"
        (unless (and definitions-allowed? (not in-procedure?)
                     (not includes-allowed?) (not imports-allowed?))
@@ -362,7 +384,7 @@
        (unless (and definitions-allowed? (not in-procedure?)
                     (not includes-allowed?) (not imports-allowed?))
          (read-error source command "must belongs directly in a workflow file"))
-       (define form (expect 'word "do or stages after must"))
+       (define form (expect 'word "do, stages, or a record name after must"))
        (match (token-value form)
          ["do" (node 'must-call (named-word "a procedure name") '() command)]
          ["stages"
@@ -385,7 +407,20 @@
           (when (< (length names) 2)
             (read-error source command "must stages in order needs at least two stage names"))
           (node 'must-stage-order names '() command)]
-         [_ (read-error source form "expected do or stages after must")])]
+         [_
+          (define name (string->symbol (token-value form)))
+          (when (member (token-value form) reserved)
+            (read-error source form "expected a record name after must"))
+          (expect-word "implement")
+          (define reference
+            (if (eq? (token-kind (current)) 'string)
+                (let ([path (token-value (advance!))])
+                  (when (or (string=? path "")
+                            (not (relative-path? (string->path path))))
+                    (read-error source form "interface file path must be relative"))
+                  path)
+                (named-word "an interface name or quoted relative path")))
+          (node 'must-implement (list name reference) '() command)])]
       ["stage"
        (when (or includes-allowed? imports-allowed?)
          (read-error source command "stage belongs in a workflow or procedure"))
@@ -455,7 +490,7 @@
         [(close) (advance!) (reverse backward)]
         [(eof) (read-error source found "expected ] before end of file")]
         [else
-         (define command (expect 'word "version, require, or affects"))
+         (define command (expect 'word "an interface field, version, require, or affects"))
          (define form
            (match (token-value command)
              ["version"
@@ -468,8 +503,16 @@
                     (list (named-word "a source part name")
                           (named-word "an affected part name"))
                     '() command)]
-             [_ (read-error source command
-                            "an interface accepts only version, require, and affects")]))
+             [field-name
+              (when (or (member field-name reserved)
+                        (regexp-match? #px"^[+-]?[0-9]" field-name))
+                (read-error source command "expected an interface field name"))
+              (define default
+                (and (eq? (token-kind (current)) 'word)
+                     (string=? (token-value (current)) "=")
+                     (begin (advance!) (parse-value))))
+              (node 'interface-field (string->symbol field-name)
+                    (if default (list default) '()) command)]))
          (loop (cons form backward))])))
   (define (parse-to-eof definitions-allowed? includes-allowed?)
     (let loop ([backward '()])
@@ -490,8 +533,6 @@
                 (member first-word '("to" "include"))))
        "fragment"]
       [else "workflow"]))
-  (when (and expected-kind (not (string=? kind expected-kind)))
-    (read-error source start (format "expected ~a declaration" expected-kind)))
   (define-values (title imports forms)
     (cond
       [(string=? kind "workflow")
@@ -517,6 +558,26 @@
                (if (string=? kind "interface")
                    (parse-interface-body)
                    (parse-body #t #f #t #t)))]))
+  (define inline-first?
+    (and (string=? kind "interface")
+         (not (eq? (token-kind (current)) 'eof))
+         (not (equal? expected-kind "interface"))))
+  (define actual-kind (if inline-first? "workflow" kind))
+  (when (and expected-kind (not (string=? actual-kind expected-kind)))
+    (read-error source start (format "expected ~a declaration" expected-kind)))
+  (define actual-forms
+    (if inline-first?
+        (let ([declaration (node 'interface title forms start)])
+          (unless (valid-inline-interface-name? title)
+            (read-error source start
+                        "an inline interface needs a name usable as a value"))
+          (validate-interface declaration source)
+          (when (for/or ([part (in-list forms)])
+                  (eq? (node-kind part) 'require))
+            (read-error source start
+                        "inline interfaces describe records; put workflow-part interfaces in a separate file"))
+          (cons declaration (parse-to-eof #t #f)))
+        forms))
   (unless (eq? (token-kind (current)) 'eof)
     (read-error source (current) "expected end of file after library or interface"))
   (when (member kind '("library" "fragment"))
@@ -527,12 +588,12 @@
         (read-error source (node-at form)
                     "a library can contain only to, include, and import declarations"))))
   (define result
-    (case (string->symbol kind)
-      [(library) (node 'library title forms start)]
-      [(interface) (node 'interface title forms start)]
-      [(fragment) (node 'fragment #f forms start)]
-      [(workflow) (node 'workflow title
-                           (append (resolve-imports imports) forms) start)]))
+    (case (string->symbol actual-kind)
+      [(library) (node 'library title actual-forms start)]
+      [(interface) (node 'interface title actual-forms start)]
+      [(fragment) (node 'fragment #f actual-forms start)]
+      [(workflow) (node 'workflow (if inline-first? #f title)
+                           (append (resolve-imports imports) actual-forms) start)]))
   (cond
     [(eq? (node-kind result) 'fragment) result]
     [(eq? (node-kind result) 'interface)
@@ -774,24 +835,39 @@
              (has-output? (node-children form))))))
 
 (define (validate-interface interface source)
+  (when (string=? (node-value interface) "")
+    (read-error source (node-at interface) "interface name cannot be empty"))
   (define versions
     (filter (lambda (form) (eq? (node-kind form) 'version))
             (node-children interface)))
-  (unless (= (length versions) 1)
+  (when (> (length versions) 1)
     (read-error source (node-at interface)
-                "an interface needs exactly one version declaration"))
-  (when (string=? (node-value (car versions)) "")
+                "an interface can have at most one version declaration"))
+  (when (and (pair? versions) (string=? (node-value (car versions)) ""))
     (read-error source (node-at (car versions)) "interface version cannot be empty"))
   (define required (make-hasheq))
+  (define fields (make-hasheq))
   (for ([form (in-list (node-children interface))]
         #:when (eq? (node-kind form) 'require))
     (define part (node-value form))
     (when (hash-has-key? required part)
       (read-error source (node-at form) (format "duplicate required part ~a" part)))
     (hash-set! required part #t))
-  (when (zero? (hash-count required))
+  (for ([form (in-list (node-children interface))]
+        #:when (eq? (node-kind form) 'interface-field))
+    (define name (node-value form))
+    (when (hash-has-key? fields name)
+      (read-error source (node-at form) (format "duplicate interface field ~a" name)))
+    (hash-set! fields name #t))
+  (when (and (positive? (hash-count fields))
+             (or (positive? (hash-count required))
+                 (for/or ([form (in-list (node-children interface))])
+                   (eq? (node-kind form) 'affects))))
     (read-error source (node-at interface)
-                "an interface needs at least one required part"))
+                "record fields and workflow parts cannot share one interface"))
+  (when (and (zero? (hash-count required)) (zero? (hash-count fields)))
+    (read-error source (node-at interface)
+                "an interface needs a field or a required part"))
   (for ([form (in-list (node-children interface))]
         #:when (eq? (node-kind form) 'affects))
     (for ([part (in-list (node-value form))])
@@ -801,12 +877,23 @@
 
 (define (validate-program program source)
   (define definitions (make-hasheq))
+  (define interfaces (make-hasheq))
+  (for ([form (in-list (node-children program))]
+        #:when (eq? (node-kind form) 'interface))
+    (define name (string->symbol (node-value form)))
+    (when (hash-has-key? interfaces name)
+      (read-error source (node-at form) (format "duplicate interface ~a" name)))
+    (hash-set! interfaces name form))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'to))
     (define name (procedure-name form))
     (when (hash-has-key? definitions name)
       (read-error source (node-at form) (format "duplicate procedure ~a" name)))
     (hash-set! definitions name form))
+  (for ([name (in-hash-keys interfaces)])
+    (when (hash-has-key? definitions name)
+      (read-error source (node-at (hash-ref interfaces name))
+                  (format "interface name ~a conflicts with a procedure" name))))
   (define stage-names (make-hash))
   (define (check-stage-names forms)
     (for ([form (in-list forms)])
@@ -830,14 +917,26 @@
          (read-error source (node-at value)
                      (format "unknown input :~a" (node-value value))))]
       [(result)
-       (unless (memq (node-value value) results)
+       (unless (or (memq (node-value value) results)
+                   (hash-has-key? interfaces (node-value value)))
          (read-error source (node-at value)
                      (format "unknown result ~a" (node-value value))))]))
   (define (check-forms forms inputs results [settable '()])
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import implements must-call must-stage-order stage) visible]
+        [(to import interface implements must-call must-stage-order stage) visible]
+        [(must-implement)
+         (define name (car (node-value form)))
+         (unless (memq name visible)
+           (read-error source (node-at form)
+                       (format "unknown record ~a in must implement" name)))
+         (define reference (cadr (node-value form)))
+         (when (and (symbol? reference)
+                    (not (hash-has-key? interfaces reference)))
+           (read-error source (node-at form)
+                       (format "unknown interface ~a in must implement" reference)))
+         visible]
         [(sequence)
          (check-forms (node-children form) inputs visible writable)
          visible]
@@ -862,7 +961,8 @@
         [(for-each)
          (define name (car (node-value form)))
          (check-value (cdr (node-value form)) inputs visible)
-         (when (or (memq name inputs) (memq name visible))
+         (when (or (hash-has-key? interfaces name)
+                   (memq name inputs) (memq name visible))
            (read-error source (node-at form)
                        (format "loop variable ~a shadows a visible name" name)))
          (check-forms (node-children form) inputs (cons name visible) writable)
@@ -870,7 +970,8 @@
         [(set)
          (define name (car (node-value form)))
          (check-value (cdr (node-value form)) inputs visible)
-         (when (or (memq name inputs)
+         (when (or (hash-has-key? interfaces name)
+                   (memq name inputs)
                    (and (memq name visible) (not (memq name writable))))
            (read-error source (node-at form)
                        (format "cannot set protected name ~a" name)))
@@ -896,7 +997,8 @@
            (unless (has-output? (node-children definition))
              (read-error source (node-at form)
                          (format "procedure ~a has no output" name)))
-           (when (or (memq result-name inputs) (memq result-name visible))
+           (when (or (hash-has-key? interfaces result-name)
+                     (memq result-name inputs) (memq result-name visible))
              (read-error source (node-at form)
                          (format "duplicate result ~a" result-name))))
          (if result-name (cons result-name visible) visible)])))
@@ -940,7 +1042,12 @@
      (list 'implements (node-value form) (map node->datum (node-children form)))]
     [(provide affects) (cons (node-kind form) (node-value form))]
     [(version require) (list (node-kind form) (node-value form))]
+    [(interface-field)
+     (list 'interface-field (node-value form)
+           (and (pair? (node-children form))
+                (node->datum (car (node-children form)))))]
     [(must-call) (list 'must-call (node-value form))]
+    [(must-implement) (cons 'must-implement (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]
     [(stage) (list 'stage (node-value form))]
     [(to) (list 'to (procedure-name form) (procedure-inputs form)

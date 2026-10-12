@@ -60,7 +60,57 @@ The interface path is relative to the investigation file. A @tt{provide} referen
 is a claim, not proof that the named work exists or is correct; the assessor does
 not inspect those references. The five names belong to this interface. ScienceLogo
 does not require every workflow activity or item to have an author-written name.
-Interface versions appear in the report, but this assessor does not compare them.
+An interface may omit @tt{version}. The report identifies its source revision
+with a hash; the assessor does not compare versions.
+
+@section{Record interfaces}
+
+A record interface names fields. A bare name requires a supplied field; a
+field with @tt{=} has a default. All fields must be present in the completed
+record. Extra fields are allowed. There is no separate optional-field form.
+The @hyperlink[(source-file-url "examples/record-interface.rkt")]{timing record example}
+is a runnable workflow:
+
+@verbatim|{
+#lang sciencelogo
+
+workflow "Check timing records"
+interface "Timing" [duration unit = "seconds"]
+set trial to Timing but [duration = 2]
+must trial implement Timing
+set revised to trial but [unit = "minutes"]
+must revised implement Timing
+must revised implement "interfaces/timing.rkt"
+}|
+
+@tt{Timing but [duration = 2]} creates a record with @tt{unit = "seconds"}.
+Construction fails if any bare field remains absent. @tt{but} on an existing
+record makes a copy with the listed fields changed; it leaves the original
+record unchanged. A literal record can satisfy the same interface even when
+it was not constructed from @tt{Timing}:
+
+@verbatim|{
+set direct to [duration = unknown unit = "seconds"]
+must direct implement Timing
+}|
+
+@tt{unknown} is an explicit field value and satisfies field presence. It does
+not mean the field is absent or that its scientific value has been established.
+The @tt{must} check is declarative: it examines the written record shape and
+does not run the workflow. A direct @tt{set} to a record or a @tt{but} copy has
+a known shape. A record returned by a procedure, or one possibly changed by
+a conditional or loop, is reported as undetermined.
+
+The same interface can be a separate
+@hyperlink[(source-file-url "examples/interfaces/timing.rkt")]{@tt{#lang sciencelogo} file}.
+In this example, @tt{must revised implement "interfaces/timing.rkt"} checks
+against that file; the path
+is relative to the workflow file. The assessor records the source revision
+hash even when the optional @tt{version} is omitted. The standalone form
+checks a record; local declarations supply a name usable in construction.
+Record fields and @tt{require} parts cannot be mixed in one interface.
+@tt{implements ... [provide ...]} remains the form for workflow-part
+interfaces.
 
 @section{Require a call in the written method}
 

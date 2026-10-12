@@ -80,6 +80,10 @@
   (define root (format "~a@~a" source revision))
   (define definitions
     (filter (lambda (form) (eq? (node-kind form) 'to)) forms))
+  (define inline-interfaces
+    (for/hasheq ([form (in-list forms)]
+                 #:when (eq? (node-kind form) 'interface))
+      (values (string->symbol (node-value form)) form)))
   (define procedure-ids
     (for/hasheq ([definition (in-list definitions)])
       (values (car (node-value definition))
@@ -115,13 +119,15 @@
       [(literal) #f]
       [(parameter) (hash-ref inputs (node-value value))]
       [(result)
-       (let loop ([remaining scopes])
+       (if (hash-has-key? inline-interfaces (node-value value))
+           #f
+           (let loop ([remaining scopes])
          (cond
            [(null? remaining)
             (error 'read-workflow-model "unresolved result ~a" (node-value value))]
            [(hash-has-key? (car remaining) (node-value value))
             (hash-ref (car remaining) (node-value value))]
-           [else (loop (cdr remaining))]))]))
+           [else (loop (cdr remaining))])))]))
   (define (add-use activity-id value inputs scopes)
     (case (node-kind value)
       [(list fields field-entry field-ref item-ref range compare binary unary but)
@@ -297,6 +303,23 @@
                                     'stage-order (node-value form)
                                     root 'method 'stage-headers
                                     (origin (node-at form)))
+                   conditions))]
+      [(must-implement)
+       (define reference (cadr (node-value form)))
+       (define earlier
+         (takef forms (lambda (candidate) (not (eq? candidate form)))))
+       (set! conditions
+             (cons (condition-model (element-id root 'must-implement (node-at form))
+                                    'record-implementation (car (node-value form))
+                                    root 'method
+                                    (list reference
+                                          (map node->datum earlier)
+                                          (and (symbol? reference)
+                                               (node->datum
+                                                (hash-ref inline-interfaces reference)))
+                                          (for/list ([declaration (in-hash-values inline-interfaces)])
+                                            (node->datum declaration)))
+                                    (origin (node-at form)))
                    conditions))]))
   (build-block forms root (make-hasheq) (list (make-hasheq)))
   (workflow-model root (node-value tree) source revision
@@ -313,12 +336,20 @@
   (define id (format "~a@~a" source revision))
   (define forms (node-children tree))
   (define version
-    (node-value (findf (lambda (form) (eq? (node-kind form) 'version)) forms)))
+    (let ([declared (findf (lambda (form) (eq? (node-kind form) 'version)) forms)])
+      (and declared (node-value declared))))
   (define conditions
-    (for/list ([form (in-list forms)] #:when (eq? (node-kind form) 'require))
-      (condition-model (element-id id 'require (node-at form))
-                       'provided-part (node-value form) id 'method
-                       'provide-declaration (origin (node-at form)))))
+    (for/list ([form (in-list forms)]
+               #:when (memq (node-kind form) '(require interface-field)))
+      (if (eq? (node-kind form) 'require)
+          (condition-model (element-id id 'require (node-at form))
+                           'provided-part (node-value form) id 'method
+                           'provide-declaration (origin (node-at form)))
+          (condition-model (element-id id 'field (node-at form))
+                           'required-field (node-value form) id 'record
+                           (and (pair? (node-children form))
+                                (node->datum (car (node-children form))))
+                           (origin (node-at form))))))
   (define condition-ids
     (for/hasheq ([condition (in-list conditions)])
       (values (condition-model-target condition)

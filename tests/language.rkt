@@ -235,6 +235,39 @@
 (module+ test
   (check-equal?
    (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "workflow \"Timing records\"\n"
+     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+     "set trial to Timing but [duration = 2]\n"
+     "print unit of trial\n"
+     "set revised to trial but [unit = \"minutes\"]\n"
+     "print unit of revised\n"
+     "print unit of trial\n"
+     "set explicit to [duration = unknown unit = \"seconds\"]\n"
+     "print duration of explicit\n"))
+   "seconds\nminutes\nseconds\nunknown\n")
+  (check-equal?
+   (output-of
+    (string-append "#lang sciencelogo\n"
+                   "interface \"Timing\" [duration unit = \"seconds\"]\n"
+                   "set trial to Timing but [duration = 2]\n"
+                   "print unit of trial\n"))
+   "seconds\n")
+  (check-exn
+   #rx"Timing is missing field duration"
+   (lambda ()
+     (output-of
+      (string-append "#lang sciencelogo\nworkflow \"Timing\"\n"
+                     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+                     "set trial to Timing but [unit = \"minutes\"]\n"))))
+  (check-exn
+   #rx"duplicate interface field duration"
+   (lambda ()
+     (output-of
+      "#lang sciencelogo\ninterface \"Timing\" [duration duration]\n")))
+  (check-equal?
+   (output-of
     "#lang sciencelogo\ndo greet\nto greet [print \"Hello\"]\n")
    "Hello\n")
 

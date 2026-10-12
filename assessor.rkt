@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/list
+         racket/match
          racket/path
          racket/string
          "private/call-paths.rkt"
@@ -39,6 +40,10 @@
          [(stage-order)
           (and (stage-order-target? (condition-model-target condition))
                (eq? (condition-model-evidence condition) 'stage-headers))]
+         [(record-implementation)
+          (and (symbol? (condition-model-target condition))
+               (list? (condition-model-evidence condition))
+               (= (length (condition-model-evidence condition)) 4))]
          [else #f])))
 
 (define (assess-model-structure method)
@@ -291,9 +296,27 @@
               '())))
 
 (define (assess-existing-interface declaration interface-path)
+  (define interface (read-interface-model interface-path))
+  (if (for/or ([condition (in-list (interface-model-conditions interface))])
+        (eq? (condition-model-kind condition) 'required-field))
+      (values
+       (assessed-interface (implementation-model-alias declaration)
+                           (interface-model-name interface)
+                           (interface-model-version interface) interface-path
+                           (interface-model-id interface)
+                           (interface-model-revision interface))
+       (list (finding 'wrong-interface-kind
+                      (implementation-model-alias declaration)
+                      interface-path '()
+                      'sciencelogo:workflow-part-interface
+                      (implementation-model-id declaration) 'violated
+                      (list (implementation-model-source declaration))))
+       '())
+      (assess-workflow-parts declaration interface-path interface)))
+
+(define (assess-workflow-parts declaration interface-path interface)
   (define alias (implementation-model-alias declaration))
   (define provisions (implementation-model-provisions declaration))
-  (define interface (read-interface-model interface-path))
   (define conditions (interface-model-conditions interface))
   (define condition-by-part
     (for/hasheq ([condition (in-list conditions)])
@@ -362,6 +385,127 @@
           (append provision-findings missing-findings impact-findings)
           checks))
 
+(define (record-shape expression environment templates)
+  ;; Only written, direct record constructions are known here. A procedure result
+  ;; or an executable block can depend on information absent from the method.
+  (match expression
+    [`(fields ,entries)
+     (for/hasheq ([entry (in-list entries)])
+       (values (car entry) #t))]
+    [`(result ,name)
+     (hash-ref environment name 'undetermined)]
+    [`(but ,source (fields ,entries))
+     (define base
+       (match source
+         [`(result ,name)
+          (if (hash-has-key? templates name)
+              (for/hasheq ([field (in-list (hash-ref templates name))]
+                           #:when (cadr field))
+                (values (car field) #t))
+              (hash-ref environment name 'undetermined))]
+         [_ (record-shape source environment templates)]))
+     (if (hash? base)
+         (for/fold ([shape base]) ([entry (in-list entries)])
+           (hash-set shape (car entry) #t))
+         base)]
+    [`(literal ,_) 'not-a-record]
+    [_ 'undetermined]))
+
+(define (assess-record-condition condition method)
+  (match-define (list reference earlier local declarations)
+    (condition-model-evidence condition))
+  (define method-source (workflow-model-source method))
+  (define interface-path
+    (and (string? reference)
+         (simplify-path (build-path (path-only method-source)
+                                    (string->path reference)))))
+  (define interface
+    (cond
+      [(symbol? reference)
+       (define parts (caddr local))
+       (define version
+         (for/first ([part (in-list parts)] #:when (eq? (car part) 'version))
+           (cadr part)))
+       (interface-model (format "~a/interface:~a" (workflow-model-id method)
+                                reference)
+                        (cadr local) version method-source
+                        (workflow-model-revision method)
+                        (for/list ([part (in-list parts)]
+                                   #:when (eq? (car part) 'interface-field))
+                          (condition-model #f 'required-field (cadr part) #f #f
+                                           (caddr part) #f))
+                        '())]
+      [(file-exists? interface-path) (read-interface-model interface-path)]
+      [else #f]))
+  (define condition-id (condition-model-id condition))
+  (define target (condition-model-target condition))
+  (cond
+    [(not interface)
+     (values #f
+             (list (finding 'missing-interface-file reference reference '()
+                            condition-id target 'violated
+                            (list (condition-model-source condition))))
+             (list (condition-check condition-id target 'violated '()
+                                    'missing-interface-file)))]
+    [else
+     (define record-interface?
+       (andmap (lambda (part) (eq? (condition-model-kind part) 'required-field))
+               (interface-model-conditions interface)))
+     (define assessed
+       (assessed-interface reference (interface-model-name interface)
+                           (interface-model-version interface)
+                           (interface-model-source interface)
+                           (interface-model-id interface)
+                           (interface-model-revision interface)))
+     (define templates (make-hasheq))
+     (for ([declaration (in-list declarations)])
+       (match-define `(interface ,name ,parts) declaration)
+       (hash-set! templates (string->symbol name)
+                  (for/list ([part (in-list parts)]
+                             #:when (eq? (car part) 'interface-field))
+                    (cdr part))))
+     (define environment (make-hasheq))
+     (for ([form (in-list earlier)])
+       (match form
+         [`(set ,name ,expression)
+          (hash-set! environment name
+                     (record-shape expression environment templates))]
+         [`(call ,_ ,_ ,name)
+          (when name (hash-set! environment name 'undetermined))]
+         [`(sequence ,_) (for ([name (in-hash-keys environment)])
+                           (hash-set! environment name 'undetermined))]
+         [`(repeat ,_ ,_) (for ([name (in-hash-keys environment)])
+                          (hash-set! environment name 'undetermined))]
+         [`(repeat-until ,_ ,_) (for ([name (in-hash-keys environment)])
+                                (hash-set! environment name 'undetermined))]
+         [`(for-each ,_ ,_ ,_) (for ([name (in-hash-keys environment)])
+                               (hash-set! environment name 'undetermined))]
+         [`(while ,_ ,_) (for ([name (in-hash-keys environment)])
+                          (hash-set! environment name 'undetermined))]
+         [`(if ,_) (for ([name (in-hash-keys environment)])
+                     (hash-set! environment name 'undetermined))]
+         [_ (void)]))
+     (define shape (hash-ref environment target 'undetermined))
+     (define missing
+       (and (hash? shape)
+            (for/list ([part (in-list (interface-model-conditions interface))]
+                       #:unless (hash-has-key? shape (condition-model-target part)))
+              (condition-model-target part))))
+     (define-values (outcome gap)
+       (cond [(not record-interface?) (values 'violated 'wrong-interface-kind)]
+             [(eq? shape 'undetermined) (values 'undetermined 'unknown-record)]
+             [(eq? shape 'not-a-record) (values 'violated 'not-a-record)]
+             [(pair? missing) (values 'violated 'missing-field)]
+             [else (values 'satisfied #f)]))
+     (define evidence
+       (list (interface-model-id interface) (interface-model-revision interface)))
+     (values assessed
+             (if gap
+                 (list (finding gap reference (if (pair? missing) missing target)
+                                '() condition-id target outcome evidence))
+                 '())
+             (list (condition-check condition-id target outcome evidence gap)))]))
+
 (define (assess-workflow method)
   (unless (workflow-model? method)
     (raise-argument-error 'assess-workflow "workflow-model?" method))
@@ -391,6 +535,17 @@
           (when interface (set! interfaces (append interfaces (list interface))))
           (set! findings (append findings issues))
           (set! checks (append checks results)))))
+  (for ([condition (in-list (workflow-model-conditions method))]
+        #:when (eq? (condition-model-kind condition) 'record-implementation))
+    (define-values (interface issues results)
+      (assess-record-condition condition method))
+    (when (and interface
+               (not (for/or ([existing (in-list interfaces)])
+                      (equal? (assessed-interface-id existing)
+                              (assessed-interface-id interface)))))
+      (set! interfaces (append interfaces (list interface))))
+    (set! findings (append findings issues))
+    (set! checks (append checks results)))
   (assessment (or (workflow-model-title method) (workflow-model-source method))
               (workflow-model-source method)
               interfaces findings checks method))
@@ -401,11 +556,14 @@
 (define (render-assessment result [out (current-output-port)])
   (fprintf out "ScienceLogo assessment: ~a\n" (assessment-title result))
   (for ([interface (in-list (assessment-interfaces result))])
-    (fprintf out "Interface ~a: ~a, version ~a (~a)\n"
+    (fprintf out "Interface ~a: ~a, ~a (~a; revision ~a)\n"
              (assessed-interface-alias interface)
              (assessed-interface-name interface)
-             (assessed-interface-version interface)
-             (assessed-interface-source interface)))
+             (if (assessed-interface-version interface)
+                 (format "version ~a" (assessed-interface-version interface))
+                 "unversioned")
+             (assessed-interface-source interface)
+             (assessed-interface-revision interface)))
   (if (null? (assessment-findings result))
       (displayln "No structural issues found." out)
       (for ([issue (in-list (assessment-findings result))])
@@ -461,7 +619,19 @@
                     (string-join (finding-part issue) " -> "))]
           [(invalid-condition)
            (fprintf out "Invalid condition ~a targeting ~a.\n"
-                    (finding-part issue) (finding-target issue))]))))
+                    (finding-part issue) (finding-target issue))]
+          [(missing-field)
+           (fprintf out "Record ~a is missing field(s) ~a required by ~a.\n"
+                    (finding-target issue) (finding-part issue)
+                    (finding-interface issue))]
+          [(unknown-record)
+           (fprintf out "Record ~a cannot be checked from the written method.\n"
+                    (finding-target issue))]
+          [(not-a-record)
+           (fprintf out "Value ~a is not a record.\n" (finding-target issue))]
+          [(wrong-interface-kind)
+           (fprintf out "Interface ~a does not describe record fields.\n"
+                    (finding-interface issue))]))))
 
 (module+ main
   (require racket/cmdline)
