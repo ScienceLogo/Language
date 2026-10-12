@@ -59,12 +59,16 @@ do hello.greeting as message print message
 Replace the example URL with the absolute path to a local Git repository. It must
 have a `main` branch and a
 root `library.rkt` with a `library "name" [ ... ]` declaration. It holds top-level
-`to` definitions, `include "relative/path.rkt"` declarations, or library imports,
+`to` definitions, record `interface` declarations, `include "relative/path.rkt"`
+declarations, or library imports,
 with no executable
-commands. Included files hold top-level `to` and `include` declarations and can be
+commands. Included library files hold top-level `to`, record `interface`, and
+`include` declarations and can be
 nested; paths are relative to the containing file and cannot escape the repository.
 `at` names a tag or full commit ID on `main`, not a branch. Imported procedures use
-`alias.procedure` in calls. Imported stage names carry the library alias in the
+`alias.procedure` in calls. Imported record interfaces use `alias.Interface` in
+construction, `extends`, and `must ... implement` checks. Imported stage names
+carry the library alias in the
 method model, so separate libraries may reuse a stage label. Git must be available;
 the reader fetches and validates the library before any commands run. See
 the [hello-world library](libraries.md) for the complete file.
@@ -72,8 +76,19 @@ the [hello-world library](libraries.md) for the complete file.
 A library may import another library directly inside its `library` block. Its
 procedures may call that dependency using the library's internal alias. The
 importing investigation sees only the first library's own procedures; to call a
-dependency directly, it imports that dependency separately. The reader records
+dependency directly, it imports that dependency separately. The same rule
+applies to record interfaces. The reader records
 each resolved revision and rejects import cycles.
+
+A workflow can also use `include "relative/path.rkt"` at top level. An included
+workflow file can contain top-level commands, stages, procedures, record
+interfaces, `must` declarations, and more includes. It has no `workflow` title
+or `import`: the entry file supplies the one title and its imports. Each include
+path is resolved relative to the file containing it. For example, an include
+in `methods/measure.rkt` can load `../shared/period.rkt`. The resulting path
+must remain inside the same Git repository. Included files begin with
+`#lang sciencelogo`. The reader rejects missing files, duplicate includes,
+and cycles, and validates the assembled workflow before running it.
 
 ## Describe and assess required parts
 
@@ -295,6 +310,32 @@ presence from direct `set` and `but` statements. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and
 standalone interfaces may omit `version`; assessments retain the source
 revision hash.
+
+Record interfaces can inherit and combine other record interfaces:
+
+```text
+interface "Timed-observation" [
+  extends Timing
+  extends Location
+  observation
+  unit = "minutes"
+]
+interface "Timing" [duration unit = "seconds"]
+interface "Location" [place]
+```
+
+One `extends` inherits one parent; repeated `extends` combines their fields.
+References can point to later declarations in the same workflow, declarations
+in included files, or imported library interfaces named `alias.Interface`. Identical
+inherited declarations merge. The child's own field declaration replaces any
+inherited declaration of that field, including a default; this also resolves
+conflicting inherited declarations. Without an explicit child declaration,
+different inherited requirements or defaults for the same field are a read
+error. Unknown parents, duplicate parents, and extension cycles are errors.
+Constructing from the combined interface applies the resolved defaults and
+requires all resolved bare fields. A `must` check uses those same resolved
+fields. `but []` can construct an interface when no bare field remains to be
+supplied. Standalone interface files cannot use local `extends` references.
 
 ## Lists, ranges, loops, and choices
 

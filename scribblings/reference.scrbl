@@ -3,179 +3,165 @@
 
 @title[#:style (page-style) #:tag "reference"]{Syntax}
 
-These forms are implemented in the current reader and assessor.
+This section documents the forms implemented by @tt{#lang sciencelogo} today.
+Read @secref["getting-started"] for a first example, then use the topic pages
+below as a language reference. The broader proposals in
+@hyperlink[(source-directory-url "spec")]{the design specifications} are not
+runnable syntax.
 
-@itemlist[
-  @item{@tt{workflow "title"} optionally names the whole workflow file for
-        references and reports. It appears once as the first form, before imports or method forms,
-        and does not enclose the file in brackets.}
-  @item{@tt{to name :input ... [ ... ]} defines a procedure with optional inputs.
-        It does not run until called. Definitions belong directly in a workflow file,
-        library, or included file. Procedure names must be distinct.}
-  @item{@tt{do name value ... as result} calls a procedure, optionally supplying
-        values and naming its returned result.}
-  @item{@tt{do [ ... ]} runs its commands once, in order.}
-  @item{@tt{set name to value} creates or updates a named value. A new name
-        belongs to the current block; a visible name created by @tt{set} can
-        be updated from a nested block.}
-  @item{@tt{repeat count [ ... ]} runs a block a fixed number of times.}
-  @item{@tt{for each name in sequence [ ... ]} runs a block for each item in
-        an ordered sequence. @tt{name} is local to each iteration.}
-  @item{@tt{item position of sequence} reads one item from an ordered list.
-        Positions start at 1.}
-  @item{@tt{while condition [ ... ]} tests before each iteration.}
-  @item{@tt{repeat [ ... ] until condition} runs at least once, then tests
-        after each iteration. Its condition may refer to a value named in the block.}
-  @item{@tt{if condition [ ... ] else if condition [ ... ] else [ ... ]}
-        chooses the first true branch, or the optional @tt{else} branch.}
-  @item{@tt{stage "name"} labels the following commands until the next stage header
-        at the same nesting level or the end of the block. It is a section and
-        checkpoint, not a command to run or a procedure to call. Stage names must be
-        distinct across a workflow and its procedures.}
-  @item{@tt{output value} returns a value from a procedure.}
-  @item{@tt{print value} displays text. It does not record a scientific observation.}
-  @item{@tt{library "name" [ ... ]} declares procedures in a library file.}
-  @item{@tt{include "relative/path.rkt"} loads declarations from another file in
-        the same library repository.}
-  @item{@tt{import "Git URL" at "tag or commit" as alias} makes procedures in a
-        library available through @tt{alias.procedure}. It appears at the top of
-        a workflow file, before method forms, or directly inside a library block.}
-  @item{@tt{interface "name" [field field = default ...]} declares a record
-        interface directly in a workflow or in a separate file. Every field
-        must occur in a matching record; a default supplies its value during
-        construction. @tt{version "..."} is optional.}
-  @item{@tt{interface "name" [require part ... affects source target ...]}
-        declares required workflow parts and structural impact links in a
-        separate file. @tt{version "..."} is optional.}
-  @item{@tt{must do name} requires a call to @tt{name} on the written method's
-        established paths. The assessor reports satisfied, violated, or
-        undetermined when the call depends on unresolved control flow. It
-        belongs directly in an investigation.}
-  @item{@tt{must stages in order ["First" "Second" ...]} requires at least two
-        distinct top-level stage headers in that order. Other stages may occur
-        between them. It belongs directly in a workflow file.}
-  @item{@tt{implements "relative/path.rkt" as alias [provide part by "reference" ...]}
-        maps interface parts to text references inside an investigation.}
-  @item{@tt{must record implement InterfaceName} or
-        @tt{must record implement "relative/path.rkt"} checks the record's
-        current fields against a local or separate record interface.}
-]
+@section{How to read the forms}
 
-A value can be quoted text, a number, @tt{true}, @tt{false}, @tt{unknown}, a
-list such as @tt{[1 2 3]}, a numeric range, a declared @tt{:input} inside its
-procedure, or a name introduced earlier by @tt{as} or @tt{set}. Values can be
-combined into expressions. Write spaces around operators; use parentheses to
-group an expression. For example:
+In a form such as @tt{to name :input [ ... ]}, command words such as @tt{to}
+are written literally; @tt{name}, @tt{input}, and @tt{...} stand for content
+you supply. Square brackets shown in a form are literal ScienceLogo
+brackets. Quoted text is a text value. Commands may share a line or use
+separate lines.
+
+@section{Names and labels}
+
+Names are case-sensitive. The table gives the project's spelling convention.
+It is guidance for readable workflows; the reader does not enforce letter
+case or the suggested word separator.
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "What is named") (bold "Preferred form") (bold "Example"))
+   (list "Library and repository" "Lowercase words joined by hyphens"
+         (tt "pendulum-tools"))
+   (list "Import or implementation alias" "Lowercase words joined by hyphens"
+         (tt "timing-tools"))
+   (list "Procedure" "Lowercase words joined by hyphens"
+         (tt "estimate-period"))
+   (list "Input" "Lowercase words joined by hyphens, preceded by : in code"
+         (tt ":swing-count"))
+   (list "Value, call result, or loop name" "Lowercase words joined by hyphens"
+         (tt "trial-duration"))
+   (list "Record field or required part" "Lowercase words joined by hyphens"
+         (tt "mean-period"))
+   (list "Interface" "First letter capitalized; later words lowercase and joined by hyphens"
+         (tt "Timed-observation"))
+   (list "Workflow or stage title" "Readable quoted text"
+         (tt "\"Measure the pendulum\""))
+   (list "Source file or directory" "Lowercase words joined by hyphens"
+         (tt "methods/estimate-period.rkt"))))
+
+An interface is declared with a quoted name, as in
+@tt{interface "Timed-observation" [ ... ]}, and referred to without quotes as
+@tt{Timed-observation}. An imported interface is @tt{alias.Timed-observation};
+an imported procedure is @tt{alias.estimate-period}. A @tt{library} name is
+display text: imports use its Git URL and the chosen alias, not that name.
+Workflow and stage titles are display text; a @tt{must stages in order} check
+uses the stage title exactly.
+
+The reader rejects reserved command words as most user names, and rejects a
+dot inside a procedure definition, import alias, or record interface name.
+Keep dots for qualified imported names. A name used as a word has no spaces;
+quoted workflow and stage titles can contain spaces. Procedure names must be
+distinct; interface names must be distinct from each other and from procedures;
+stage names must be distinct across the assembled workflow. Each procedure has
+distinct input names, and record fields are distinct within a record.
+@secref["procedures"] explains local value scope and result names.
+
+@section{Source files and composition}
+
+Every ScienceLogo source file begins with @tt{#lang sciencelogo}. The entry
+workflow is the file to run or assess. Its optional @tt{workflow "title"} is
+the first form and labels the whole method without enclosing it in brackets.
+Definitions may appear after their uses.
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Form") (bold "Where it belongs") (bold "Purpose"))
+   (list (tt "workflow \"title\"") "First form of an entry workflow"
+         "Names the method; at most one per file")
+   (list (tt "library \"name\" [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces")
+   (list (tt "import \"Git URL\" at \"tag\" as alias")
+         "After a workflow title, before method forms; or directly in a library"
+         "Loads a pinned library")
+   (list (tt "include \"relative/path.rkt\"")
+         "Top level of a workflow or library file"
+         "Loads another file from the same repository")
+   (list (tt "interface \"name\" [ ... ]")
+         "Top level of a workflow or library, or alone in a file"
+         "Declares record fields or workflow requirements")))
+
+A library import selects a tag or full commit ID on its @tt{main} branch.
+@secref["libraries"] gives the repository layout and dependency rules.
+@secref["interfaces"] explains the two interface forms. Workflow files may
+contain top-level commands, procedures, stages, record interfaces, obligations,
+and includes. A library file may contain imports, includes, procedures, and
+record interfaces; it has no top-level executable commands.
+
+@subsection{Split a workflow across files}
+
+Each @tt{include} path starts at the directory of the file containing it.
+An included workflow file has no workflow title or import and can include more
+files. For example, these three paths are in one Git repository:
+
+@tt{method.rkt}:
 
 @verbatim|{
-set lengths to range 0.25 to 1.00 step 0.25
-for each length in lengths [print length]
-set attempts to 0
-while attempts < 3 and not (attempts = 2) [
-  set attempts to attempts + 1
+#lang sciencelogo
+workflow "Pendulum trial"
+include "methods/period.rkt"
+do period 20 10 as seconds-per-swing
+print seconds-per-swing
+}|
+
+@tt{methods/period.rkt}:
+
+@verbatim|{
+#lang sciencelogo
+include "../shared/divide.rkt"
+to period :seconds :swings [
+  do divide :seconds :swings as result
+  output result
 ]
 }|
 
-The range includes its end only when an exact step lands on it. Bounds and
-step may be numbers, procedure inputs, or named values. The step must be
-nonzero and move toward the end; decimal inputs use exact arithmetic. Lists
-can contain values and other lists. A @tt{for each} collection must evaluate
-to an ordered list; separate loops can reuse one named list or range.
-
-Brackets beginning with @tt{name = value} make a value with named fields:
+@tt{shared/divide.rkt}:
 
 @verbatim|{
-set trial to [
-  temperature = 0.8
-  prompt = "tell me the capital of Peru"
-]
-print temperature of trial
+#lang sciencelogo
+to divide :total :count [output :total / :count]
 }|
 
-The field names are unquoted labels; each field's value may be quoted text,
-a number, an expression, a list, or another value with named fields. Field
-names must be distinct. @tt{temperature of trial} reads a field; it raises
-an error if @tt{trial} has no named fields or lacks @tt{temperature}. Field
-order does not affect equality. Brackets without an initial @tt{name =}
-remain lists: @tt{[x y]} is a list of two named values, and
-@tt{[[1 2] [3 4]]} is a list of rows. To put a comparison in a list, group
-it: @tt{[(x = y)]}.
+The reader assembles and validates the workflow before running it. Includes
+must stay inside the repository. Missing files, duplicate includes, and cycles
+are errors.
 
-Use @tt{record but [field = value ...]} to create a new record, replacing or
-adding the listed fields while keeping the others. The original record does
-not change. The left side must have named fields, and the right side must be
-named-field brackets:
+@section{Where to find each form}
 
-@verbatim|{
-set human to [species = "human" gender = "unspecified"]
-set john to human but [gender = "male"]
-set earlier to john
-set john to john but [height = 193]
-}|
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Topic") (bold "Forms covered"))
+   (list (secref "values")
+         (tt "numbers, text, true, false, unknown, lists, records"))
+   (list (secref "values")
+         (tt "range, item, of, but, arithmetic, comparisons, not, and, xor, or"))
+   (list (secref "procedures")
+         (tt "to, :input, do, as, output, set, print, stage"))
+   (list (secref "procedures")
+         (tt "repeat, until, for each, while, if, else if, else"))
+   (list (secref "libraries")
+         (tt "library, import, include"))
+   (list (secref "interfaces")
+         (tt "interface, version, extends, require, affects"))
+   (list (secref "assessment")
+         (tt "implements, provide, must do, must stages in order, must record implement"))))
 
-@tt{earlier} retains the value assigned before the last line. A plain
-@tt{set another to john} assigns the same immutable value without
-@tt{but}. @tt{"male"} is literal text; an unquoted name refers to a value
-named earlier. An interface can supply field defaults during construction;
-the resulting record is still an ordinary immutable record.
+@section{Comments and whitespace}
 
-List positions start at 1. @tt{item 1 of lengths} reads the first value;
-@tt{item 0 of lengths} is an error. The position can be a named value or an
-expression, as in @tt{item position of lengths} or
-@tt{item 1 + 1 of lengths}. It must be an exact positive integer within the
-list. A matrix represented as a list of rows follows the same rule for each
-level: @tt{item 2 of item 1 of grid} reads the second value of the first row.
-@tt{item} requires a list, so named fields are read with @tt{field of value}.
-Numeric ranges can still begin with zero; their numbers are values, not
-list positions.
+@tt{;} begins a line comment. @tt{#|} and @tt{|#} enclose a block comment;
+block comments can nest. Whitespace is flexible, and empty blocks are allowed.
+Parentheses group value expressions; brackets delimit blocks, lists, and
+named-field records.
 
-Arithmetic uses @tt{+}, @tt{-}, @tt{*}, and @tt{/}, with exact numbers. Division
-by zero is an error; a quotient that has no finite decimal form is displayed
-as a fraction, such as @tt{1/3}. The same operators work in range bounds,
-counts, and procedure arguments. Each argument is an expression: for example,
-@tt{do add 1 + 2 (3 * 4) as total} supplies two arguments.
+@section{What the reader checks}
 
-Conditions accept a Boolean expression or a comparison with @tt{=}, @tt{!=},
-@tt{<}, @tt{<=}, @tt{>}, or @tt{>=}. Ordered comparisons require numbers.
-@tt{not} reverses a Boolean value; @tt{and} needs both sides true; @tt{or}
-needs either side true; @tt{xor} needs exactly one side true. From strongest
-to weakest, precedence is parentheses, access with @tt{of}, @tt{but}, unary
-@tt{-}, @tt{*} and @tt{/},
-@tt{+} and @tt{-}, comparisons, @tt{not}, @tt{and}, @tt{xor}, then @tt{or}.
-Operators at the same level associate left to right. Use @tt{and} to combine
-comparisons rather than chaining them. @tt{false and unknown} is @tt{false};
-@tt{true or unknown} is @tt{true}; other Boolean uses of @tt{unknown} remain
-undetermined. An undetermined or nonboolean condition stops execution with an
-explicit error; it never selects @tt{else} by default. The runner stops a
-@tt{while} or @tt{repeat ... until} loop after 10,000 iterations with a
-nontermination error.
-
-A nested block can read values from its enclosing blocks and update a visible
-@tt{set} name. New names introduced inside @tt{do}, a loop, or a branch stay
-there; enclosing and sibling blocks cannot read them. Procedure inputs,
-@tt{as} results, and @tt{for each} iteration names cannot be updated with
-@tt{set}. The @tt{for each} name is available only in that loop body. A
-procedure sees only its declared inputs, not the caller's result names.
-Stage headers do not change this visibility: a result named before one stage
-can be used in a later stage of the same block. A @tt{to} definition placed
-between stage headers still belongs to its enclosing workflow.
-
-Use @tt{;} for a line comment. A block comment begins with @tt{#|} and ends
-with @tt{|#}; block comments can nest. Whitespace is flexible, and empty
-blocks are allowed.
-
-The reader validates a workflow file before running commands. It rejects
-unknown or duplicate procedures, duplicate stage names, wrong input counts,
-unknown input or result names, a requested result from a procedure without @tt{output}, malformed
-brackets, unsupported commands, recursive calls, and a second or misplaced
-workflow title. Library and interface files have their own declarations and
-cannot contain a workflow title. Procedure definitions may appear after their calls.
-Imported procedure and stage names carry their library alias, so separate libraries
-can each define a procedure or stage with the same original name.
-
-@section{Still being designed}
-
-Scientific items, measurements, standards beyond the
-current structural checks, other declarative obligations, agents, and evidence are
-not implemented. The @hyperlink[(source-directory-url "spec")]{design specifications}
-explore these concepts; their examples are not executable ScienceLogo programs.
+Before running a workflow, the reader rejects malformed brackets, unsupported
+commands, duplicate names, unknown procedures or values, wrong input counts,
+a requested result from a procedure without @tt{output}, recursive procedure
+calls, invalid interface inheritance, and misplaced file-level forms.
+Structural obligations are assessed separately; a successful read does not
+establish that scientific work occurred.

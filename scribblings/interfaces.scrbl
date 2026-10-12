@@ -1,11 +1,38 @@
 #lang scribble/manual
 @(require "site-head.rkt" "site-links.rkt")
 
-@title[#:style (page-style) #:tag "interfaces"]{Structural assessment}
+@title[#:style (page-style) #:tag "interfaces"]{Interfaces}
 
-An interface can state which named parts a particular method must provide and how
-an omission may affect later parts. This is a structural check, not a judgment of
-scientific adequacy.
+An interface describes either the fields of a record or the named parts a
+workflow must provide. These are separate forms: fields and workflow parts
+cannot be mixed in one interface. @secref["assessment"] explains how a
+workflow declares and checks conformance.
+
+@section{Declaration forms}
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Form") (bold "Purpose"))
+   (list (tt "interface \"Name\" [field field = default ...]")
+         "Declare a record shape and optional defaults")
+   (list (tt "extends Parent")
+         "Inherit fields from a local or imported record interface")
+   (list (tt "interface \"Name\" [version \"...\" require part affects source target ...]")
+         "Declare required workflow parts in a separate file")))
+
+An @tt{interface} may have one nonempty @tt{version} line or omit it.
+Record interfaces have fields and optional @tt{extends} lines. A bare field
+must be supplied; @tt{field = value} gives a default. Workflow-part
+interfaces have distinct @tt{require} lines and optional @tt{affects source
+target} links between required parts. @tt{extends} does not apply to a
+workflow-part interface.
+
+@section{Workflow-part interfaces}
+
+A workflow-part interface lives in a separate @tt{#lang sciencelogo} file.
+Its @tt{require} lines name the parts to provide; @tt{affects source target}
+marks a possible downstream effect if a required part is missing. A version
+line can identify the interface, but the assessor does not compare versions.
 
 The @hyperlink[(source-file-url "examples/meta-assessor/requirements/assessor.rkt")]{assessor interface}
 is a separate @tt{#lang sciencelogo} file. It has one version and five required
@@ -14,7 +41,7 @@ parts:
 @verbatim|{
 #lang sciencelogo
 
-interface "ScienceLogo assessor" [
+interface "Assessor-process" [
   version "0.1"
   require parse
   require resolve-libraries
@@ -29,39 +56,9 @@ interface "ScienceLogo assessor" [
 ]
 }|
 
-The @hyperlink[(source-file-url "examples/meta-assessor/method.rkt")]{complete investigation}
-references that file and supplies an implementation reference for each part:
-
-@verbatim|{
-#lang sciencelogo
-
-workflow "How does ScienceLogo assess ScienceLogo?"
-implements "requirements/assessor.rkt" as assessor [
-  provide parse by "../../private/reader.rkt"
-  provide resolve-libraries by "../../private/reader.rkt"
-  provide check-interfaces by "../../assessor.rkt"
-  provide trace-impacts by "../../assessor.rkt"
-  provide report by "../../assessor.rkt"
-]
-}|
-
-Run this from an installed checkout:
-
-@verbatim|{
-racket -l sciencelogo/assessor -- examples/meta-assessor/method.rkt
-racket -l sciencelogo/assessor -- examples/meta-assessor/missing-impact.rkt
-}|
-
-The first command reports no structural issues. The second uses an incomplete
-investigation: it reports missing @tt{trace-impacts} and marks @tt{report} as
-affected through the declared @tt{affects} link. It exits with status 1.
-
-The interface path is relative to the investigation file. A @tt{provide} reference
-is a claim, not proof that the named work exists or is correct; the assessor does
-not inspect those references. The five names belong to this interface. ScienceLogo
-does not require every workflow activity or item to have an author-written name.
-An interface may omit @tt{version}. The report identifies its source revision
-with a hash; the assessor does not compare versions.
+The @hyperlink[(source-file-url "examples/meta-assessor/method.rkt")]{example workflow}
+that supplies these parts is explained in @secref["assessment"]. These five
+parts belong to the example interface; they are not built-in ScienceLogo parts.
 
 @section{Record interfaces}
 
@@ -99,7 +96,8 @@ not mean the field is absent or that its scientific value has been established.
 The @tt{must} check is declarative: it examines the written record shape and
 does not run the workflow. A direct @tt{set} to a record or a @tt{but} copy has
 a known shape. A record returned by a procedure, or one possibly changed by
-a conditional or loop, is reported as undetermined.
+a conditional or loop, is reported as undetermined. The check itself is
+described in @secref["assessment"].
 
 The same interface can be a separate
 @hyperlink[(source-file-url "examples/interfaces/timing.rkt")]{@tt{#lang sciencelogo} file}.
@@ -112,50 +110,50 @@ Record fields and @tt{require} parts cannot be mixed in one interface.
 @tt{implements ... [provide ...]} remains the form for workflow-part
 interfaces.
 
-@section{Require a call in the written method}
+@section{Extend and combine record interfaces}
 
-The @tt{must do} form belongs directly in an investigation:
+@tt{extends Parent} inherits a record interface. Repeating it combines
+several parents. The
+@hyperlink[(source-file-url "examples/combined-interface.rkt")]{combined interface example}
+runs and passes the assessor:
 
 @verbatim|{
-#lang sciencelogo
+workflow "Describe a pendulum trial"
+interface "Timed-observation" [
+  extends Timing
+  extends Location
+  observation
+  unit = "minutes"
+]
+interface "Timing" [duration unit = "seconds"]
+interface "Location" [place]
 
-workflow "How will we compare pendulum periods?"
-must do compare-periods
-do prepare-comparison
-to prepare-comparison [do compare-periods]
-to compare-periods []
+set trial to Timed-observation but [
+  duration = 2
+  place = "lab"
+  observation = "ten swings"
+]
+must trial implement Timed-observation
+must trial implement Timing
+must trial implement Location
 }|
 
-The assessor reports this condition as satisfied because the investigation calls
-@tt{prepare-comparison}, which calls @tt{compare-periods} on the written method's
-required path. A definition alone, a call inside an unused procedure, or a call
-only under @tt{if false} or @tt{repeat 0} does not satisfy it. A call that depends
-on an unresolved condition is reported as undetermined. This check resolves
-literal conditions and counts; named values and procedure inputs remain unknown.
-The declaration does not run the procedure or establish that the work happened
-or was scientifically adequate.
-
-@section{Inspect the method model}
-
-The implemented @hyperlink[(source-file-url "workflow-model.rkt")]{workflow model}
-records the written investigation as procedures, activities, named input and result
-slots, imports, interface claims, @tt{must do} conditions, and typed relations.
-@tt{read-workflow-model} reads
-an investigation file; @tt{read-interface-model} reads an interface file. Method
-elements carry source locations. A call links to its procedure with @tt{invokes}; named
-results link to their producing and using activities. A sequence retains command order.
-The model describes the method and does not say that a scientific activity occurred.
-The assessor also checks that each activity and named item has one containment link to
-its recorded parent.
-
-@tt{assess-workflow} checks this model; @tt{assess-file} reads the file first. The
-returned assessment includes condition checks and findings that identify their
-targets. For a @tt{require} part, @tt{satisfied} means a matching @tt{provide}
-declaration exists. A missing part is @tt{violated}. A downstream part reached through
-@tt{affects} is reported as possibly affected, with an @tt{undetermined} outcome for
-that impact. This assessment does not verify the content of a provision or a run.
-
-The @hyperlink[(source-file-url "examples/pendulum-method.rkt")]{pendulum planning example}
-can be read into the same model. It returns and prints a timing plan; it does not time
-a pendulum. The @hyperlink[(source-file-url "examples/pendulum-period.md")]{young Galileo design case}
-describes measurements and run checks that the current language cannot yet express.
+The parent interfaces may be declared after the interface that extends them.
+@tt{Timed-observation} requires @tt{duration}, @tt{place}, and @tt{observation};
+its own @tt{unit = "minutes"} replaces the @tt{Timing} default. A child may
+also redeclare an inherited default as a bare required field. Identical field
+declarations from different parents merge. If parents define the same field
+differently, the child must declare that field explicitly to resolve the
+conflict. Unknown parents and extension cycles are reader errors. Construction
+checks all inherited required fields, and @tt{must} can check a resulting
+record against the combined interface or any of its parents by field presence.
+If every field has a default, @tt{Combined but []} constructs a record
+using those defaults.
+An inherited interface may be declared later in the same workflow, in an
+included workflow file, or imported from a library. Importing a library as
+@tt{timing} makes its @tt{Timing} record interface available as
+@tt{timing.Timing}; write @tt{extends timing.Timing} in a local interface and
+@tt{must trial implement timing.Timing} to check a record against it. A library
+can itself extend an interface imported from another library. Its dependency
+alias remains internal, so a workflow imports that dependency directly if it
+needs to name the interface.

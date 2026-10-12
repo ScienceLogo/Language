@@ -44,10 +44,35 @@ The reader checks the library and records the resolved commit in the loaded prog
 before any investigation command runs. A library does not need a central ScienceLogo
 repository or catalog.
 
-A larger library may move the procedure to another file. Its root entry then has
+A library may also export a record interface. For example, `library.rkt` can
+contain:
+
+```text
+#lang sciencelogo
+
+library "timing" [
+  interface "Timing" [duration unit = "seconds"]
+]
+```
+
+After committing and tagging that repository, an investigation can use it:
+
+```text
+import "file:///absolute/path/to/timing" at "v1.0.0" as timing
+interface "Timed-place" [extends timing.Timing place]
+set trial to Timed-place but [duration = 2 place = "lab"]
+must trial implement timing.Timing
+```
+
+An imported interface is named `alias.Interface` in construction, `extends`,
+and `must ... implement`. The assessor checks field presence. The importing
+workflow can define its own interface that extends an imported one.
+
+A larger library may move the procedure or interface to another file. Its root entry then has
 `include "greetings/greeting.rkt"`, and that included file has the top-level
 `to greeting [output "Hello, world!"]` definition with its own
-`#lang sciencelogo` line. Included files may include further files. Paths are
+`#lang sciencelogo` line. An included file may instead declare a record
+interface. Included files may include further files. Paths are
 relative to the containing file and must stay inside the repository. The reader
 rejects include cycles and duplicate includes.
 
@@ -99,8 +124,10 @@ print direct
 ```
 
 Replace both example URLs with the absolute paths to the respective repositories.
-Each library import selects a tag or full commit ID on that library's `main`
+The same visibility rule applies to an interface in a dependency: import that
+dependency directly to use `alias.Interface` in the workflow. Each library
+import selects a tag or full commit ID on that library's `main`
 branch. The reader resolves dependencies before running the investigation,
 records their exact commits, and rejects import cycles. Imports belong directly
-in the root `library` block; included files contain `to` and `include`
+in the root `library` block; included files contain `to`, record `interface`, and `include`
 declarations.
