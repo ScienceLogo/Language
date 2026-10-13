@@ -4,11 +4,11 @@
 }
 
 .navsettop {
-  height: 4rem;
+  height: 6rem;
 }
 
 .tocset {
-  border-top-width: 4rem;
+  border-top-width: 6rem;
 }
 
 /* The site title already links to the index, so its logo does too. */
@@ -50,10 +50,55 @@
   display: block !important;
 }
 
-/* Keep the contents toggle, but omit linear page navigation controls. */
-.navsettop .navright,
+/* Keep the duplicate navigation at the page bottom out of view. */
 .navsetbottom {
   display: none;
+}
+
+.site-search-results {
+  position: fixed;
+  z-index: 4;
+  top: 6rem;
+  left: 0.75rem;
+  width: min(24rem, calc(100vw - 1.5rem));
+  max-height: min(60vh, 30rem);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid #777;
+  box-shadow: 0 0.25rem 1rem #0003;
+}
+
+.site-search-results[hidden] {
+  display: none;
+}
+
+.site-search-results a {
+  display: block;
+  font-weight: bold;
+}
+
+.site-search-results p {
+  margin: 0.5rem 0;
+}
+
+@media (max-width: 720px) {
+  .navsettop {
+    height: 4rem;
+  }
+
+  .tocset {
+    border-top-width: 4rem;
+  }
+
+  .navsettop .navright {
+    display: none;
+  }
+
+  .site-search-results {
+    top: 4rem;
+  }
 }
 
 /* Scribble's version box shows the Racket version, not ScienceLogo's release. */

@@ -9,6 +9,7 @@
 (provide page-style)
 
 (define-runtime-path favicon-path "../assets/favicon.svg")
+(define-runtime-path search-script-path "site-search.js")
 
 (define favicon-data-url
   (string-append "data:image/svg+xml;base64,"
@@ -18,7 +19,8 @@
 (define (page-style #:toc? [toc? #f])
   (style #f
          (append (if toc? '(toc) '())
-                 (list (head-extra
+                 (list (js-addition search-script-path)
+                       (head-extra
                         `(link ((rel "icon")
                                 (type "image/svg+xml")
                                 (sizes "any")
