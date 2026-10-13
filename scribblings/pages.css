@@ -1,3 +1,17 @@
+/* Keep Scribble's image asset in the build; show it in the sidebar instead. */
+.docs-logo-asset {
+  display: none;
+}
+
+.tocset .tocview::before {
+  content: "";
+  display: block;
+  width: 96px;
+  height: 81px;
+  margin: 0.5rem auto 0.75rem;
+  background: url("logo.png") center / contain no-repeat;
+}
+
 /* The current page's section links appear in its tree branch below. */
 .tocset .tocsub {
   display: none;

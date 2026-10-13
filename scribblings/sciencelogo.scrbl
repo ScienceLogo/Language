@@ -7,7 +7,7 @@
 @title[#:style (page-style #:toc? #t)]{ScienceLogo}
 @author{Riccardo Boero}
 
-@image[logo-path #:scale 0.12]{ScienceLogo logo}
+@para[#:style "docs-logo-asset"]{@image[logo-path #:scale 0.12]{ScienceLogo logo}}
 
 @bold{Humans first in AI science.}
 
