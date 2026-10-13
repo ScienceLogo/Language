@@ -3,12 +3,27 @@
   display: none;
 }
 
-.tocset .tocview::before {
+.navsettop {
+  height: 4rem;
+}
+
+.tocset {
+  border-top-width: 4rem;
+}
+
+/* The site title already links to the index, so its logo does too. */
+.tocset .tocviewtitle a.tocviewlink,
+.tocset .tocviewtitle a.tocviewselflink {
+  display: block;
+}
+
+.tocset .tocviewtitle a.tocviewlink::before,
+.tocset .tocviewtitle a.tocviewselflink::before {
   content: "";
   display: block;
   width: 96px;
   height: 81px;
-  margin: 0.5rem auto 0.75rem;
+  margin: 0 auto 1.5rem;
   background: url("logo.png") center / contain no-repeat;
 }
 
