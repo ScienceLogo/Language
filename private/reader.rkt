@@ -90,9 +90,9 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "print" "output" "include" "implements" "must" "workflow" "interface" "repeat" "for" "while" "if" "else" "set"))
+  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "repeat" "for" "while" "if" "else" "set"))
   (define reserved
-    (append commands '("as" "at" "import" "workflow" "library"
+    (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
                        "unknown" "=" "!=" "<" "<=" ">" ">="
@@ -295,6 +295,60 @@
     (when (regexp-match? #rx"[.]" (symbol->string alias))
       (read-error source start "an import alias cannot contain a dot"))
     (node 'import (list url revision alias) '() start))
+  (define (parse-state-object)
+    (expect-word "state")
+    (define value (parse-atom))
+    (cond
+      [(eq? (node-kind value) 'fields) value]
+      [(and (eq? (node-kind value) 'list) (null? (node-children value)))
+       (struct-copy node value [kind 'fields])]
+      [else (read-error source (node-at value)
+                        "state needs named sets in [name = value] or []")]))
+  (define (parse-location)
+    (define at (expect 'word "a state location such as information.elapsed"))
+    (define parts (string-split (token-value at) "." #:trim? #f))
+    (unless (and (>= (length parts) 2)
+                 (member (car parts) '("information" "environment" "factors"))
+                 (andmap (lambda (part)
+                           (and (not (string=? part ""))
+                                (not (member part reserved))
+                                (not (regexp-match? #rx"^:" part))))
+                         (cdr parts)))
+      (read-error source at
+                  "location must begin with information, environment, or factors and name a field"))
+    (node 'location (map string->symbol parts) '() at))
+  (define (parse-state-mappings)
+    (expect 'open "[ after with")
+    (let loop ([backward '()] [seen '()])
+      (case (token-kind (current))
+        [(close) (advance!) (reverse backward)]
+        [(eof) (read-error source (current) "expected ] after input locations")]
+        [else
+         (define at (current))
+         (define name (named-word "a function input name"))
+         (when (memq name seen)
+           (read-error source at (format "duplicate input mapping ~a" name)))
+         (expect-word "at")
+         (loop (cons (node 'state-mapping name (list (parse-location)) at) backward)
+               (cons name seen))])))
+  (define (parse-state-stage name command in-procedure?)
+    (define entry (parse-state-object))
+    (let loop ([backward '()])
+      (define found (current))
+      (cond
+        [(eq? (token-kind found) 'eof)
+         (read-error source found (format "stage ~s needs end stage with state" name))]
+        [(eq? (token-kind found) 'close)
+         (read-error source found (format "stage ~s needs end stage with state" name))]
+        [(and (eq? (token-kind found) 'word)
+              (string=? (token-value found) "end"))
+         (advance!)
+         (expect-word "stage")
+         (expect-word "with")
+         (node 'state-stage (list name entry (parse-state-object))
+               (reverse backward) command)]
+        [else
+         (loop (cons (parse-form #f in-procedure? #f #f) backward))])))
   (define (parse-body definitions-allowed? in-procedure? includes-allowed?
                       imports-allowed?)
     (let loop ([backward '()])
@@ -434,13 +488,26 @@
        (define name (token-value (expect 'string "a quoted stage name")))
        (when (string=? name "")
          (read-error source command "stage name cannot be empty"))
-       (node 'stage name '() command)]
+       (if (and (eq? (token-kind (current)) 'word)
+                (string=? (token-value (current)) "from"))
+           (begin (advance!) (parse-state-stage name command in-procedure?))
+           (node 'stage name '() command))]
+      ["end" (read-error source command "end stage has no matching stage")]
       ["do"
        (if (eq? (token-kind (current)) 'open)
            (begin
              (advance!)
              (node 'sequence #f (parse-body #f in-procedure? #f #f) command))
            (let ([name (named-word "a procedure name")])
+             (if (and (eq? (token-kind (current)) 'word)
+                      (member (token-value (current)) '("with" "into")))
+                 (let ([mappings
+                        (if (string=? (token-value (current)) "with")
+                            (begin (advance!) (parse-state-mappings))
+                            '())])
+                   (expect-word "into")
+                   (node 'state-call (cons name (parse-location)) mappings command))
+                 (let ()
              (define arguments
                (let loop ([backward '()])
                  (define found (current))
@@ -453,7 +520,7 @@
                (and (eq? (token-kind (current)) 'word)
                     (string=? (token-value (current)) "as")
                     (begin (advance!) (named-word "a result name"))))
-             (node 'call (cons name result-name) arguments command)))]
+             (node 'call (cons name result-name) arguments command)))))]
       ["repeat"
        (if (eq? (token-kind (current)) 'open)
            (begin
@@ -817,6 +884,11 @@
     [(stage)
      (struct-copy node form
                   [value (format "~a.~a" alias (node-value form))])]
+    [(state-stage)
+     (struct-copy node form
+                  [value (cons (format "~a.~a" alias (car (node-value form)))
+                               (cdr (node-value form)))]
+                  [children (map qualify-form (node-children form))])]
     [(to)
      (struct-copy node form
                   [value (cons (qualified (procedure-name form))
@@ -827,6 +899,10 @@
                   [value (cons (qualified (call-name form))
                                (cdr (node-value form)))]
                   [children (map qualify-value (node-children form))])]
+    [(state-call)
+     (struct-copy node form
+                  [value (cons (qualified (call-name form))
+                               (cdr (node-value form)))])]
     [(set)
      (struct-copy node form
                   [value (cons (car (node-value form))
@@ -945,8 +1021,8 @@
 (define (calls-in forms)
   (for/fold ([calls '()]) ([form (in-list forms)])
     (case (node-kind form)
-      [(call) (cons form calls)]
-      [(sequence repeat repeat-until for-each while if branch to)
+      [(call state-call) (cons form calls)]
+      [(sequence repeat repeat-until for-each while if branch to state-stage)
        (append (calls-in (node-children form)) calls)]
       [else calls])))
 
@@ -985,6 +1061,53 @@
         (and (memq (node-kind form)
                    '(sequence repeat repeat-until for-each while if branch))
              (has-output? (node-children form))))))
+
+(define (always-outputs? forms)
+  (for/or ([form (in-list forms)])
+    (case (node-kind form)
+      [(output) #t]
+      [(sequence repeat-until) (always-outputs? (node-children form))]
+      [(repeat)
+       (and (eq? (node-kind (node-value form)) 'literal)
+            (exact-positive-integer? (node-value (node-value form)))
+            (always-outputs? (node-children form)))]
+      [(if)
+       (define branches (node-children form))
+       (and (pair? branches)
+            (not (node-value (last branches)))
+            (andmap (lambda (branch)
+                      (always-outputs? (node-children branch)))
+                    branches))]
+      [else #f])))
+
+(define (state-paths state source)
+  (define seen (make-hash))
+  (define (walk fields prefix)
+    (for ([entry (in-list (node-children fields))])
+      (define name (node-value entry))
+      (when (regexp-match? #rx"[.]" (symbol->string name))
+        (read-error source (node-at entry)
+                    "state field names cannot contain a dot"))
+      (define path (append prefix (list name)))
+      (define value (car (node-children entry)))
+      (hash-set! seen path (node->datum value))
+      (when (eq? (node-kind value) 'fields)
+        (walk value path))))
+  (for ([entry (in-list (node-children state))])
+    (define root (node-value entry))
+    (unless (memq root '(information environment factors))
+      (read-error source (node-at entry)
+                  "state sets must be information, environment, or factors"))
+    (define value (car (node-children entry)))
+    (unless (or (eq? (node-kind value) 'fields)
+                (and (eq? (node-kind value) 'list)
+                     (null? (node-children value))))
+      (read-error source (node-at entry)
+                  (format "state set ~a needs named fields or []" root)))
+    (hash-set! seen (list root) (node->datum value))
+    (when (eq? (node-kind value) 'fields)
+      (walk value (list root))))
+  seen)
 
 (define (validate-interface interface source)
   (when (string=? (node-value interface) "")
@@ -1069,6 +1192,12 @@
          (when (hash-has-key? stage-names name)
            (read-error source (node-at form) (format "duplicate stage ~s" name)))
          (hash-set! stage-names name #t)]
+        [(state-stage)
+         (define name (car (node-value form)))
+         (when (hash-has-key? stage-names name)
+           (read-error source (node-at form) (format "duplicate stage ~s" name)))
+         (hash-set! stage-names name #t)
+         (check-stage-names (node-children form))]
         [(to sequence repeat repeat-until for-each while if branch)
          (check-stage-names (node-children form))]
         [else (void)])))
@@ -1087,12 +1216,161 @@
                    (hash-has-key? interfaces (node-value value)))
          (read-error source (node-at value)
                      (format "unknown result ~a" (node-value value))))]))
+  (define (check-state-stage stage)
+    (define entry (second (node-value stage)))
+    (define exit-state (third (node-value stage)))
+    (define entry-paths (state-paths entry source))
+    (define exit-paths (state-paths exit-state source))
+    (define written (make-hash))
+    (define controls (make-hasheq))
+    (define (control-expression? value)
+      (case (node-kind value)
+        [(literal) (exact-integer? (node-value value))]
+        [(result) (hash-has-key? controls (node-value value))]
+        [(unary)
+         (and (eq? (node-value value) '-)
+              (control-expression? (car (node-children value))))]
+        [(binary)
+         (and (memq (node-value value) '(+ - *))
+              (andmap control-expression? (node-children value)))]
+        [else #f]))
+    (define (control-collection? value)
+      (case (node-kind value)
+        [(list) (andmap control-expression? (node-children value))]
+        [(range) (andmap control-expression? (node-children value))]
+        [else #f]))
+    (define (validate-body forms available)
+      (for/fold ([known available]) ([form (in-list forms)])
+        (case (node-kind form)
+          [(state-call)
+           (define name (call-name form))
+           (define definition (hash-ref definitions name #f))
+           (unless definition
+             (read-error source (node-at form)
+                         (format "unknown procedure ~a" name)))
+           (define expected (procedure-inputs definition))
+           (define actual (map node-value (node-children form)))
+           (unless (and (= (length expected) (length actual))
+                        (andmap (lambda (input) (memq input actual)) expected))
+             (read-error source (node-at form)
+                         (format "input mappings for ~a must match its declared inputs" name)))
+           (for ([mapping (in-list (node-children form))])
+             (define path (node-value (car (node-children mapping))))
+             (unless (hash-has-key? known path)
+               (read-error source (node-at mapping)
+                           (format "input location ~a is not available"
+                                   (string-join (map symbol->string path) ".")))))
+           (unless (always-outputs? (node-children definition))
+             (read-error source (node-at form)
+                         (format "procedure ~a may finish without output" name)))
+           (define target (node-value (cdr (node-value form))))
+           (unless (hash-has-key? known (drop-right target 1))
+             (read-error source (node-at form)
+                         "return location needs an existing parent in state"))
+           (hash-set! written target #t)
+           (define next (hash-copy known))
+           (hash-set! next target #t)
+           next]
+          [(call)
+           (read-error source (node-at form)
+                       "calls inside a state stage need with locations and into a return location")]
+          [(state-stage stage)
+           (read-error source (node-at form)
+                       "a state stage cannot be nested inside another state stage")]
+          [(output)
+           (read-error source (node-at form)
+                       "output cannot leave a state stage before end stage")]
+          [(set)
+           (define name (car (node-value form)))
+           (unless (and (not (memq name '(information environment factors)))
+                        (control-expression? (cdr (node-value form))))
+             (read-error source (node-at form)
+                         "local names in a state stage are only for integer counters or positions"))
+           (hash-set! controls name #t)
+           known]
+          [(sequence)
+           (validate-body (node-children form) known)]
+          [(if)
+           (define branches (node-children form))
+           (define outcomes
+             (for/list ([branch (in-list branches)])
+               (validate-body (node-children branch) (hash-copy known))))
+           (define candidates
+             (if (and (pair? branches) (not (node-value (last branches))))
+                 outcomes
+                 (cons known outcomes)))
+           (for/hash ([(path _) (in-hash (car candidates))]
+                      #:when (andmap (lambda (outcome)
+                                      (hash-has-key? outcome path))
+                                    (cdr candidates)))
+             (values path #t))]
+          [(for-each)
+           (unless (control-collection? (cdr (node-value form)))
+             (read-error source (node-at form)
+                         "for each in a state stage needs integer positions"))
+           (define name (car (node-value form)))
+           (define previously? (hash-has-key? controls name))
+           (hash-set! controls name #t)
+           (define after (validate-body (node-children form) (hash-copy known)))
+           (unless previously? (hash-remove! controls name))
+           known]
+          [(repeat repeat-until while)
+           (define after (validate-body (node-children form) (hash-copy known)))
+           (if (or (eq? (node-kind form) 'repeat-until)
+                   (and (eq? (node-kind form) 'repeat)
+                        (eq? (node-kind (node-value form)) 'literal)
+                        (exact-positive-integer? (node-value (node-value form)))))
+               after
+               known)]
+          [else known])))
+    (define available (validate-body (node-children stage) entry-paths))
+    (for ([(path _) (in-hash available)])
+      (unless (hash-has-key? exit-paths path)
+        (read-error source (node-at stage)
+                    (format "closing state omits ~a"
+                            (string-join (map symbol->string path) ".")))))
+    (for ([(path _) (in-hash exit-paths)])
+      (unless (or (hash-has-key? available path)
+                  (for/or ([(target _) (in-hash written)])
+                    (and (hash-has-key? available target)
+                         (<= (length target) (length path))
+                         (equal? target (take path (length target))))))
+        (read-error source (node-at stage)
+                    (format "closing state adds ~a without a return location"
+                            (string-join (map symbol->string path) ".")))))
+    (define (prefix? first second)
+      (and (<= (length first) (length second))
+           (equal? first (take second (length first)))))
+    (for ([(path before) (in-hash entry-paths)])
+      (define affected?
+        (for/or ([(target _) (in-hash written)])
+          (and (hash-has-key? available target)
+               (or (prefix? path target) (prefix? target path)))))
+      (when (and (hash-has-key? exit-paths path)
+                 (not affected?)
+                 (not (equal? before (hash-ref exit-paths path))))
+        (read-error source (node-at stage)
+                    (format "closing state changes ~a without a return location"
+                            (string-join (map symbol->string path) "."))))))
+  (define in-state-stage? (make-parameter #f))
   (define (check-forms forms inputs results [settable '()])
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
         [(to import interface implements must-call must-stage-order stage
              included-file) visible]
+        [(state-stage)
+         (check-value (second (node-value form)) inputs visible)
+         (check-value (third (node-value form)) inputs visible)
+         (check-state-stage form)
+         (parameterize ([in-state-stage? #t])
+           (check-forms (node-children form) inputs visible writable))
+         visible]
+        [(state-call)
+         (unless (in-state-stage?)
+           (read-error source (node-at form)
+                       "a call with state locations belongs inside a state stage"))
+         visible]
         [(must-implement)
          (define name (car (node-value form)))
          (unless (memq name visible)
@@ -1218,10 +1496,21 @@
     [(must-implement) (cons 'must-implement (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]
     [(stage) (list 'stage (node-value form))]
+    [(state-stage)
+     (list 'state-stage (car (node-value form))
+           (node->datum (second (node-value form)))
+           (map node->datum (node-children form))
+           (node->datum (third (node-value form))))]
     [(to) (list 'to (procedure-name form) (procedure-inputs form)
                 (map node->datum (node-children form)))]
     [(call) (list 'call (call-name form) (map node->datum (node-children form))
                   (cdr (node-value form)))]
+    [(state-call)
+     (list 'state-call (call-name form)
+           (for/list ([mapping (in-list (node-children form))])
+             (list (node-value mapping)
+                   (node-value (car (node-children mapping)))))
+           (node-value (cdr (node-value form))))]
     [(sequence) (list 'sequence (map node->datum (node-children form)))]
     [(repeat) (list 'repeat (node->datum (node-value form))
                     (map node->datum (node-children form)))]

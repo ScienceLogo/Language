@@ -86,6 +86,39 @@ The second stage can use @tt{plan} because a stage does not create a new
 scope. @tt{do Review} would call a procedure named @tt{Review}; it does not
 call the stage.
 
+@subsection{Stages with declared state}
+
+The reader also accepts @tt{stage "title" from state [ ... ]} paired with
+@tt{end stage with state [ ... ]}. Both state objects are required, even when
+empty. They can contain @tt{information}, @tt{environment}, and @tt{factors}
+sets. This form describes inputs, return locations, and what leaves the stage.
+It is checked as a written method; the current interpreter does not execute
+the body of a state stage or perform a measurement.
+
+@verbatim|{
+to calculate-period :duration :count [output :duration / :count]
+
+stage "Analyze" from state [
+  information = [elapsed = unknown swing-count = 10]
+]
+do calculate-period with [
+  duration at information.elapsed
+  count at information.swing-count
+] into information.period
+end stage with state [
+  information = [elapsed = unknown swing-count = 10 period = unknown]
+]
+}|
+
+The name before @tt{at} matches a procedure input. The dotted name after
+@tt{at} is its location in state; @tt{into} names the required return
+location. The reader rejects missing or extra input mappings, unavailable
+paths, a return with no valid destination, a procedure that may finish without
+@tt{output}, and changes at exit without an explicit return. Local @tt{set}
+values inside a state stage are limited to integer counters or positions.
+See the @hyperlink[(source-file-url "spec/context.md")]{stage state specification}
+for the complete reader checks and current limits.
+
 @section{Conditions and repetition}
 
 Each condition is a Boolean expression or comparison from @secref["values"].

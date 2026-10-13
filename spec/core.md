@@ -21,7 +21,7 @@ that a workflow may call; a standard constrains workflows of a stated kind. A ca
 procedure is an activity that refers to that definition. A stage is a named section and
 checkpoint, not a callable procedure or a new variable scope.
 
-The shared workflow representation has five abstract elements. They describe structure
+The shared workflow representation has four abstract elements. They describe structure
 without prescribing a catalogue of scientific steps or domain data types. A workflow
 uses only the elements relevant to it.
 
@@ -29,9 +29,12 @@ uses only the elements relevant to it.
 | --- | --- |
 | Workflow | Holds the method's elements and references to reusable definitions. It has an identity and revision so a later assessment identifies the method it checked. |
 | Activity | Describes one operation or call in a method. Its presence in a method does not establish that it occurred. |
-| Item | A named or assigned input, result, or other thing an activity uses or produces. Libraries or investigations provide scientific kinds and fields when needed. |
 | Relation | A typed link between elements, such as containment, call, use, production, dependency, or required order. Syntax can establish the link through names, nesting, or sequence without a separate relation command. Its kind determines its meaning and valid endpoints. |
 | Condition | A rule with a target and scope, and a checkpoint and evidence requirement when its check needs them. Requirements, guards, and advice can use conditions with different effects. |
+
+Inputs, results, and named values are represented where the method uses them. They
+are not a generic abstract workflow type. Libraries can define domain-specific
+records and interfaces when a workflow needs them.
 
 **Assessment is an operation and its result, not a workflow element.** The assessor
 examines an identified representation under a condition or structural rule and returns
@@ -42,21 +45,27 @@ Actor, context, observed run, and provenance information are introduced only for
 cases that need them. For example, an AI activity may need a declared view and an
 observed request to assess what it received; an investigation without AI need not
 supply those records. These are extensions of the representation, not prerequisites
-for every method. The core does not prescribe scientific item fields, uncertainty
+for every method. The core does not prescribe scientific record fields, uncertainty
 categories, or a particular analysis of bias.
+The [context sets](context.md) describe the information, environment, and
+considered factors relevant to particular activities. The reader accepts
+stage state boundaries and location-based calls for these sets; they do not
+add mandatory abstract workflow types.
 
 The current Racket slice represents an investigation with `workflow-model`, its stage
 headers with `stage-model`, its calls and commands with `activity-model`, named inputs
-and results with `item-model`, and explicit links with `relation-model`. An interface's required parts become
+and results as value slots in `item-model`, and explicit links with `relation-model`.
+That Racket record name does not define a ScienceLogo `Item` type. An interface's
+required parts become
 `condition-model` records, as do an investigation's `must do name` and
 `must stages in order ["First" "Second"]` rules;
 `assess-workflow` returns an `assessment` with checks and findings. This implements
-only part of the contract: named inputs and results are value slots, and arbitrary
-scientific item kinds and conditions are not yet readable ScienceLogo syntax. The
+only part of the contract: named inputs and results are value slots, and broader
+conditions are not yet readable ScienceLogo syntax. The
 assessor checks method structure, required calls across established control paths, ordered stage requirements,
 and interface declarations, not scientific adequacy.
 
-This model does not require an author-written name for every activity or item. An element
+This model does not require an author-written name for every activity. An element
 needs an identity when another element, condition, standard, run event, or publication
 points to it; the representation may assign that identity within an identified method
 version. A reusable procedure has an author-written name because it can be called; a stage
@@ -82,7 +91,7 @@ which workflows are linked, how one workflow's results become another's inputs, 
 sequence is required. The current reader treats one file as one workflow and supports
 stage headers; workflow composition syntax remains open.
 
-An uncertainty source may concern an activity, an item, or a relation. A library can
+An uncertainty source may concern an activity, a value, or a relation. A library can
 state what must be declared and how to assess it. Its magnitude, scientific importance,
 or claim of negligibility needs a stated method and evidence; those judgments do not
 follow from the abstract workflow elements alone.
@@ -91,33 +100,35 @@ The abstract types remain the same across disciplines. A library may describe a 
 kind of observation, dataset, model, prompt, or report, together with its fields and
 specialized checks. A standard may then require typed elements and relations, including
 named ones where a protocol needs them. The language supplies the structural types,
-reference rules, and general assessment logic; the library or investigation supplies
-scientific meanings and conditions. An interface can require a named capability without
+reference rules, and the meaning of declared conditions; independent tools apply
+scientific checks. Libraries or investigations supply their scientific meanings and
+conditions. An interface can require a named capability without
 turning that name into a built-in workflow type.
 
 The [assessor self-description](../examples/meta-assessor/README.md) is a small test of
 this separation. Its workflow is the assessment process; parsing, library resolution,
 interface checking, impact tracing, and reporting are activities named by that particular
-interface. Source files, parsed declarations, and findings are possible items. The
+interface. Source files, parsed declarations, and findings are possible values. The
 `affects` links currently encode only a narrow dependency between required named parts.
 The runnable assessor can detect missing names and follow those links. The current
 method model represents procedures, calls, named inputs and results, and their
 structural relations; it does not yet represent scientific measurements or run events.
 In the [pendulum example](../examples/pendulum-period.md), timing and comparing are
-activities, timing records are items, and the unit rule is a condition. Neither
-example requires the language to define what every scientific activity or item must
+activities, timing records are domain-specific values, and the unit rule is a
+condition. Neither example requires the language to define what every scientific
+activity or value must
 be called.
 
 ### Structural validation contract
 
 The reader and assessor should preserve these checks as the representation expands:
 
-- Every reference resolves to one element of the expected abstract type. An input or
-  output link targets an item; an order link targets activities. A wrong-type or ambiguous
+- Every reference resolves to one target of the expected kind. An input or
+  output link targets a value; an order link targets activities. A wrong-kind or ambiguous
   reference is a structural error.
-- Each activity and item belongs to its stated parent. Its containment relation must
+- Each activity and named value belongs to its stated parent. Its containment relation must
   identify that same parent.
-- A workflow may contain unnamed activities and items. A required named role is checked
+- A workflow may contain unnamed activities and values. A required named role is checked
   only when an interface, standard, or another explicit condition asks for it.
 - Declaring two activities does not order them. Only sequence, control flow, or an explicit
   order relation can require one to happen before the other.
@@ -184,7 +195,7 @@ of scientific claims; it cannot guarantee their truth.
 | Role | Minimum meaning |
 | --- | --- |
 | Investigation | Names the research question and scopes its method. It can also identify context or runs when the investigation uses them. |
-| Stage | A named section of executable method commands, beginning at a header and ending at the next header at the same nesting level or the enclosing block's end. It supports documentation, references, and checkpoints without performing an action or check itself. |
+| Stage | A named section and checkpoint for method commands. A runnable header ends at the next header or enclosing block's end. The reader also accepts [explicit entry and exit state](context.md#stage-entry-and-exit), which it checks without executing the stage body. A stage does not itself perform an action or check. |
 | Agent setup | Defines the model, prompt, settings, knowledge and context it may receive, tools and permissions, memory scope, and stopping or retry rule for an agent activity. |
 | Obligation | A condition stating what must hold, with a scope, checkpoint, and evidence that could establish or refute it. It can apply to an activity, a path, or a whole run. |
 | Standard | A reusable workflow specification in a library: stages, relationships, conditions, and optional default procedures. A research protocol can be represented this way. |
@@ -194,7 +205,7 @@ each condition's applicability, outcome, priority where relevant, and evidence o
 evidence. Run events retain the actual actor, inputs, context, outputs, state change, time,
 and evidence references; corrections retain the earlier record.
 
-An activity specification describes possible changes to scientific items. An observed
+An activity specification describes possible changes to scientific values. An observed
 occurrence records what changed and the evidence available for it. The same specified
 activity may have different outcomes: a measurement can be missing, an agent can be
 uncertain, and a human can reject a suggestion. ScienceLogo therefore needs to represent
@@ -413,7 +424,7 @@ agrees with it.
 A later prototype, beyond the [first runnable control-flow slice](first-slice.md), should
 be able to represent both starting contexts, specified paths, obligations, and observed
 events without flattening agent suggestions into human decisions. It should report the
-two invalid runs above with the relevant item and missing evidence. Its inspection output
+two invalid runs above with the relevant value and missing evidence. Its inspection output
 should show what was prescribed, what path was specified,
 and what the run actually did. For the agent trace, it should also distinguish the declared
 agent view from the supplied context, expose the model call as an attempt, and reject a

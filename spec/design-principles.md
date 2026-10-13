@@ -46,14 +46,20 @@ The turtle is an optional teaching example, not a required entity in ScienceLogo
 Named, nested parts should give a larger investigation structure while keeping each
 small procedure understandable. This borrows the useful grouping idea from object
 oriented programming without requiring classes or inheritance. Procedure calls,
-stages, and scientific items must retain their distinct meanings; nesting alone must
+stages, and scientific values must retain their distinct meanings; nesting alone must
 not turn a stage label into an executable procedure.
-Author-written names serve references and reuse; ordinary activities and items need not
+Author-written names serve references and reuse; ordinary activities and values need not
 all carry one.
 The [abstract workflow core](core.md#workflow-as-the-abstract-core) defines the
 structural types that a method, standard, and assessor should share.
 
 ## Make relevant context visible
+
+The [context sets](context.md) distinguish the information made available to an
+activity, the environment in which it is specified to take place, and the
+factors considered when interpreting its results. These distinctions apply to
+human and AI activities. The reader checks stage state declarations and calls;
+interpreting an observed run remains separate.
 
 People can sometimes resolve an underspecified instruction from shared experience.
 An AI activity cannot be assumed to share that context. Before it acts, the method

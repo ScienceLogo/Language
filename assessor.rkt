@@ -128,7 +128,8 @@
         [(claims-implementation)
          (and (eq? from-type 'workflow) (eq? to-type 'implementation))]
         [(invokes)
-         (and (eq? (activity-kind from) 'call) (eq? to-type 'procedure))]
+         (and (memq (activity-kind from) '(call state-call))
+              (eq? to-type 'procedure))]
         [(uses)
          (and (eq? from-type 'activity) (eq? to-type 'item))]
         [(produces)

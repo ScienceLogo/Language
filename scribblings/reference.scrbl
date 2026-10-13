@@ -7,7 +7,7 @@ This section documents the forms implemented by @tt{#lang sciencelogo} today.
 Read @secref["getting-started"] for a first example, then use the topic pages
 below as a language reference. The broader proposals in
 @hyperlink[(source-directory-url "spec")]{the design specifications} are not
-runnable syntax.
+necessarily executable syntax.
 
 @section{How to read the forms}
 
@@ -55,7 +55,8 @@ uses the stage title exactly.
 
 The reader rejects reserved command words as most user names, and rejects a
 dot inside a procedure definition, import alias, or record interface name.
-Keep dots for qualified imported names. A name used as a word has no spaces;
+Dots qualify imported names and separate fields in stage state locations.
+A name used as a word has no spaces;
 quoted workflow and stage titles can contain spaces. Procedure names must be
 distinct; interface names must be distinct from each other and from procedures;
 stage names must be distinct across the assembled workflow. Each procedure has
@@ -140,7 +141,7 @@ are errors.
    (list (secref "values")
          (tt "range, item, of, but, arithmetic, comparisons, not, and, xor, or"))
    (list (secref "procedures")
-         (tt "to, :input, do, as, output, set, print, stage"))
+         (tt "to, :input, do, as, output, set, print, stage, state, at, into"))
    (list (secref "procedures")
          (tt "repeat, until, for each, while, if, else if, else"))
    (list (secref "libraries")
@@ -163,5 +164,8 @@ Before running a workflow, the reader rejects malformed brackets, unsupported
 commands, duplicate names, unknown procedures or values, wrong input counts,
 a requested result from a procedure without @tt{output}, recursive procedure
 calls, invalid interface inheritance, and misplaced file-level forms.
+For state stages it also checks named input locations, compulsory return
+locations, and the declared exit state. A state stage is read and checked but
+its body is not executed by the current interpreter.
 Structural obligations are assessed separately; a successful read does not
 establish that scientific work occurred.

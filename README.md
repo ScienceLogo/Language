@@ -39,10 +39,16 @@ progression. [Knowledge synthesis](examples/knowledge-synthesis.md) introduces
 AI participation and human review. [Rainfall modelling](examples/rainfall-modelling.md)
 tests the same ideas in a different kind of investigation.
 
-The [design principles](spec/design-principles.md) state the language's scope, learning
+The [language boundary](spec/architecture.md) separates the specification, its
+implementations, and applications written in any programming language. The
+[shared representation contract](spec/representation.md) describes what a
+ScienceLogo reader must make available to those applications. The
+[design principles](spec/design-principles.md) state the language's scope, learning
 progression, and tests. The [semantic core](spec/core.md) defines the intended meaning and
 works through valid and invalid runs. The [library specification](spec/libraries.md)
 shows a hello-world library and its import. The
+[context sets](spec/context.md) distinguish information, environment, and
+considered factors in a workflow. The
 [prompt and obligation design](spec/prompts-and-obligations.md) develops
 named LLM requests and `must` rules; the [LLM variation design](spec/llm-variation.md)
 develops context selection, repeated attempts, replication, and control. The

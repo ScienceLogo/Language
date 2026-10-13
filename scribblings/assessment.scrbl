@@ -91,7 +91,7 @@ run the procedure or establish that the work happened.
 @section{Require an order of stages}
 
 @tt{must stages in order ["Prepare" "Measure"]} requires the named top-level
-stage headers to appear in that order in the written workflow. At least two
+stages to appear in that order in the written workflow. At least two
 distinct titles are required. Other stages may appear between them. The
 assessor reports a missing stage or wrong order; a stage inside a procedure
 does not count as a top-level stage for this check.
@@ -113,7 +113,9 @@ records the written investigation as procedures, activities, named input and
 result slots, imports, interface claims, @tt{must do} conditions, and typed
 relations. @tt{read-workflow-model} reads an investigation file;
 @tt{read-interface-model} reads an interface file. Method elements carry
-source locations. A call links to its procedure with @tt{invokes}; named
+source locations. Explicit state stages retain their entry and exit records;
+state calls retain input-location mappings and the return location. A call
+links to its procedure with @tt{invokes}; named
 results link to their producing and using activities. A sequence retains
 command order. The assessor checks that each activity and named item has one
 containment link to its recorded parent.
@@ -130,5 +132,5 @@ The @hyperlink[(source-file-url "examples/pendulum-method.rkt")]{pendulum planni
 can be read into the same model. It returns and prints a timing plan; it does
 not time a pendulum. The
 @hyperlink[(source-file-url "examples/pendulum-period.md")]{young Galileo design case}
-describes measurements and run checks that the current language cannot yet
-express.
+describes measurements and observed run checks that the current language
+cannot yet record as run events.

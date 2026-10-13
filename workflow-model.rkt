@@ -25,9 +25,9 @@
 (struct source-ref (source line column position) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
                            relations imports implementations conditions) #:transparent)
-(struct stage-model (id name parent source) #:transparent)
+(struct stage-model (id name parent source entry exit) #:transparent)
 (struct procedure-model (id name inputs source) #:transparent)
-(struct activity-model (id kind name parent source control) #:transparent)
+(struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
 (struct relation-model (kind from to source) #:transparent)
 (struct import-model (id url requested-revision commit alias library-name source)
@@ -111,9 +111,18 @@
          (and (node-value form) (node->datum (node-value form)))]
         [(for-each) (node->datum (cdr (node-value form)))]
         [else #f]))
+    (define activity
+      (activity-model id (node-kind form) name parent
+                      (origin (node-at form)) control #f))
     (set! activities
-          (cons (activity-model id (node-kind form) name parent
-                                (origin (node-at form)) control)
+          (cons (if (eq? (node-kind form) 'state-call)
+                    (struct-copy activity-model activity
+                                 [details
+                                  (list (for/list ([mapping (in-list (node-children form))])
+                                          (list (node-value mapping)
+                                                (node-value (car (node-children mapping)))))
+                                        (node-value (cdr (node-value form))))])
+                    activity)
                 activities))
     (add-relation 'contains parent id (node-at form))
     id)
@@ -158,13 +167,25 @@
          (define id (element-id root 'stage (node-at form) parent))
          (set! stages
                (cons (stage-model id (node-value form) parent
-                                  (origin (node-at form)))
+                                  (origin (node-at form)) #f #f)
                      stages))
          (add-relation 'contains parent id (node-at form))
          (set! current-stage id)]
-        [(memq kind '(call sequence repeat repeat-until for-each while if set print output))
+        [(eq? kind 'state-stage)
+         (define id (element-id root 'stage (node-at form) parent))
+         (set! stages
+               (cons (stage-model id (car (node-value form)) parent
+                                  (origin (node-at form))
+                                  (node->datum (second (node-value form)))
+                                  (node->datum (third (node-value form))))
+                     stages))
+         (add-relation 'contains parent id (node-at form))
+         (build-block (node-children form) id inputs scopes)
+         (set! current-stage #f)]
+        [(memq kind '(call state-call sequence repeat repeat-until for-each while if set print output))
          (define section (or current-stage parent))
-         (define name (and (eq? kind 'call) (car (node-value form))))
+         (define name (and (memq kind '(call state-call))
+                           (car (node-value form))))
          (define id (add-activity form section name))
          (when previous
            (add-relation 'precedes previous id (node-at form)))
@@ -242,6 +263,8 @@
               (hash-set! (car scopes) result-name item-id)
               (add-relation 'contains section item-id (node-at form))
               (add-relation 'produces id item-id (node-at form)))]
+           [(state-call)
+            (add-relation 'invokes id (hash-ref procedure-ids name) (node-at form))]
            [(print output)
             (add-use id (node-value form) inputs scopes)])]
         [else (void)])))

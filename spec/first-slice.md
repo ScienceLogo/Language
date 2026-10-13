@@ -3,6 +3,11 @@
 This is the syntax implemented by `#lang sciencelogo` today. The broader examples and
 semantic designs remain proposals.
 
+The reader also accepts the [paired stage state and location-based call forms](context.md),
+checks their declared structure, and retains them in the workflow model. The
+current interpreter does not execute the body of a paired state stage; the
+runnable forms described below keep their existing behavior.
+
 ```text
 #lang sciencelogo
 workflow "research question"
@@ -421,7 +426,7 @@ brackets, wrong input counts, unknown input or result names, calls requesting an
 output, unsupported commands, and recursive procedure calls are rejected before
 execution. A workflow file has at most one optional title line; a library file has one library
 declaration. `to` definitions belong directly in the workflow file or library block, or at the top of an
-included file. Recursion, scientific items and measurements,
+included file. Recursion, domain-specific records and measurements,
 other `must` rules, standards beyond these structural checks, agents, and `any order` are not
 implemented yet.
 

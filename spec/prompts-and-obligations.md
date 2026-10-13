@@ -132,7 +132,7 @@ input or result before use, and `must` can state a checkable obligation on the r
 lines need actual validation and run evidence; writing them is not proof that the conditions
 held. An unknown check remains **undetermined** under the [semantic core](core.md).
 Procedure inputs and result names belong to each call; only an explicit `output` passes a
-result back. State changes to scientific items are explicit run events rather than silent
+result back. State changes to scientific values are explicit run events rather than silent
 changes through a name. In the first runnable slice, an `as` name cannot duplicate a
 visible result or one of the procedure's inputs. Separate sibling blocks may use the same
 result name because neither block can see the other's result. Naming rules for proposed

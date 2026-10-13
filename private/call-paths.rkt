@@ -239,7 +239,7 @@
     (define id (activity-model-id activity))
     (define control (activity-model-control activity))
     (case (activity-model-kind activity)
-      [(call)
+      [(call state-call)
        (define procedure (hash-ref invoked id #f))
        (define entered
          (if (equal? procedure target)
