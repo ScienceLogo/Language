@@ -1,9 +1,10 @@
 # ScienceLogo semantic core (draft)
 
-**Status:** design contract for the first prototype, not adopted syntax or a complete
-language specification. The [design principles](design-principles.md) state the wider
-scope and learning tests; the [example workflows](../examples/README.md) explore readable
-wording. This document states the minimum meaning the prototype should preserve.
+**Status:** wider semantic design, including proposed run traces; it does not
+itself introduce accepted syntax. The [documentation map](README.md) separates
+current accepted forms from open design. The [design principles](design-principles.md)
+state the wider scope and learning tests; the [example workflows](../examples/README.md)
+explore readable wording.
 
 ## What ScienceLogo must distinguish
 
@@ -49,7 +50,7 @@ for every method. The core does not prescribe scientific record fields, uncertai
 categories, or a particular analysis of bias.
 The [context sets](context.md) describe the information, environment, and
 considered factors relevant to particular activities. The reader accepts
-stage state boundaries and location-based calls for these sets; they do not
+[stage state boundaries and location-based calls](stage-state.md) for these sets; they do not
 add mandatory abstract workflow types.
 
 The current Racket slice represents an investigation with `workflow-model`, its stage
@@ -195,7 +196,7 @@ of scientific claims; it cannot guarantee their truth.
 | Role | Minimum meaning |
 | --- | --- |
 | Investigation | Names the research question and scopes its method. It can also identify context or runs when the investigation uses them. |
-| Stage | A named section and checkpoint for method commands. A runnable header ends at the next header or enclosing block's end. The reader also accepts [explicit entry and exit state](context.md#stage-entry-and-exit), which it checks without executing the stage body. A stage does not itself perform an action or check. |
+| Stage | A named section and checkpoint for method commands. A runnable header ends at the next header or enclosing block's end. The reader also accepts [explicit entry and exit state](stage-state.md#boundaries), which it checks without executing the stage body. A stage does not itself perform an action or check. |
 | Agent setup | Defines the model, prompt, settings, knowledge and context it may receive, tools and permissions, memory scope, and stopping or retry rule for an agent activity. |
 | Obligation | A condition stating what must hold, with a scope, checkpoint, and evidence that could establish or refute it. It can apply to an activity, a path, or a whole run. |
 | Standard | A reusable workflow specification in a library: stages, relationships, conditions, and optional default procedures. A research protocol can be represented this way. |

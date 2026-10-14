@@ -1,15 +1,16 @@
 # Shared representation of a written workflow
 
-**Status:** semantic contract for the representation ScienceLogo readers must
-produce. The file format for sharing it and its versioning rules remain to be
-specified.
+**Status:** design contract for a portable representation. The current Racket
+reader produces an inspectable Racket workflow model, including paired-stage
+state and call locations. A language-neutral exchange format and its versioning
+rules remain to be specified.
 This contract covers a **written method**. A record of what happened and an
 assessment of that record are separate things.
 
 ## Purpose
 
-A reader turns ScienceLogo source into a representation that another program can
-inspect without using Racket. The representation preserves the meaning of the
+A portable representation should let a program inspect ScienceLogo source
+without using Racket. It must preserve the meaning of the
 source, including control flow and references; it is not merely a list of words
 or a flat list of stages. A program may use it to explain a method or check a
 declared condition.
@@ -25,7 +26,7 @@ For example, consider this short method:
 workflow "Review a timing plan"
 stage "Prepare"
 do make-plan as plan
-to make-plan [output "Time ten swings at each length."]
+to make-plan [output "Time ten swings as the swing gets smaller."]
 stage "Review"
 print plan
 ```
@@ -44,9 +45,10 @@ pendulum.
   identifiers must be unambiguous within the identified method revision;
   their spelling and stability across revisions remain to be defined.
 - **Definitions and structure.** Preserve the workflow title, procedure
-  definitions and inputs, stage headers, record interfaces, imports, and
-  includes. A stage remains a label and checkpoint, not a procedure call or
-  variable scope. A procedure definition does not count as a call.
+  definitions and inputs, stage headers and paired-stage entry and exit state,
+  record interfaces, imports, and includes. A stage remains a label and
+  checkpoint, not a procedure call or variable scope. A procedure definition
+  does not count as a call.
 - **Commands and values.** Preserve each command, its arguments and result
   name where present, nested blocks, branches, loops, and the expressions
   needed to understand them. Lists, records, ranges, quoted text, and the
@@ -54,7 +56,8 @@ pendulum.
   different from a field whose value is `unknown`.
 - **References and relationships.** Preserve the resolved target of each
   procedure call, imported name, variable read, assignment, and interface
-  reference. Preserve containment, required order, result production and use,
+  reference. For a paired-stage call, preserve each named input location and
+  its return location. Preserve containment, required order, result production and use,
   and the dependencies that follow from them. The representation must not
   invent an order between activities that the method leaves unordered.
 - **Conditions.** Preserve each declared requirement or guard, its target,

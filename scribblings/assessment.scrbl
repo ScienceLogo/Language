@@ -1,18 +1,22 @@
 #lang scribble/manual
 @(require "site-head.rkt" "site-links.rkt")
 
-@title[#:style (page-style) #:tag "assessment"]{Assessment}
+@title[#:style (page-style) #:tag "assessment"]{Assessment support}
 
-ScienceLogo can check declared structure in a written workflow. These checks
-inspect the method; they do not carry out the work or establish its scientific
-adequacy. @secref["interfaces"] defines the two kinds of interface that can
-be checked here.
+ScienceLogo lets an author declare a few requirements on a written method.
+The current assessor checks their @emph{structure}: required calls and stage
+order, supplied workflow parts, and record field presence. These checks go
+beyond parsing syntax, but they do not show that the work happened or judge
+its scientific adequacy. Protocol conformance, bias analysis, uncertainty
+analysis, and assessment of observed runs are not built-in checks. Their
+applications may use the method information the reader preserves.
+@secref["interfaces"] defines the two kinds of interface used here.
 
-@section{Check forms}
+@section{Declare a structural check}
 
 @(tabular #:style 'boxed
   (list
-   (list (bold "Form") (bold "Checks"))
+   (list (bold "Form") (bold "What the current assessor checks"))
    (list (tt "implements \"relative/file.rkt\" as alias [provide part by \"reference\" ...]")
          "Claims how a workflow provides parts required by a separate interface")
    (list (tt "must do procedure")
@@ -25,10 +29,12 @@ be checked here.
          "Checks a written record against a separate interface file")))
 
 All @tt{implements} and @tt{must} forms belong at workflow top level,
-including an included workflow file. They declare checks; they do not run
-the named work.
+including an included workflow file. They declare requirements; they neither
+run the named work nor make a scientific claim true. An assessment reports
+@tt{satisfied}, @tt{violated}, or @tt{undetermined} for a check. Its outcome
+must be read together with what that check actually tests.
 
-@section{Provide workflow parts}
+@section{Identify required workflow parts}
 
 The @hyperlink[(source-file-url "examples/meta-assessor/method.rkt")]{complete example workflow}
 references the example interface shown in @secref["interfaces"] and supplies an
@@ -54,7 +60,7 @@ require every workflow activity to have an author-written name. An interface
 may omit @tt{version}; the assessment report identifies the source revision
 with a hash and does not compare versions.
 
-Run these examples from an installed checkout:
+The current command for inspecting these declarations is:
 
 @verbatim|{
 racket -l sciencelogo/assessor -- examples/meta-assessor/method.rkt
@@ -63,7 +69,9 @@ racket -l sciencelogo/assessor -- examples/meta-assessor/missing-impact.rkt
 
 The first command reports no structural issues. The second reports missing
 @tt{trace-impacts} and marks @tt{report} as affected through a declared
-@tt{affects} link. It exits with status 1.
+@tt{affects} link. It exits with status 1. Here @tt{affects} records a possible
+downstream dependency between required parts; it does not calculate a
+scientific impact.
 
 @section{Require a call}
 
@@ -106,9 +114,9 @@ separate record interface file relative to the workflow file. See
 @secref["interfaces"] for construction, inheritance, defaults, and the
 limits of this check when a record's shape is undetermined.
 
-@section{Inspect the method model}
+@section{Method information available to other tools}
 
-The implemented @hyperlink[(source-file-url "workflow-model.rkt")]{workflow model}
+The implemented @hyperlink[(source-file-url "workflow-model.rkt")]{Racket workflow model}
 records the written investigation as procedures, activities, named input and
 result slots, imports, interface claims, @tt{must do} conditions, and typed
 relations. @tt{read-workflow-model} reads an investigation file;
@@ -121,7 +129,7 @@ command order. The assessor checks that each activity and named item has one
 containment link to its recorded parent.
 
 @tt{assess-workflow} checks this model; @tt{assess-file} reads the file first.
-The returned assessment includes condition checks and findings that identify
+The returned structural assessment includes condition checks and findings that identify
 their targets. For a @tt{require} part, @tt{satisfied} means a matching
 @tt{provide} declaration exists. A missing part is @tt{violated}. A
 downstream part reached through @tt{affects} is reported as possibly affected,
@@ -133,4 +141,7 @@ can be read into the same model. It returns and prints a timing plan; it does
 not time a pendulum. The
 @hyperlink[(source-file-url "examples/pendulum-period.md")]{young Galileo design case}
 describes measurements and observed run checks that the current language
-cannot yet record as run events.
+cannot yet record as run events. The
+@hyperlink[(source-file-url "spec/representation.md")]{shared representation
+contract} describes what readers in other languages should preserve; it does
+not make the Racket assessor an implementation of those future applications.

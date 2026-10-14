@@ -32,16 +32,18 @@ methods readable while giving people ways to inspect and supervise work performe
 with AI. The language is under development: the current runnable subset is small,
 and broader scientific and AI constructs are still being designed.
 
-Start with @secref["getting-started"]. @secref["reference"] gives the language's
-file structure, naming rules, and a map of every implemented form. The next
-pages explain values, procedures, control flow, libraries, interfaces, and
-assessment. The @hyperlink[(source-directory-url "spec")]{design specifications}
-describe work beyond the runnable language.
+Start with @secref["getting-started"], then use @secref["reference"] to find
+a form or naming rule. The remaining pages move from values and procedures to
+stages, reusable definitions, and declared checks. Each page says whether its
+forms run, are read and checked as a written method, or remain design work.
+The @hyperlink[(source-file-url "spec/README.md")]{specification index}
+separates adopted rules from open design questions.
 
 @include-section["getting-started.scrbl"]
 @include-section["reference.scrbl"]
 @include-section["values.scrbl"]
 @include-section["procedures.scrbl"]
-@include-section["libraries.scrbl"]
+@include-section["stages.scrbl"]
 @include-section["interfaces.scrbl"]
+@include-section["libraries.scrbl"]
 @include-section["assessment.scrbl"]

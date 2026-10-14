@@ -2,7 +2,9 @@
 
 The [first runnable slice](first-slice.rkt) is a small `#lang sciencelogo` program for
 checking `to`, `do`, forward references, ordered blocks, and Logo's `print` command.
-It prints a method reminder; it does not record scientific evidence. The supported
+It prints a method reminder about a later pendulum-length question; it does not
+record scientific evidence. For a first lesson centered on the shrinking-swing
+question, use [Getting started](../scribblings/getting-started.scrbl). The supported
 syntax is listed in the [first-slice contract](../spec/first-slice.md).
 The [return-a-plan example](return-a-plan.rkt) shows a procedure returning a named
 result to its caller. The [pendulum method](pendulum-method.rkt) uses that syntax to
@@ -10,7 +12,10 @@ print a timing plan; it does not perform a measurement.
 The [assessor self-description](meta-assessor/README.md) is also runnable. It shows
 the implemented structural interface check and its missing-part impact report.
 
-The other examples are **provisional language sketches**, not executable ScienceLogo programs.
+The prose examples are **provisional research and language sketches**, not
+executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)
+used in the documentation is accepted by the reader as a method declaration,
+but its body is not executed.
 Their words and bracketed structure are candidates to test with scientists and learners.
 They should inform the reader, validator, and run-record design before syntax is fixed.
 The [draft semantic core](../spec/core.md) gives two of these sketches concrete run traces

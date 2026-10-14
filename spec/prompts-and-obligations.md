@@ -1,12 +1,15 @@
 # Prompts and obligations (draft)
 
-**Status:** design proposal beyond the [first runnable subset](first-slice.md). This
-develops the [semantic core](core.md) using the
+**Status:** design proposal for broader obligations and AI requests. The
+current reader and structural assessor already support the narrower
+`must do`, `must stages in order`, and `must record-name implement` forms
+described in the [accepted subset](first-slice.md); the other sketches here
+are not accepted syntax. This develops the [semantic core](core.md) using the
 [knowledge-synthesis example](../examples/knowledge-synthesis.md).
 
 ## Which words declare, and which words act?
 
-`must` is the proposed **obligation declaration**. It says what a workflow or run is required
+`must` is the **obligation declaration**. It says what a workflow or run is required
 to do or preserve. It does not perform an action when execution reaches that line. For
 example, `must send every unsure screening decision to a human` requires a check; `ask human`
 is the action that may satisfy it. A procedure can take another path, fail, or be interrupted,
@@ -51,10 +54,10 @@ For example, this source order is valid in the proposed model, even though the d
 is written after its first call:
 
 ```text
-workflow "How does length affect a pendulum's period?"
+workflow "Does the period change as the swing gets smaller?"
 do make-timing-plan
 to make-timing-plan [
-  print "Time ten swings at each length."
+  print "Time ten swings as the swing gets smaller."
 ]
 ```
 

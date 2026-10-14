@@ -34,7 +34,7 @@ such as `information.swing-count` and `environment.timer`, then returns a
 timing to a location such as `information.elapsed`. A period calculation reads
 that result and returns to `information.period`. A comparison reads the periods
 and returns its finding to a named location. Internal counters can remain
-local. The [stage-call syntax](../spec/context.md#calling-a-function-from-a-stage)
+local. The [stage-call syntax](../spec/stage-state.md#location-based-calls)
 lets the reader check these location mappings; the current interpreter does
 not perform the described measurements.
 

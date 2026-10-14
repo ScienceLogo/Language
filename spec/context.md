@@ -1,10 +1,9 @@
-# Stage state and context sets (draft)
+# Context sets in a scientific method
 
-**Status:** the reader accepts the stage and call forms below and checks their
-declared structure. The interpreter does not carry out calls inside a state
-stage or create an observed run. List-element locations and the syntax for
-other state updates remain to be specified. This page does not define how an
-assessment application analyzes the sets.
+**Status:** meaning and design rationale for the three sets. The adopted
+[paired-stage syntax and constraints](stage-state.md) are documented separately;
+the [manual page](../scribblings/stages.scrbl) teaches their use. This page
+does not define how an assessment application analyzes the sets.
 
 ## What context covers
 
@@ -83,97 +82,12 @@ may state what information was actually supplied and what environment was
 actually in effect, without turning the method's declarations into claims that
 those events occurred.
 
-## Stage entry and exit
+## How the sets appear in the language
 
-`stage "name" from state [ ... ]` begins a stage. It needs no additional
-`start` command. `end stage with state [ ... ]` closes it. The opening object
-defines what enters the stage; the closing object states everything that leaves
-it. Both objects are compulsory, even when empty (`state []`). The three sets
-may be present as needed. An absent set, an explicitly empty set, and a set
-containing `unknown` have different meanings. Values in the closing state
-must be traceable to the incoming state or to explicit work inside the stage;
-writing a new value at the boundary alone does not imply that work occurred.
-The stage remains a section and checkpoint, not a callable procedure.
-
-The earlier runnable form, `stage "name"`, remains a header ending at the
-next header or enclosing block. A paired state stage is read and checked but
-its body is not executed by the current interpreter.
-
-## Calling a function from a stage
-
-Within a stage, state is the complete interface for values. A call supplies
-the names and locations of its inputs, then names the location that receives
-its return. For example:
-
-```text
-to calculate-period :duration :count [output :duration / :count]
-
-stage "Analyze" from state [
-  information = [elapsed = unknown swing-count = 10]
-]
-do calculate-period with [
-  duration at information.elapsed
-  count at information.swing-count
-] into information.period
-end stage with state [
-  information = [elapsed = unknown swing-count = 10 period = unknown]
-]
-```
-
-This syntax is accepted by the reader but is not executed. `duration` and `count` are
-the function's declared inputs without their definition-only colons. The
-names after `at` are paths inside the stage state. `information.elapsed`
-means the `elapsed` field of the `information` set; the dot separates fields
-in a state location. The call declares that the function reads the values at
-those locations and directs its return to `information.period`, which may be
-a new field. Here `unknown`
-declares a present value whose actual value is not stated by this method. An
-observed run would provide its own values and evidence.
-
-The `with [ ... ]` part is required when the function declares inputs. A
-function with no inputs can be called as `do name into information.result`.
-Every stage call needs `into`, and every function called this way needs an
-`output` on every path that can finish normally. A function with no scientific
-result may return a Boolean completion status to a named location; a status
-written in a method is not evidence that a run occurred. An imported function
-uses the same call form, for example `do timing.calculate-period with [ ... ]
-into information.period`. The dot in a procedure name qualifies its library;
-the dot after `at` or `into` separates fields in a state location.
-
-Inputs are read from their stated locations. Only an explicit `into` location
-can change through a call, including when that location is also an input.
-A function can return a record when several related results belong together.
-Internal variables may serve as counters or positions within state collections.
-Any such value passed to a function as a scientific input must itself have a
-location in the state. A literal intended as a stage-call argument must first
-be placed in state rather than passed directly. The reader permits local
-`set` values in a state stage only when it can establish an integer counter or
-position expression; `for each` there likewise needs integer positions.
-
-## Checking stage calls
-
-The reader checks the written method before accepting a stage call:
-
-- The procedure exists, including when named through a library alias. Each
-  declared input has exactly one mapping; duplicate, missing, or extra input
-  names are errors. Mapping order does not matter.
-- Each `at` path begins with a set present in the current state, and every
-  field on the path exists when the call is reached. An explicitly present
-  `unknown` value is not a missing field. A path produced only on some earlier
-  branches cannot be treated as certainly present.
-- The `into` path begins with a present set. Its parent fields exist. Its final
-  field may be new or existing. An existing field may receive an updated value;
-  a new field must appear in the closing state. Other fields cannot silently
-  disappear between the opening and closing states.
-- The called procedure returns a value on every path that can finish normally.
-  If this cannot be established, the call is rejected.
-- Fields already in the opening state retain their stated values at exit unless
-  an explicit return targets them or a containing record. A conditional return
-  alone cannot establish that a new field is present on every path.
-
-These checks establish names, locations, and declared flow. They do not verify
-that the procedure ran, that the returned value has a scientifically suitable
-meaning, or that the stated environment existed in an observed run. An
-interface could add a check on a value's shape without making all ScienceLogo
-values strongly typed. The notation for a position inside a list-valued
-location remains open; the whole list can already be named as a location.
+The adopted [paired-stage form](stage-state.md) names the incoming and
+outgoing sets and gives each procedure input and return a location in them.
+The reader checks names, locations, and declared flow. It does not execute
+the paired stage's body, establish that work happened, or judge whether a
+returned value is scientifically suitable. A record of an observed run would
+need its own values and evidence. Applications using ScienceLogo decide how
+to assess the sets for a particular scientific purpose.

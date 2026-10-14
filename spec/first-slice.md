@@ -1,12 +1,16 @@
 # First runnable ScienceLogo slice
 
-This is the syntax implemented by `#lang sciencelogo` today. The broader examples and
+**Status:** accepted runnable syntax and current structural checks. The
+[manual](../scribblings/sciencelogo.scrbl) provides the learning path and form
+index; this page records the implemented contract. Broader examples and
 semantic designs remain proposals.
 
-The reader also accepts the [paired stage state and location-based call forms](context.md),
+The reader also accepts the [paired stage state and location-based call forms](stage-state.md),
 checks their declared structure, and retains them in the workflow model. The
 current interpreter does not execute the body of a paired state stage; the
 runnable forms described below keep their existing behavior.
+
+## Source file, procedures, and stage headers
 
 ```text
 #lang sciencelogo
@@ -44,7 +48,7 @@ For example:
 workflow "Review a timing plan"
 stage "Prepare"
 do make-plan as plan
-to make-plan [output "Time ten swings at each length."]
+to make-plan [output "Time ten swings as the swing gets smaller."]
 stage "Review"
 print plan
 ```
@@ -52,6 +56,8 @@ print plan
 The second stage can use `plan` because both stages are in the same workflow file.
 Calling `do Review` would try to call a procedure named `Review`; it does not call
 the stage.
+
+## Files and libraries
 
 Imports belong at the top of the workflow file, after an optional title and before method forms:
 
@@ -95,7 +101,7 @@ must remain inside the same Git repository. Included files begin with
 `#lang sciencelogo`. The reader rejects missing files, duplicate includes,
 and cycles, and validates the assembled workflow before running it.
 
-## Describe and assess required parts
+## Declared structural checks
 
 A separate `#lang sciencelogo` file can declare an interface for parts of a method:
 
@@ -228,13 +234,15 @@ collection expression so the assessor can distinguish reachable, conditional,
 and impossible calls. `must do` conditions are retained in the method model
 and reported as satisfied, violated, or undetermined by the assessor.
 
+## Values, inputs, and results
+
 A procedure can return a value, which its caller may name with `as`. For example:
 
 ```text
 workflow "What is our observation plan?"
 do observation-plan as plan
 print plan
-to observation-plan [output "Time ten swings at each length."]
+to observation-plan [output "Time ten swings as the swing gets smaller."]
 ```
 
 The procedure returns the plan; the caller prints it. A procedure may also declare
@@ -254,7 +262,7 @@ A result name cannot duplicate an input or another result visible in its block, 
 one from an enclosing block. Separate sibling blocks may use the same result name. A
 procedure sees only its declared inputs, not the caller's result names.
 
-## Named fields
+## Records and interfaces
 
 Brackets beginning with `name = value` create a value with named fields:
 
@@ -342,7 +350,7 @@ requires all resolved bare fields. A `must` check uses those same resolved
 fields. `but []` can construct an interface when no bare field remains to be
 supplied. Standalone interface files cannot use local `extends` references.
 
-## Lists, ranges, loops, and choices
+## Lists, ranges, loops, and conditions
 
 `set name to value` creates a local name or updates a visible name previously
 created with `set`. This separates a range's definition from its uses. For
@@ -418,6 +426,8 @@ has its own local scope. The runner stops `while` and `repeat ... until` loops
 after 10,000 iterations with a nontermination error. The static method model
 records loop bodies and alternative branches, but does not claim that they ran
 or that a particular condition was resolved.
+
+## Reader validation and current limits
 
 The reader parses and validates the complete investigation before any command runs.
 Definitions may appear after their calls, including a call inside another procedure.

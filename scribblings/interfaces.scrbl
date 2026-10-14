@@ -1,12 +1,12 @@
 #lang scribble/manual
 @(require "site-head.rkt" "site-links.rkt")
 
-@title[#:style (page-style) #:tag "interfaces"]{Interfaces}
+@title[#:style (page-style) #:tag "interfaces"]{Records and interfaces}
 
 An interface describes either the fields of a record or the named parts a
-workflow must provide. These are separate forms: fields and workflow parts
-cannot be mixed in one interface. @secref["assessment"] explains how a
-workflow declares and checks conformance.
+workflow must provide. These uses share a declaration word but have different
+purposes. Fields and workflow parts cannot be mixed in one interface.
+@secref["assessment"] explains the current structural checks on them.
 
 @section{Declaration forms}
 
@@ -26,39 +26,6 @@ must be supplied; @tt{field = value} gives a default. Workflow-part
 interfaces have distinct @tt{require} lines and optional @tt{affects source
 target} links between required parts. @tt{extends} does not apply to a
 workflow-part interface.
-
-@section{Workflow-part interfaces}
-
-A workflow-part interface lives in a separate @tt{#lang sciencelogo} file.
-Its @tt{require} lines name the parts to provide; @tt{affects source target}
-marks a possible downstream effect if a required part is missing. A version
-line can identify the interface, but the assessor does not compare versions.
-
-The @hyperlink[(source-file-url "examples/meta-assessor/requirements/assessor.rkt")]{assessor interface}
-is a separate @tt{#lang sciencelogo} file. It has one version and five required
-parts:
-
-@verbatim|{
-#lang sciencelogo
-
-interface "Assessor-process" [
-  version "0.1"
-  require parse
-  require resolve-libraries
-  require check-interfaces
-  require trace-impacts
-  require report
-
-  affects parse check-interfaces
-  affects resolve-libraries check-interfaces
-  affects check-interfaces trace-impacts
-  affects trace-impacts report
-]
-}|
-
-The @hyperlink[(source-file-url "examples/meta-assessor/method.rkt")]{example workflow}
-that supplies these parts is explained in @secref["assessment"]. These five
-parts belong to the example interface; they are not built-in ScienceLogo parts.
 
 @section{Record interfaces}
 
@@ -157,3 +124,36 @@ included workflow file, or imported from a library. Importing a library as
 can itself extend an interface imported from another library. Its dependency
 alias remains internal, so a workflow imports that dependency directly if it
 needs to name the interface.
+
+@section{Workflow-part interfaces}
+
+A workflow-part interface lives in a separate @tt{#lang sciencelogo} file.
+Its @tt{require} lines name the parts to provide; @tt{affects source target}
+marks a possible downstream effect if a required part is missing. A version
+line can identify the interface, but the assessor does not compare versions.
+
+The @hyperlink[(source-file-url "examples/meta-assessor/requirements/assessor.rkt")]{assessor interface}
+is a separate @tt{#lang sciencelogo} file. It has one version and five required
+parts:
+
+@verbatim|{
+#lang sciencelogo
+
+interface "Assessor-process" [
+  version "0.1"
+  require parse
+  require resolve-libraries
+  require check-interfaces
+  require trace-impacts
+  require report
+
+  affects parse check-interfaces
+  affects resolve-libraries check-interfaces
+  affects check-interfaces trace-impacts
+  affects trace-impacts report
+]
+}|
+
+The @hyperlink[(source-file-url "examples/meta-assessor/method.rkt")]{example workflow}
+that supplies these parts is explained in @secref["assessment"]. These five
+parts belong to the example interface; they are not built-in ScienceLogo parts.

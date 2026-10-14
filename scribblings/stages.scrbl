@@ -1,0 +1,126 @@
+#lang scribble/manual
+@(require "site-head.rkt" "site-links.rkt")
+
+@title[#:style (page-style) #:tag "stages"]{Stages and state}
+
+A stage is a named section and checkpoint of a written method. The simple
+@tt{stage "title"} header labels following commands; it creates no local
+scope and does not itself perform work. A paired stage states what enters and
+leaves it. The reader accepts and checks that declaration, but the current
+interpreter does not execute a paired stage's body. Neither form records an
+observed run.
+
+@section{The three sets}
+
+A paired stage's state can contain three named sets. Each set is a record with
+fields chosen for the investigation:
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Set") (bold "What it declares") (bold "Pendulum example"))
+   (list (tt "information") "Material designated as available"
+         "Question, observations, timing instructions")
+   (list (tt "environment") "Relevant physical or digital setup"
+         "Pendulum, timer, release setup")
+   (list (tt "factors") "Possible influences considered when interpreting work"
+         "Reaction time, changing swing angle")))
+
+An information field says that material is designated as available; it does
+not establish that an actor read it. An environment field describes a setup,
+not proof that it existed in a particular run. A factor is @emph{considered};
+its presence does not claim that it was controlled or negligible. The three
+sets are available for human and AI activities. A hypothesis can be a named
+field within @tt{information}; it is not a compulsory fourth set. The
+@hyperlink[(source-file-url "spec/context.md")]{context design notes} explain
+why these distinctions matter.
+
+@section{Declare entry and exit}
+
+@tt{stage "title" from state [ ... ]} opens a paired stage, and
+@tt{end stage with state [ ... ]} closes it. Both state objects are required,
+even when empty: @tt{state []}. A set may be absent, present and empty, or
+present with fields. Those are distinct from a field whose value is
+@tt{unknown}: that field exists, but its value is not stated. The exit object
+declares the complete state after the stage, including fields retained from
+entry.
+
+@verbatim|{
+#lang sciencelogo
+workflow "Does the period change as the swing gets smaller?"
+
+to calculate-period :duration :count [
+  output :duration / :count
+]
+
+stage "Analyze" from state [
+  information = [elapsed = unknown swing-count = 10]
+  environment = [timer = "hand timer"]
+  factors = [reaction-time = unknown]
+]
+do calculate-period with [
+  duration at information.elapsed
+  count at information.swing-count
+] into information.period
+end stage with state [
+  information = [elapsed = unknown swing-count = 10 period = unknown]
+  environment = [timer = "hand timer"]
+  factors = [reaction-time = unknown]
+]
+}|
+
+This is a @emph{method declaration}. It says where a duration and a swing
+count would come from and where the calculated period would go. It does not
+measure the duration or calculate an observed period. The example keeps the
+timer and considered factor at exit because neither was changed by a call.
+
+@section{Connect a procedure to state}
+
+Inside a paired stage, a procedure call maps each declared input to a field
+location in the current state:
+
+@verbatim|{
+do calculate-period with [
+  duration at information.elapsed
+  count at information.swing-count
+] into information.period
+}|
+
+@tt{duration} and @tt{count} match the procedure's input names without the
+definition-only colon. A location starts with @tt{information},
+@tt{environment}, or @tt{factors}; dots select nested fields. The @tt{into}
+location receives the procedure's return and may name a new field under an
+existing parent record. Every paired-stage call needs @tt{into}. If a
+procedure has no inputs, write @tt{do name into information.result}; otherwise
+@tt{with [ ... ]} supplies every input exactly once. An imported procedure
+uses its qualified name, such as @tt{timing.calculate-period}.
+
+Calls in a paired stage take scientific inputs from state locations. They do
+not take a literal or an unrelated local name as an argument. A local
+@tt{set} name may be used only for an integer counter or position; inside
+this form, @tt{for each} likewise needs integer positions. Only a declared
+@tt{into} location, or fields within a record returned to it, can change
+through a call. The same location can be both an input and an output.
+
+@section{Reader checks for paired stages}
+
+The reader rejects a paired stage when:
+
+@itemlist[
+ @item{Either state boundary is missing, a set has the wrong shape, or a
+       location names a set or field that is unavailable when read.}
+ @item{A call's input names are missing, extra, or repeated, or its procedure
+       can finish normally without @tt{output}.}
+ @item{A return has no existing parent location in state.}
+ @item{The closing state omits an available field, adds a field without a
+       guaranteed return, or changes an entry value without a return that
+       targets that field or its containing record.}
+]
+
+A field returned only on some branches is not guaranteed to exist at exit.
+These checks establish the declared flow of values, not whether the work took
+place or whether its scientific conclusion is sound. A location inside a list
+is not yet part of the syntax; a whole list-valued field can be named.
+The @hyperlink[(source-file-url "spec/stage-state.md")]{stage state contract}
+records the accepted reader constraints.
+@secref["assessment"] explains the distinct structural checks available
+through @tt{must} and workflow interfaces.

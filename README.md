@@ -22,39 +22,28 @@ when AI performs much of the work.
 This repository is the working source for the language. It is set up as a single-collection
 Racket package whose collection name is `sciencelogo`, with package metadata in `info.rkt`.
 The first `#lang sciencelogo` reader and runner are available for a small set of
-commands and Git-based library imports. A structural assessor checks declared
-interface parts and their downstream dependencies. The [first-slice contract](spec/first-slice.md)
-lists what runs today and what remains design work. To try the example from a local
-checkout, install the package with
-`raco pkg install --link .`, then run `racket examples/first-slice.rkt`.
+commands and Git-based library imports. The reader also checks paired stage
+state declarations without executing their bodies. A structural assessor
+checks declared calls, stage order, record fields, and workflow parts. To try
+the language from a local checkout, install the package with
+`raco pkg install --link .`, then follow the [Getting started manual page](scribblings/getting-started.scrbl).
 
-## Read the draft
+## Read the language and its design
 
-The [design examples](examples/README.md) are provisional workflows. The
-[first runnable example](examples/first-slice.rkt) exercises the implemented subset.
-The [assessor self-description](examples/meta-assessor/README.md) is a runnable
-interface, investigation, and missing-part assessment.
-Start with [the pendulum period](examples/pendulum-period.md) for the young Galileo
-progression. [Knowledge synthesis](examples/knowledge-synthesis.md) introduces
-AI participation and human review. [Rainfall modelling](examples/rainfall-modelling.md)
-tests the same ideas in a different kind of investigation.
+The [manual](scribblings/sciencelogo.scrbl) progresses from a small
+investigation to values, procedures, stages and state, reusable definitions,
+and assessment support. Its [Syntax page](scribblings/reference.scrbl) is a
+lookup map of accepted forms. The [specification index](spec/README.md)
+identifies what runs, what the reader only checks, and what remains design
+work. Start with the [young Galileo pendulum case](examples/pendulum-period.md)
+for the research progression; the [examples index](examples/README.md) labels
+runnable programs and provisional sketches separately.
 
-The [language boundary](spec/architecture.md) separates the specification, its
-implementations, and applications written in any programming language. The
-[shared representation contract](spec/representation.md) describes what a
-ScienceLogo reader must make available to those applications. The
-[design principles](spec/design-principles.md) state the language's scope, learning
-progression, and tests. The [semantic core](spec/core.md) defines the intended meaning and
-works through valid and invalid runs. The [library specification](spec/libraries.md)
-shows a hello-world library and its import. The
-[context sets](spec/context.md) distinguish information, environment, and
-considered factors in a workflow. The
-[prompt and obligation design](spec/prompts-and-obligations.md) develops
-named LLM requests and `must` rules; the [LLM variation design](spec/llm-variation.md)
-develops context selection, repeated attempts, replication, and control. The
-[workflow publication support design](spec/workflow-documentation.md) defines the information
-ScienceLogo should expose to external research publications, without prescribing a booklet
-template.
+The [language boundary](spec/architecture.md) explains why scientific
+applications such as protocol or bias assessment are separate from the
+language package. The [shared representation contract](spec/representation.md)
+describes what a reader should make available to those applications.
+
 ## License
 
 ScienceLogo is released under the [MIT License](LICENSE).

@@ -53,16 +53,16 @@ language package; the language supplies the syntax and representation they need.
 ## Current documents
 
 - [First runnable slice](first-slice.md) and [Libraries](libraries.md) describe
-  forms supported by the current Racket implementation.
-- [Semantic core](core.md) and [Design principles](design-principles.md) describe
-  the intended language beyond that slice.
-- [Prompts and obligations](prompts-and-obligations.md),
-  [Context sets](context.md),
+  accepted runnable forms and file rules.
+- [Paired stages and state locations](stage-state.md) describes accepted
+  reader syntax that is checked as a method but not executed.
+- [Semantic core](core.md), [Design principles](design-principles.md),
+  [Context sets](context.md), [Prompts and obligations](prompts-and-obligations.md),
   [LLM variation](llm-variation.md), and
-  [Workflow publication support](workflow-documentation.md) contain design work
-  at different stages of implementation. The reader already accepts the paired
-  stage state and location-based call forms described in Context sets.
+  [Workflow publication support](workflow-documentation.md) develop meaning
+  and future capabilities.
 
 The [shared representation contract](representation.md) states what a reader
 must preserve. Its portable schema remains to be defined. This page sets the
 boundary without choosing a file format or adding new ScienceLogo syntax.
+The [documentation map](README.md) gives each document's status and purpose.

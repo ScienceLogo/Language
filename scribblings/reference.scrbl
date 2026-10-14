@@ -3,11 +3,12 @@
 
 @title[#:style (page-style) #:tag "reference"]{Syntax}
 
-This section documents the forms implemented by @tt{#lang sciencelogo} today.
-Read @secref["getting-started"] for a first example, then use the topic pages
-below as a language reference. The broader proposals in
-@hyperlink[(source-directory-url "spec")]{the design specifications} are not
-necessarily executable syntax.
+This page is the map of forms accepted by @tt{#lang sciencelogo}. Read
+@secref["getting-started"] to learn the basic pattern; follow the links below
+for each form's full rule. Most forms run. Paired stages and their location
+calls are read and checked as a written method but are not executed. Design
+sketches in the @hyperlink[(source-file-url "spec/README.md")]{specification
+index} are marked separately and should not be treated as accepted syntax.
 
 @section{How to read the forms}
 
@@ -63,7 +64,7 @@ stage names must be distinct across the assembled workflow. Each procedure has
 distinct input names, and record fields are distinct within a record.
 @secref["procedures"] explains local value scope and result names.
 
-@section{Source files and composition}
+@section{Source files}
 
 Every ScienceLogo source file begins with @tt{#lang sciencelogo}. The entry
 workflow is the file to run or assess. Its optional @tt{workflow "title"} is
@@ -87,69 +88,44 @@ Definitions may appear after their uses.
          "Declares record fields or workflow requirements")))
 
 A library import selects a tag or full commit ID on its @tt{main} branch.
-@secref["libraries"] gives the repository layout and dependency rules.
-@secref["interfaces"] explains the two interface forms. Workflow files may
-contain top-level commands, procedures, stages, record interfaces, obligations,
-and includes. A library file may contain imports, includes, procedures, and
-record interfaces; it has no top-level executable commands.
-
-@subsection{Split a workflow across files}
-
-Each @tt{include} path starts at the directory of the file containing it.
-An included workflow file has no workflow title or import and can include more
-files. For example, these three paths are in one Git repository:
-
-@tt{method.rkt}:
-
-@verbatim|{
-#lang sciencelogo
-workflow "Pendulum trial"
-include "methods/period.rkt"
-do period 20 10 as seconds-per-swing
-print seconds-per-swing
-}|
-
-@tt{methods/period.rkt}:
-
-@verbatim|{
-#lang sciencelogo
-include "../shared/divide.rkt"
-to period :seconds :swings [
-  do divide :seconds :swings as result
-  output result
-]
-}|
-
-@tt{shared/divide.rkt}:
-
-@verbatim|{
-#lang sciencelogo
-to divide :total :count [output :total / :count]
-}|
-
-The reader assembles and validates the workflow before running it. Includes
-must stay inside the repository. Missing files, duplicate includes, and cycles
-are errors.
+@secref["libraries"] explains import, @tt{include}, repository layout, and
+dependency rules. @secref["interfaces"] explains the two interface forms.
+Workflow files may contain commands, procedures, stages, interfaces,
+obligations, and includes. A library file may contain imports, includes,
+procedures, and record interfaces; it has no top-level executable commands.
 
 @section{Where to find each form}
 
 @(tabular #:style 'boxed
   (list
-   (list (bold "Topic") (bold "Forms covered"))
+   (list (bold "Topic") (bold "Forms covered") (bold "Current behavior"))
    (list (secref "values")
-         (tt "numbers, text, true, false, unknown, lists, records"))
+         (tt "numbers, text, true, false, unknown, lists, records")
+         "Values used by runnable forms")
    (list (secref "values")
-         (tt "range, item, of, but, arithmetic, comparisons, not, and, xor, or"))
+         (tt "range, item, of, but, arithmetic, comparisons, not, and, xor, or")
+         "Expressions used by runnable forms")
    (list (secref "procedures")
-         (tt "to, :input, do, as, output, set, print, stage, state, at, into"))
+         (tt "to, :input, do, as, output, set, print")
+         "Definitions and executable commands")
    (list (secref "procedures")
-         (tt "repeat, until, for each, while, if, else if, else"))
-   (list (secref "libraries")
-         (tt "library, import, include"))
+         (tt "repeat, until, for each, while, if, else if, else")
+         "Executable control flow")
+   (list (secref "stages")
+         (tt "stage \"title\"")
+         "Section header for runnable commands")
+   (list (secref "stages")
+         (tt "stage ... from state, end stage with state, at, into")
+         "Read and checked; paired body not executed")
    (list (secref "interfaces")
-         (tt "interface, version, extends, require, affects"))
+         (tt "interface, version, extends, require, affects")
+         "Declarations checked for structure")
+   (list (secref "libraries")
+         (tt "library, import, include")
+         "Files and revisions resolved by reader")
    (list (secref "assessment")
-         (tt "implements, provide, must do, must stages in order, must record implement"))))
+         (tt "implements, provide, must do, must stages in order, must record implement")
+         "Requirements on the written method")))
 
 @section{Comments and whitespace}
 

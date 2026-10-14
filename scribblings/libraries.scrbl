@@ -1,11 +1,51 @@
 #lang scribble/manual
 @(require "site-head.rkt" "site-links.rkt")
 
-@title[#:style (page-style) #:tag "libraries"]{Libraries}
+@title[#:style (page-style) #:tag "libraries"]{Files and libraries}
 
-A ScienceLogo library is one Git repository with a @tt{main} branch and a
-@tt{library.rkt} file at its root. An investigation imports a tagged version of
-that repository. Importing makes its procedures and record interfaces available.
+Use @tt{include} to split one workflow across local files. Use @tt{import} to
+reuse a versioned library from another Git repository. A ScienceLogo library
+is one Git repository with a @tt{main} branch and a @tt{library.rkt} file at
+its root. Importing makes its procedures and record interfaces available.
+
+@section{Split one workflow across files}
+
+Every included file begins with @tt{#lang sciencelogo}. Its path starts at the
+directory of the file containing @tt{include}; it must stay in the same Git
+repository. An included workflow file has no workflow title or import and can
+include more files. For example, these three paths are in one repository:
+
+@tt{method.rkt}:
+
+@verbatim|{
+#lang sciencelogo
+workflow "Pendulum trial"
+include "methods/period.rkt"
+do period 20 10 as seconds-per-swing
+print seconds-per-swing
+}|
+
+@tt{methods/period.rkt}:
+
+@verbatim|{
+#lang sciencelogo
+include "../shared/divide.rkt"
+to period :seconds :swings [
+  do divide :seconds :swings as result
+  output result
+]
+}|
+
+@tt{shared/divide.rkt}:
+
+@verbatim|{
+#lang sciencelogo
+to divide :total :count [output :total / :count]
+}|
+
+The reader assembles and validates the workflow before running it. Missing
+files, duplicate includes, and cycles are errors. @tt{include} does not
+create a local scope.
 
 @section{Library syntax}
 
