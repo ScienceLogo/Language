@@ -30,13 +30,10 @@
   "local checkout")
 
 ScienceLogo is a Logo dialect for describing scientific workflows that people
-can read and inspect. It aims to show what information and assumptions an
-activity uses, where AI participates, and who or what carries it out. We call
-the latter the @emph{performer}. This supports human explanation, supervision,
-and accountability when AI participates. The language is under development:
-the current runnable subset is small. Performer declarations in paired stages
-are checked as part of the written method; broader scientific and AI
-constructs are still being designed.
+can read and inspect. It aims to keep the purpose, structure, assumptions,
+and conditions of a method understandable to people, including when AI
+participates. The language is under development: the current runnable subset
+is small, and broader scientific and AI constructs are still being designed.
 
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to
