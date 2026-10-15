@@ -27,12 +27,32 @@ at the closing boundary does not explain how the stage obtained it. The older
 `stage "name"` header form remains runnable and labels following commands
 until the next header or enclosing block's end.
 
+## Performers
+
+`performer name [field = value ...]` declares a named performer object directly
+in a workflow. An empty object, `performer name []`, is valid. The language
+does not require particular fields or a fixed list of performer kinds. Each
+performer name is unique and cannot conflict with a procedure or interface
+name. A performer describes who or what is designated to carry out an activity
+in the written method; it is not evidence that the activity happened.
+
+A paired stage may set a default with `stage "name" by performer-name from
+state [ ... ]`. A state-changing call may override it with `do procedure-name
+by performer-name with [ ... ] into location`, or `do procedure-name by
+performer-name into location` when there are no inputs. Every call in a paired
+stage must resolve to a declared performer, either its own or the stage
+default. A stage without calls may omit `by`. The closing `end stage` does
+not name a performer because it only declares the resulting state. The simple
+`stage "name"` header does not accept `by`.
+
 ## Location-based calls
 
 ```text
 to calculate-period :duration :count [output :duration / :count]
 
-stage "Analyze" from state [
+performer researcher [kind = "human" role = "scientist"]
+
+stage "Analyze" by researcher from state [
   information = [elapsed = unknown swing-count = 10]
 ]
 do calculate-period with [
@@ -68,6 +88,8 @@ positions. A value intended as a scientific input must be placed in state.
 
 The reader rejects a paired stage if its boundaries are incomplete, if its
 sets or paths are malformed, or if a call names an unknown procedure. Every
+`by` name must identify a declared performer object; every state-changing
+call must have an explicit or inherited performer. Every
 declared input must have exactly one mapping; duplicate, missing, and extra
 mappings are errors. Each mapped input path must be available at the call,
 including across earlier branches. A call without a guaranteed return or

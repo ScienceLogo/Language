@@ -62,6 +62,8 @@
     (register (stage-model-id stage) 'stage stage))
   (for ([procedure (in-list (workflow-model-procedures method))])
     (register (procedure-model-id procedure) 'procedure procedure))
+  (for ([performer (in-list (workflow-model-performers method))])
+    (register (performer-model-id performer) 'performer performer))
   (for ([activity (in-list (workflow-model-activities method))])
     (register (activity-model-id activity) 'activity activity))
   (for ([item (in-list (workflow-model-items method))])
@@ -123,6 +125,11 @@
               (memq to-type '(stage activity item))
               (equal? from (parent-of to)))]
         [(defines) (and (eq? from-type 'workflow) (eq? to-type 'procedure))]
+        [(defines-performer)
+         (and (eq? from-type 'workflow) (eq? to-type 'performer))]
+        [(performed-by)
+         (and (eq? (activity-kind from) 'state-call)
+              (eq? to-type 'performer))]
         [(imports)
          (and (eq? from-type 'workflow) (memq to-type '(import procedure)))]
         [(claims-implementation)

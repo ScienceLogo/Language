@@ -247,8 +247,9 @@
            [`(must-stage-order ,_) (void)]
            [`(must-implement ,_ ,_) (void)]
            [`(interface ,_ ,_) (void)]
+           [`(performer ,_ ,_) (void)]
            [`(stage ,_) (void)]
-           [`(state-stage ,_ ,_ ,_ ,_) (void)]
+           [`(state-stage ,_ ,_ ,_ ,_ ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
            [`(call ,name ,arguments ,result-name)
             (define result

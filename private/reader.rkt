@@ -90,7 +90,7 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "repeat" "for" "while" "if" "else" "set"))
+  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "repeat" "for" "while" "if" "else" "set"))
   (define reserved
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
@@ -304,6 +304,14 @@
        (struct-copy node value [kind 'fields])]
       [else (read-error source (node-at value)
                         "state needs named sets in [name = value] or []")]))
+  (define (parse-performer-object)
+    (define value (parse-atom))
+    (cond
+      [(eq? (node-kind value) 'fields) value]
+      [(and (eq? (node-kind value) 'list) (null? (node-children value)))
+       (struct-copy node value [kind 'fields])]
+      [else (read-error source (node-at value)
+                        "performer needs named fields in [name = value] or []")]))
   (define (parse-location)
     (define at (expect 'word "a state location such as information.elapsed"))
     (define parts (string-split (token-value at) "." #:trim? #f))
@@ -331,7 +339,7 @@
          (expect-word "at")
          (loop (cons (node 'state-mapping name (list (parse-location)) at) backward)
                (cons name seen))])))
-  (define (parse-state-stage name command in-procedure?)
+  (define (parse-state-stage name performer command in-procedure?)
     (define entry (parse-state-object))
     (let loop ([backward '()])
       (define found (current))
@@ -345,7 +353,7 @@
          (advance!)
          (expect-word "stage")
          (expect-word "with")
-         (node 'state-stage (list name entry (parse-state-object))
+         (node 'state-stage (list name entry (parse-state-object) performer)
                (reverse backward) command)]
         [else
          (loop (cons (parse-form #f in-procedure? #f #f) backward))])))
@@ -413,6 +421,14 @@
          (read-error source command
                      "inline interfaces describe records; put workflow-part interfaces in a separate file"))
        declaration]
+      ["performer"
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "performer belongs directly in a workflow"))
+       (define name (named-word "a performer name"))
+       (when (regexp-match? #rx"[.]" (symbol->string name))
+         (read-error source command "a performer name cannot contain a dot"))
+       (node 'performer name (list (parse-performer-object)) command)]
       ["implements"
        (unless (and definitions-allowed? (not in-procedure?)
                     (not includes-allowed?) (not imports-allowed?))
@@ -488,10 +504,16 @@
        (define name (token-value (expect 'string "a quoted stage name")))
        (when (string=? name "")
          (read-error source command "stage name cannot be empty"))
+       (define performer
+         (and (eq? (token-kind (current)) 'word)
+              (string=? (token-value (current)) "by")
+              (begin (advance!) (named-word "a performer name"))))
        (if (and (eq? (token-kind (current)) 'word)
                 (string=? (token-value (current)) "from"))
-           (begin (advance!) (parse-state-stage name command in-procedure?))
-           (node 'stage name '() command))]
+           (begin (advance!) (parse-state-stage name performer command in-procedure?))
+           (if performer
+               (read-error source command "stage by performer needs from state")
+               (node 'stage name '() command)))]
       ["end" (read-error source command "end stage has no matching stage")]
       ["do"
        (if (eq? (token-kind (current)) 'open)
@@ -500,13 +522,17 @@
              (node 'sequence #f (parse-body #f in-procedure? #f #f) command))
            (let ([name (named-word "a procedure name")])
              (if (and (eq? (token-kind (current)) 'word)
-                      (member (token-value (current)) '("with" "into")))
-                 (let ([mappings
+                      (member (token-value (current)) '("by" "with" "into")))
+                 (let* ([performer
+                         (and (string=? (token-value (current)) "by")
+                              (begin (advance!) (named-word "a performer name")))]
+                        [mappings
                         (if (string=? (token-value (current)) "with")
                             (begin (advance!) (parse-state-mappings))
                             '())])
                    (expect-word "into")
-                   (node 'state-call (cons name (parse-location)) mappings command))
+                   (node 'state-call (list name (parse-location) performer)
+                         mappings command))
                  (let ()
              (define arguments
                (let loop ([backward '()])
@@ -1162,6 +1188,7 @@
 (define (validate-program program source)
   (define definitions (make-hasheq))
   (define interfaces (make-hasheq))
+  (define performers (make-hasheq))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'interface))
     (define name (string->symbol (node-value form)))
@@ -1183,6 +1210,19 @@
     (when (hash-has-key? definitions name)
       (read-error source (node-at (hash-ref interfaces name))
                   (format "interface name ~a conflicts with a procedure" name))))
+  (for ([form (in-list (node-children program))]
+        #:when (eq? (node-kind form) 'performer))
+    (define name (node-value form))
+    (when (hash-has-key? performers name)
+      (read-error source (node-at form) (format "duplicate performer ~a" name)))
+    (when (or (hash-has-key? definitions name)
+              (hash-has-key? interfaces name))
+      (read-error source (node-at form)
+                  (format "performer name ~a conflicts with another definition" name)))
+    (hash-set! performers name form))
+  (define (check-performer name at)
+    (unless (hash-has-key? performers name)
+      (read-error source at (format "unknown performer ~a" name))))
   (define stage-names (make-hash))
   (define (check-stage-names forms)
     (for ([form (in-list forms)])
@@ -1219,6 +1259,9 @@
   (define (check-state-stage stage)
     (define entry (second (node-value stage)))
     (define exit-state (third (node-value stage)))
+    (define default-performer (fourth (node-value stage)))
+    (when default-performer
+      (check-performer default-performer (node-at stage)))
     (define entry-paths (state-paths entry source))
     (define exit-paths (state-paths exit-state source))
     (define written (make-hash))
@@ -1243,6 +1286,11 @@
       (for/fold ([known available]) ([form (in-list forms)])
         (case (node-kind form)
           [(state-call)
+           (define performer (or (third (node-value form)) default-performer))
+           (unless performer
+             (read-error source (node-at form)
+                         "state-changing call needs a performer, on the call or stage"))
+           (check-performer performer (node-at form))
            (define name (call-name form))
            (define definition (hash-ref definitions name #f))
            (unless definition
@@ -1263,7 +1311,7 @@
            (unless (always-outputs? (node-children definition))
              (read-error source (node-at form)
                          (format "procedure ~a may finish without output" name)))
-           (define target (node-value (cdr (node-value form))))
+           (define target (node-value (second (node-value form))))
            (unless (hash-has-key? known (drop-right target 1))
              (read-error source (node-at form)
                          "return location needs an existing parent in state"))
@@ -1357,7 +1405,7 @@
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import interface implements must-call must-stage-order stage
+        [(to import interface performer implements must-call must-stage-order stage
              included-file) visible]
         [(state-stage)
          (check-value (second (node-value form)) inputs visible)
@@ -1416,6 +1464,7 @@
          (define name (car (node-value form)))
          (check-value (cdr (node-value form)) inputs visible)
          (when (or (hash-has-key? interfaces name)
+                   (hash-has-key? performers name)
                    (memq name inputs)
                    (and (memq name visible) (not (memq name writable))))
            (read-error source (node-at form)
@@ -1448,6 +1497,8 @@
                          (format "duplicate result ~a" result-name))))
          (if result-name (cons result-name visible) visible)])))
   (check-forms (node-children program) '() '())
+  (for ([declaration (in-hash-values performers)])
+    (check-value (first (node-children declaration)) '() '()))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'must-call))
     (define name (node-value form))
@@ -1496,11 +1547,15 @@
     [(must-implement) (cons 'must-implement (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]
     [(stage) (list 'stage (node-value form))]
+    [(performer)
+     (list 'performer (node-value form)
+           (node->datum (first (node-children form))))]
     [(state-stage)
      (list 'state-stage (car (node-value form))
            (node->datum (second (node-value form)))
            (map node->datum (node-children form))
-           (node->datum (third (node-value form))))]
+           (node->datum (third (node-value form)))
+           (fourth (node-value form)))]
     [(to) (list 'to (procedure-name form) (procedure-inputs form)
                 (map node->datum (node-children form)))]
     [(call) (list 'call (call-name form) (map node->datum (node-children form))
@@ -1510,7 +1565,8 @@
            (for/list ([mapping (in-list (node-children form))])
              (list (node-value mapping)
                    (node-value (car (node-children mapping)))))
-           (node-value (cdr (node-value form))))]
+           (node-value (second (node-value form)))
+           (third (node-value form)))]
     [(sequence) (list 'sequence (map node->datum (node-children form)))]
     [(repeat) (list 'repeat (node->datum (node-value form))
                     (map node->datum (node-children form)))]

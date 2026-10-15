@@ -12,7 +12,12 @@ Every investigation has a **specified method**: the activities and conditions it
 describes. A particular use case may also supply scientific context or a record of work
 that occurred. These records stay distinct when present. A written activity is not
 evidence that it happened, and an assessment must identify which record it examined.
-No workflow needs an actor, agent setup, or run record merely to be representable.
+The **performer** is who or what is designated to carry out an activity in the
+specified method. A workflow can declare named, open performer objects; a
+paired stage can use one as its default, and a state-changing call can name
+another. Every such call must resolve to a declared performer. See the
+[paired-stage contract](stage-state.md#performers).
+No workflow needs an agent setup or run record merely to be representable.
 
 ## Workflow as the abstract core
 
@@ -42,8 +47,10 @@ examines an identified representation under a condition or structural rule and r
 findings with outcomes and their basis or gap. The `assessment` record in the Racket
 implementation is that result. It is separate from the method records it examines.
 
-Actor, context, observed run, and provenance information are introduced only for use
-cases that need them. For example, an AI activity may need a declared view and an
+Performer declarations are required for state-changing calls in paired stages;
+methods without such calls need not provide them. Other context, observed run,
+and provenance information is introduced for use cases that need it. For example,
+an AI activity may need a declared view and an
 observed request to assess what it received; an investigation without AI need not
 supply those records. These are extensions of the representation, not prerequisites
 for every method. The core does not prescribe scientific record fields, uncertainty

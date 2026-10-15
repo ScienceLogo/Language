@@ -11,6 +11,7 @@
          (struct-out source-ref)
          (struct-out workflow-model)
          (struct-out stage-model)
+         (struct-out performer-model)
          (struct-out procedure-model)
          (struct-out activity-model)
          (struct-out item-model)
@@ -24,8 +25,9 @@
 ;; These records describe a method. They do not report that any activity occurred.
 (struct source-ref (source line column position) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
-                           relations imports implementations conditions) #:transparent)
-(struct stage-model (id name parent source entry exit) #:transparent)
+                           relations imports implementations conditions performers) #:transparent)
+(struct stage-model (id name parent source entry exit performer) #:transparent)
+(struct performer-model (id name fields source) #:transparent)
 (struct procedure-model (id name inputs source) #:transparent)
 (struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
@@ -92,6 +94,21 @@
       (values (car (node-value definition))
               (element-id root 'procedure (node-at definition)
                           (car (node-value definition))))))
+  (define performer-declarations
+    (filter (lambda (form) (eq? (node-kind form) 'performer)) forms))
+  (define performer-ids
+    (for/hasheq ([declaration (in-list performer-declarations)])
+      (values (node-value declaration)
+              (element-id root 'performer (node-at declaration)
+                          (node-value declaration)))))
+  (define performers
+    (for/list ([declaration (in-list performer-declarations)])
+      (performer-model
+       (hash-ref performer-ids (node-value declaration))
+       (node-value declaration)
+       (node->datum (first (node-children declaration)))
+       (origin (node-at declaration)))))
+  (define current-performer (make-parameter #f))
   (define procedures '())
   (define stages '())
   (define activities '())
@@ -111,6 +128,9 @@
          (and (node-value form) (node->datum (node-value form)))]
         [(for-each) (node->datum (cdr (node-value form)))]
         [else #f]))
+    (define effective-performer
+      (and (eq? (node-kind form) 'state-call)
+           (or (third (node-value form)) (current-performer))))
     (define activity
       (activity-model id (node-kind form) name parent
                       (origin (node-at form)) control #f))
@@ -121,10 +141,15 @@
                                   (list (for/list ([mapping (in-list (node-children form))])
                                           (list (node-value mapping)
                                                 (node-value (car (node-children mapping)))))
-                                        (node-value (cdr (node-value form))))])
+                                        (node-value (second (node-value form)))
+                                        effective-performer)])
                     activity)
                 activities))
     (add-relation 'contains parent id (node-at form))
+    (when effective-performer
+      (add-relation 'performed-by id
+                    (hash-ref performer-ids effective-performer)
+                    (node-at form)))
     id)
   (define (resolve-item value inputs scopes)
     (case (node-kind value)
@@ -167,7 +192,7 @@
          (define id (element-id root 'stage (node-at form) parent))
          (set! stages
                (cons (stage-model id (node-value form) parent
-                                  (origin (node-at form)) #f #f)
+                                  (origin (node-at form)) #f #f #f)
                      stages))
          (add-relation 'contains parent id (node-at form))
          (set! current-stage id)]
@@ -177,10 +202,12 @@
                (cons (stage-model id (car (node-value form)) parent
                                   (origin (node-at form))
                                   (node->datum (second (node-value form)))
-                                  (node->datum (third (node-value form))))
+                                  (node->datum (third (node-value form)))
+                                  (fourth (node-value form)))
                      stages))
          (add-relation 'contains parent id (node-at form))
-         (build-block (node-children form) id inputs scopes)
+         (parameterize ([current-performer (fourth (node-value form))])
+           (build-block (node-children form) id inputs scopes))
          (set! current-stage #f)]
         [(memq kind '(call state-call sequence repeat repeat-until for-each while if set print output))
          (define section (or current-stage parent))
@@ -293,6 +320,10 @@
                  (list (make-hasheq))))
   (for ([form (in-list forms)])
     (case (node-kind form)
+      [(performer)
+       (add-relation 'defines-performer root
+                     (hash-ref performer-ids (node-value form))
+                     (node-at form))]
       [(import)
        (match-define (list url requested commit alias library-name)
          (node-value form))
@@ -351,7 +382,7 @@
   (workflow-model root (node-value tree) source revision
                   (reverse procedures) (reverse stages) (reverse activities) (reverse items)
                   (reverse relations) (reverse imports)
-                  (reverse implementations) (reverse conditions)))
+                  (reverse implementations) (reverse conditions) performers))
 
 (define (read-interface-model path)
   (define source (path->string (path->complete-path path)))

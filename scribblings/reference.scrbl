@@ -37,6 +37,8 @@ case or the suggested word separator.
          (tt ":swing-count"))
    (list "Value, call result, or loop name" "Lowercase words joined by hyphens"
          (tt "trial-duration"))
+   (list "Performer" "Lowercase words joined by hyphens"
+         (tt "researcher"))
    (list "Record field or required part" "Lowercase words joined by hyphens"
          (tt "mean-period"))
    (list "Interface" "First letter capitalized; later words lowercase and joined by hyphens"
@@ -60,6 +62,7 @@ Dots qualify imported names and separate fields in stage state locations.
 A name used as a word has no spaces;
 quoted workflow and stage titles can contain spaces. Procedure names must be
 distinct; interface names must be distinct from each other and from procedures;
+performer names must be distinct from each other, procedures, and interfaces;
 stage names must be distinct across the assembled workflow. Each procedure has
 distinct input names, and record fields are distinct within a record.
 @secref["procedures"] explains local value scope and result names.
@@ -85,12 +88,15 @@ Definitions may appear after their uses.
          "Loads another file from the same repository")
    (list (tt "interface \"name\" [ ... ]")
          "Top level of a workflow or library, or alone in a file"
-         "Declares record fields or workflow requirements")))
+         "Declares record fields or workflow requirements")
+   (list (tt "performer name [field = value ...]")
+         "Top level of a workflow"
+         "Declares an open performer object for paired stages")))
 
 A library import selects a tag or full commit ID on its @tt{main} branch.
 @secref["libraries"] explains import, @tt{include}, repository layout, and
 dependency rules. @secref["interfaces"] explains the two interface forms.
-Workflow files may contain commands, procedures, stages, interfaces,
+Workflow files may contain commands, procedures, stages, performers, interfaces,
 obligations, and includes. A library file may contain imports, includes,
 procedures, and record interfaces; it has no top-level executable commands.
 
@@ -115,7 +121,7 @@ procedures, and record interfaces; it has no top-level executable commands.
          (tt "stage \"title\"")
          "Section header for runnable commands")
    (list (secref "stages")
-         (tt "stage ... from state, end stage with state, at, into")
+         (tt "performer, stage ... by ... from state, do ... by ... into, end stage with state, at")
          "Read and checked; paired body not executed")
    (list (secref "interfaces")
          (tt "interface, version, extends, require, affects")

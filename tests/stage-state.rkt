@@ -3,6 +3,7 @@
 (require rackunit
          racket/file
          racket/list
+         racket/string
          "../assessor.rkt"
          "../private/reader.rkt"
          "../workflow-model.rkt")
@@ -11,7 +12,8 @@
   (string-append
    "#lang sciencelogo\n"
    "to calculate-period :duration :count [output :duration / :count]\n"
-   "stage \"Analyze\" from state [information = [elapsed = unknown swing-count = 10]]\n"))
+   "performer researcher [kind = \"human\" role = \"scientist\"]\n"
+   "stage \"Analyze\" by researcher from state [information = [elapsed = unknown swing-count = 10]]\n"))
 
 (define suffix
   "end stage with state [information = [elapsed = unknown swing-count = 10 period = unknown]]\n")
@@ -46,7 +48,7 @@
 
 (check-equal?
  (let ([method (read-method valid-source)])
-   (define stage (second (third method)))
+   (define stage (third (third method)))
    (list (first stage) (second stage)
          (first (first (fourth stage)))))
  '(state-stage "Analyze" state-call))
@@ -67,7 +69,60 @@
                        (eq? (activity-model-kind activity) 'state-call))
                      (workflow-model-activities method))))
      '(((duration (information elapsed)) (count (information swing-count)))
-       (information period)))))
+       (information period) researcher))
+    (check-equal? (stage-model-performer (first (workflow-model-stages method)))
+                  'researcher)
+    (check-equal? (map performer-model-name (workflow-model-performers method))
+                  '(researcher))))
+
+(with-method
+ (string-append
+  "#lang sciencelogo\n"
+  "performer researcher [kind = \"human\"]\n"
+  "performer assistant [kind = \"AI\" role = \"suggest explanations\"]\n"
+  "to ready [output true]\n"
+  "stage \"Check\" by researcher from state [information = []]\n"
+  "do ready by assistant into information.suggestion\n"
+  "end stage with state [information = [suggestion = unknown]]\n")
+ (lambda (path)
+   (define method (read-workflow-model path))
+   (define call
+     (first (filter (lambda (activity)
+                      (eq? (activity-model-kind activity) 'state-call))
+                    (workflow-model-activities method))))
+   (define assistant
+     (second (workflow-model-performers method)))
+   (check-equal? (third (activity-model-details call)) 'assistant)
+   (check-equal? (performer-model-fields assistant)
+                 '(fields ((kind (literal "AI"))
+                           (role (literal "suggest explanations")))))
+   (check-true
+    (for/or ([relation (in-list (workflow-model-relations method))])
+      (and (eq? (relation-model-kind relation) 'performed-by)
+           (equal? (relation-model-from relation) (activity-model-id call))
+           (equal? (relation-model-to relation) (performer-model-id assistant)))))))
+
+(check-not-false
+ (read-method
+  (string-append
+   "#lang sciencelogo\n"
+   "to ready [output true]\n"
+   "stage \"Check\" from state [information = []]\n"
+   "do ready by checker into information.ready\n"
+   "end stage with state [information = [ready = unknown]]\n"
+   "performer checker []\n")))
+
+(reject #rx"state-changing call needs a performer"
+        (string-replace valid-source "by researcher " ""))
+(reject #rx"unknown performer missing"
+        (string-replace valid-source "by researcher" "by missing"))
+(reject #rx"duplicate performer researcher"
+        (string-append "#lang sciencelogo\n"
+                       "performer researcher []\nperformer researcher []\n"))
+(reject #rx"performer needs named fields"
+        "#lang sciencelogo\nperformer researcher [\"scientist\"]\n")
+(reject #rx"expected a performer name"
+        (string-replace valid-source "by researcher" "by \"scientist\""))
 
 (with-method
  (string-append
@@ -89,7 +144,8 @@
   (string-append
    "#lang sciencelogo\n"
    "to ready [output true]\n"
-   "stage \"Check\" from state [information = []]\n"
+   "performer checker []\n"
+   "stage \"Check\" by checker from state [information = []]\n"
    "do ready into information.ready\n"
    "end stage with state [information = [ready = unknown]]\n")))
 
@@ -155,7 +211,8 @@
         (string-append
          "#lang sciencelogo\n"
          "to maybe :duration :count [if true [output :duration / :count]]\n"
-         "stage \"Analyze\" from state [information = [elapsed = 2 count = 1]]\n"
+         "performer researcher []\n"
+         "stage \"Analyze\" by researcher from state [information = [elapsed = 2 count = 1]]\n"
          "do maybe with [duration at information.elapsed count at information.count] "
          "into information.period\n"
          "end stage with state [information = [elapsed = 2 count = 1 period = unknown]]\n"))

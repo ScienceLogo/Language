@@ -11,6 +11,8 @@
 
 @bold{Humans first in AI science.}
 
+@bold{Human-centered scientific workflows in the AI era.}
+
 @hyperlink["https://github.com/ScienceLogo/Language"]{Source code and issues}
 @" · "
 @hyperlink[(source-directory-url "spec")]{Language specifications}
@@ -27,10 +29,14 @@
              (substring doc-commit 0 (min 12 (string-length doc-commit))))
   "local checkout")
 
-ScienceLogo is a Logo dialect for scientific workflows. It aims to make scientific
-methods readable while giving people ways to inspect and supervise work performed
-with AI. The language is under development: the current runnable subset is small,
-and broader scientific and AI constructs are still being designed.
+ScienceLogo is a Logo dialect for describing scientific workflows that people
+can read and inspect. It aims to show what information and assumptions an
+activity uses, where AI participates, and who or what carries it out. We call
+the latter the @emph{performer}. This supports human explanation, supervision,
+and accountability when AI participates. The language is under development:
+the current runnable subset is small. Performer declarations in paired stages
+are checked as part of the written method; broader scientific and AI
+constructs are still being designed.
 
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to

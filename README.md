@@ -2,18 +2,25 @@
 
 <img src="assets/logo.png" alt="ScienceLogo logo: a blue turtle with a flask-shaped shell" width="220">
 
+**Human-centered scientific workflows in the AI era.**
+
 **Mottos:**
 
 - **Humans first in AI science.**
 - Declarative, not decorative.
 
-ScienceLogo is a Logo dialect for scientific workflows in the AI era. Its central
-goal is to support human understanding, quality control, and supervision when AI participates
-in science. AI may help plan, search, select evidence, analyse data, interpret results, and
-write conclusions. ScienceLogo should let people state the scientific criteria and evidence
-each stage owes, specify what an agent may see and do, inspect what happened, and decide when
-a person must review or intervene. Its procedures and nested, named parts should remain
-understandable to a learner.
+ScienceLogo is a Logo dialect for describing scientific workflows that people can
+read and inspect. Its goal is to support human understanding, quality control,
+and supervision when AI participates in science. A workflow should make clear
+what information and assumptions an activity uses, where AI participates, and
+who or what carries out the activity. We call that last role the **performer**;
+paired stages can name a performer object as their default, and a call can name
+another. AI may help plan, search,
+select evidence, analyse data, interpret results, and write conclusions.
+ScienceLogo should let people state the scientific criteria and evidence each
+stage owes, specify what an agent may see and do, inspect what happened, and
+decide when a person must review or intervene. Its procedures and nested, named
+parts should remain understandable to a learner.
 
 “Declarative, not decorative” means that rules about evidence, authority, and review become
 checks on the specified procedure and its observed runs. They are part of the method even

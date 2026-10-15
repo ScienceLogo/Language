@@ -26,7 +26,7 @@ fields chosen for the investigation:
          "Reaction time, changing swing angle")))
 
 An information field says that material is designated as available; it does
-not establish that an actor read it. An environment field describes a setup,
+not establish that a performer read it. An environment field describes a setup,
 not proof that it existed in a particular run. A factor is @emph{considered};
 its presence does not claim that it was controlled or negligible. The three
 sets are available for human and AI activities. A hypothesis can be a named
@@ -36,13 +36,29 @@ why these distinctions matter.
 
 @section{Declare entry and exit}
 
-@tt{stage "title" from state [ ... ]} opens a paired stage, and
+@tt{stage "title" from state [ ... ]} opens a paired stage, optionally with
+@tt{by performer-name} before @tt{from}, and
 @tt{end stage with state [ ... ]} closes it. Both state objects are required,
 even when empty: @tt{state []}. A set may be absent, present and empty, or
 present with fields. Those are distinct from a field whose value is
 @tt{unknown}: that field exists, but its value is not stated. The exit object
 declares the complete state after the stage, including fields retained from
 entry.
+
+@section{Identify the performer}
+
+A @tt{performer name [field = value ...]} declaration names who or what is
+designated to carry out an activity. It belongs directly in a workflow.
+Its fields are open: @tt{performer researcher []} is valid, and a workflow
+can add fields such as @tt{kind} or @tt{role} when useful. The name is a
+reference to this object, not a quoted label.
+
+A paired stage may give its calls a default performer with @tt{by name}.
+A call may use @tt{by another-name} to override that default. Every call
+that writes to state with @tt{into} must resolve to a declared performer;
+when a stage has no default, each call must name one. This identifies the
+designated performer in the written method, not who actually carried out
+a particular run. @tt{end stage} needs no performer.
 
 @verbatim|{
 #lang sciencelogo
@@ -52,7 +68,9 @@ to calculate-period :duration :count [
   output :duration / :count
 ]
 
-stage "Analyze" from state [
+performer researcher [kind = "human" role = "scientist"]
+
+stage "Analyze" by researcher from state [
   information = [elapsed = unknown swing-count = 10]
   environment = [timer = "hand timer"]
   factors = [reaction-time = unknown]
@@ -111,6 +129,8 @@ The reader rejects a paired stage when:
  @item{A call's input names are missing, extra, or repeated, or its procedure
        can finish normally without @tt{output}.}
  @item{A return has no existing parent location in state.}
+ @item{A @tt{by} name has no performer declaration, or a state-changing call
+       has neither its own performer nor a stage default.}
  @item{The closing state omits an available field, adds a field without a
        guaranteed return, or changes an entry value without a return that
        targets that field or its containing record.}

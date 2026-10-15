@@ -34,8 +34,9 @@ contract. Keep scientific examples explicit about what is a written method,
 what is an observed event, and what is an assessor finding.
 
 Use familiar terms consistently: a **stage** is a checkpoint, a **procedure**
-is a reusable definition, a **call** invokes one, and **state** names what a
-paired stage receives and leaves. The information, environment, and factors
+is a reusable definition, a **call** invokes one, **state** names what a
+paired stage receives and leaves, and a **performer** is the named object
+designated to carry out a state-changing call. The information, environment, and factors
 sets have distinct meanings. A written condition does not establish that it
 was satisfied. A structural check does not establish scientific adequacy.
 
