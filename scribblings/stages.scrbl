@@ -151,6 +151,6 @@ state.
 The @hyperlink[(source-file-url "spec/stage-state.md")]{stage state contract}
 records the accepted reader constraints.
 @secref["resources"] shows how a paired stage can declare reads from and
-writes to external scientific storage.
+writes to data storage outside the workflow.
 @secref["assessment"] explains the distinct structural checks available
 through @tt{must} and workflow interfaces.

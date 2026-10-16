@@ -118,7 +118,8 @@ limits of this check when a record's shape is undetermined.
 
 The implemented @hyperlink[(source-file-url "workflow-model.rkt")]{Racket workflow model}
 records the written investigation as procedures, activities, named input and
-result slots, imports, performers, resources, interface claims, @tt{must do}
+result slots, imports, performers, named data sources and destinations,
+interface claims, @tt{must do}
 conditions, and typed relations. @tt{read-workflow-model} reads an
 investigation file;
 @tt{read-interface-model} reads an interface file. Method elements carry
@@ -126,8 +127,8 @@ source locations. Explicit state stages retain their entry and exit records;
 state calls retain input-location mappings and the return location. A call
 links to its procedure with @tt{invokes}; named
 results link to their producing and using activities. A sequence retains
-command order. Resource assignments retain their dotted paths and link to a
-declared resource with @tt{reads-from} or @tt{writes-to}; see
+command order. Data assignments retain their dotted paths and link to a
+declared source or destination with @tt{reads-from} or @tt{writes-to}; see
 @secref["resources"]. The assessor checks that each activity and named item
 has one containment link to its recorded parent.
 

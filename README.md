@@ -23,8 +23,8 @@ This repository is the working source for the language. It is set up as a single
 Racket package whose collection name is `sciencelogo`, with package metadata in `info.rkt`.
 The first `#lang sciencelogo` reader and runner are available for a small set of
 commands and Git-based library imports. The reader also checks paired stage
-state declarations without executing their bodies and represents external
-scientific resources without accessing them. A structural assessor
+state declarations without executing their bodies and represents data sources
+and storage without accessing them. A structural assessor
 checks declared calls, stage order, record fields, and workflow parts. To try
 the language from a local checkout, install the package with
 `raco pkg install --link .`, then follow the [Getting started manual page](scribblings/getting-started.scrbl).
@@ -33,7 +33,7 @@ the language from a local checkout, install the package with
 
 The [manual](scribblings/sciencelogo.scrbl) progresses from a small
 investigation to values, procedures, stages and state,
-[external resources](scribblings/resources.scrbl),
+[data sources and storage](scribblings/resources.scrbl),
 reusable definitions, and assessment support. Its [Syntax page](scribblings/reference.scrbl) is a
 lookup map of accepted forms. The [specification index](spec/README.md)
 identifies what runs, what the reader only checks, and what remains design

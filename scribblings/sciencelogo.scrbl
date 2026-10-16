@@ -49,7 +49,7 @@ is small, and broader scientific and AI constructs are still being designed.
    (list (secref "stages")
          "Simple headers label commands; paired stages are read and checked as a written method")
    (list (secref "resources")
-         "External reads and writes are represented; no external data is transferred")
+         "Data reads and writes are represented; no external data is transferred")
    (list (secref "assessment")
          "The assessor checks declared method structure and record fields")))
 
@@ -61,7 +61,7 @@ which design documents describe future work.
 
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to
-stages, external resources, reusable definitions, and declared checks. Each
+stages, data sources and storage, reusable definitions, and declared checks. Each
 page states what its forms currently do.
 
 @include-section["getting-started.scrbl"]

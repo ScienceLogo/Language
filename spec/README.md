@@ -2,8 +2,8 @@
 
 The [language manual](../scribblings/sciencelogo.scrbl) is the reading and
 lookup path. Its pages progress from a small investigation to values,
-procedures, stages, resources, interfaces, files, and structural checks. The Syntax page
-maps each accepted form to its main explanation. The website keeps these as
+procedures, stages, data sources and storage, interfaces, files, and structural
+checks. The Syntax page maps each accepted form to its main explanation. The website keeps these as
 one level of pages with headings within each page.
 
 This directory holds language contracts and design work. Read the **status**
@@ -15,7 +15,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
 | [Libraries](libraries.md) | Accepted layout, import, and include rules. |
 | [Paired stages and state locations](stage-state.md) | Accepted reader syntax; checked as a written method but not executed. |
-| [External scientific resources](resources.md) | Accepted declarations and directional resource paths; no external I/O. |
+| [Data sources and storage](resources.md) | Accepted declarations and directional data paths; no external I/O. |
 | [Context sets](context.md) | Meaning and rationale for information, environment, and considered factors. |
 | [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications; compact and future verbose syntax. |
 | [Shared representation](representation.md) | Design contract for what readers should preserve; portable format remains open. |
@@ -37,8 +37,8 @@ what is an observed event, and what is an assessor finding.
 Use familiar terms consistently: a **stage** is a checkpoint, a **procedure**
 is a reusable definition, a **call** invokes one, **state** names what a
 paired stage receives and leaves, and a **performer** is the named object
-designated to carry out a state-changing call. A **resource** names external
-scientific information or storage in the written method. The information, environment, and factors
+designated to carry out a state-changing call. A **resource** declaration names
+data outside the workflow. The information, environment, and factors
 sets have distinct meanings. A written condition does not establish that it
 was satisfied. A structural check does not establish scientific adequacy.
 

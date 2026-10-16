@@ -83,7 +83,7 @@ Calls inside a paired stage take scientific inputs from state locations, not
 from literals or detached local names. Locally assigned values are restricted to
 integer counters or positions; `for each` there likewise needs integer
 positions. A value intended as a scientific input must be placed in state.
-An assignment from a declared [external resource](resources.md) can also
+An assignment from a declared [data source](resources.md) can also
 change a state field. It needs an existing parent in state; an assignment to a
 resource path declares an outbound transfer and does not change stage state.
 

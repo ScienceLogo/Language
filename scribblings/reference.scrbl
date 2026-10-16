@@ -104,7 +104,7 @@ Definitions may appear after their uses.
          "Declares an open performer object for paired stages")
    (list (tt "resource name [field = value ...]")
          "Top level of a workflow"
-         "Names external scientific information or storage")))
+         "Names a data source or storage location")))
 
 A library import selects a tag or full commit ID on its @tt{main} branch.
 @secref["libraries"] explains import, @tt{include}, repository layout, and
@@ -138,7 +138,7 @@ procedures, and record interfaces; it has no top-level executable commands.
          "Read and checked; paired body not executed")
    (list (secref "resources")
          (tt "resource name [ ... ], name.field = value, value = name.field")
-         "Resource access represented; no external I/O")
+         "Data flow represented; no external I/O")
    (list (secref "interfaces")
          (tt "interface, version, extends, require, affects")
          "Declarations checked for structure")
@@ -164,9 +164,9 @@ a requested result from a procedure without @tt{output}, recursive procedure
 calls, invalid interface inheritance, and misplaced file-level forms.
 For state stages it also checks named input locations, compulsory return
 locations, resource paths, and the declared exit state. A state stage is read
-and checked but
-its body is not executed by the current interpreter.
-External scientific reads and writes require a declared @secref["resources"];
-source-code paths in imports and includes have separate rules.
+and checked, but its body is not executed by the current interpreter.
+Reading or writing data outside the workflow requires a declared
+@tt{resource}; see @secref["resources"].
+Source-code paths in imports and includes have separate rules.
 Structural obligations are assessed separately; a successful read does not
 establish that scientific work occurred.
