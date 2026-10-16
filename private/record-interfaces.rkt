@@ -58,25 +58,53 @@
 (define (missing-interface-fields interface record)
   (unless (record-interface? interface)
     (raise-argument-error 'missing-interface-fields "record-interface?" interface))
-  (if (hash? record)
-      (for/list ([field (in-list (record-interface-fields interface))]
-                 #:unless (hash-has-key? record (car field)))
-        (car field))
-      (map car (record-interface-fields interface))))
+  (define (present? value path)
+    (and (hash? value)
+         (hash-has-key? value (car path))
+         (or (null? (cdr path))
+             (present? (hash-ref value (car path)) (cdr path)))))
+  (for/list ([field (in-list (record-interface-fields interface))]
+             #:unless (present? record
+                                (map string->symbol
+                                     (string-split (symbol->string (car field)) "."))))
+    (car field)))
 
 (define (interface-record interface overrides evaluate-default)
   (unless (record-interface? interface)
     (raise-argument-error 'interface-record "record-interface?" interface))
   (unless (hash? overrides)
     (raise-argument-error 'interface-record "hash?" overrides))
+  (define (put-path record path value)
+    (define name (car path))
+    (if (null? (cdr path))
+        (let ([earlier (hash-ref record name #f)])
+          (hash-set record name
+                    (if (and (hash? earlier) (hash? value))
+                        (merge-records earlier value)
+                        value)))
+        (hash-set record name
+                  (put-path (let ([current (hash-ref record name #f)])
+                              (if (hash? current) current (hasheq)))
+                            (cdr path) value))))
+  (define (merge-records old changes)
+    (for/fold ([result old]) ([(name value) (in-hash changes)])
+      (define earlier (hash-ref result name #f))
+      (when (and (hash-has-key? result name)
+                 (hash? value) (not (hash? earlier)))
+        (error 'interface-record "nested update needs a record at ~a" name))
+      (hash-set result name
+                (if (and (hash? earlier) (hash? value))
+                    (merge-records earlier value)
+                    value))))
   (define defaults
     (for/fold ([record (hasheq)])
               ([field (in-list (record-interface-fields interface))]
                #:when (cdr field))
-      (hash-set record (car field) (evaluate-default (cdr field)))))
-  (define result
-    (for/fold ([record defaults]) ([(name value) (in-hash overrides)])
-      (hash-set record name value)))
+      (put-path record
+                (map string->symbol
+                     (string-split (symbol->string (car field)) "."))
+                (evaluate-default (cdr field)))))
+  (define result (merge-records defaults overrides))
   (define missing (missing-interface-fields interface result))
   (unless (null? missing)
     (error 'interface-record "~a is missing field~a ~a"

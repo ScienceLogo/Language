@@ -43,10 +43,10 @@
     "interface \"Combined\" [extends Timing extends Site note]\n"
     "interface \"Timing\" [duration unit = \"seconds\"]\n"
     "interface \"Site\" [place]\n"
-    "set complete to Combined but [duration = 2 place = \"lab\" note = \"planned\"]\n"
+    "complete = Combined.[duration = 2 place = \"lab\" note = \"planned\"]\n"
     "must complete implement Combined\n"
     "must complete implement Timing\n"
-    "set incomplete to [duration = 2 unit = \"seconds\" note = \"planned\"]\n"
+    "incomplete = [duration = 2 unit = \"seconds\" note = \"planned\"]\n"
     "must incomplete implement Combined\n")
    (lambda (_interface method)
      (define result (assess-file method))
@@ -65,12 +65,12 @@
    (string-append
     "#lang sciencelogo\nworkflow \"Check timing\"\n"
     "interface \"Timing\" [duration unit = \"seconds\"]\n"
-    "set trial to Timing but [duration = unknown]\n"
+    "trial = Timing.[duration = unknown]\n"
     "must trial implement Timing\n"
     "must trial implement \"requirement.rkt\"\n"
-    "set other to [duration = 2]\n"
+    "other = [duration = 2]\n"
     "must other implement Timing\n"
-    "set other to other but [unit = \"minutes\"]\n"
+    "other = other.[unit = \"minutes\"]\n"
     "must other implement \"requirement.rkt\"\n")
    (lambda (interface method)
      (define result (assess-file method))
@@ -100,7 +100,7 @@
    "#lang sciencelogo\ninterface \"Parts\" [require review]\n"
    (string-append
     "#lang sciencelogo\n"
-    "set trial to [review = unknown]\n"
+    "trial = [review = unknown]\n"
     "must trial implement \"requirement.rkt\"\n")
    (lambda (_interface method)
      (check-equal? (map finding-kind (assessment-findings (assess-file method)))
@@ -110,8 +110,8 @@
                '("if false [do target]"
                  "if false [do target] else if 2 < 1 [do target]"
                  "if false and unknown [do target]"
-                 "if ready of [ready = false] [do target]"
-                 "if item 1 of [false true] [do target]"
+                 "if [ready = false].ready [do target]"
+                 "if [false true].[1] [do target]"
                  "repeat 0 [do target]"
                  "while false [do target]"
                  "for each item in [] [do target]"
@@ -129,10 +129,10 @@
                  "if 1 + 2 = 3 and not false [do target]"
                  "if true xor false [do target]"
                  "if true or unknown [do target]"
-                 "if ready of [ready = true note = \"planned\"] [do target]"
-                 "if ready of ([ready = false] but [ready = true]) [do target]"
-                 "if item 2 of [false true] [do target]"
-                 "if item 2 of [unknown true] [do target]"
+                 "if [ready = true note = \"planned\"].ready [do target]"
+                 "if ([ready = false].[ready = true]).ready [do target]"
+                 "if [false true].[2] [do target]"
+                 "if [unknown true].[2] [do target]"
                  "if false [do target] else [do target]"
                  "if false [do target] else if 1 < 2 [do target]"
                  "if false [do target] do target"
@@ -149,11 +149,11 @@
   (for ([body (in-list
                '("if unknown [do target]"
                  "if unknown xor true [do target]"
-                 "if ready of [ready = unknown] [do target]"
+                 "if [ready = unknown].ready [do target]"
                  "if [value = unknown] = [value = unknown] [do target]"
-                 "if item 1 of [unknown true] [do target]"
+                 "if [unknown true].[1] [do target]"
                  "if unknown [do target] else [do target]"
-                 "set condition to true if condition [do target]"
+                 "condition = true if condition [do target]"
                  "repeat 2 [if unknown [do target]]"))])
     (define result (assess-required-method body))
     (define check (first (assessment-checks result)))

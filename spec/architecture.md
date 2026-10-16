@@ -5,6 +5,20 @@ the authority for valid source and its meaning. Racket is the language of the
 current reference implementation, not a requirement for ScienceLogo source or for
 applications that use it.
 
+## Compact and verbose syntax
+
+ScienceLogo will have two fully equivalent ways to write the same language:
+**compact** and **verbose** syntax. The forms accepted today are the compact
+syntax. It is the reference form for specifying and checking language behavior.
+The verbose syntax must express the same workflows and have the same meaning;
+it must not introduce separate semantics or separate scientific checks.
+
+A future translator will convert compact source to verbose source, verbose
+source to compact source, and source that mixes the two into either form.
+Verbose and mixed source will be converted to the compact form for the same
+language checks. The verbose forms and translator are not yet specified or
+implemented; the current reader accepts the compact forms only.
+
 ## What the specification defines
 
 The specification defines how a ScienceLogo file is written and what its words

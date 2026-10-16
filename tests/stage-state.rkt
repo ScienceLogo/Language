@@ -190,13 +190,13 @@
          "end stage with state [information = [swing-count = 9]]\n"))
 (reject #rx"only for integer counters or positions"
         (string-append prefix
-                       "set observation to \"shorter\"\n"
+                       "observation = \"shorter\"\n"
                        valid-call suffix))
 (check-not-false
  (read-method
   (string-append prefix
-                 "set position to 1\n"
-                 "set position to position + 1\n"
+                 "position = 1\n"
+                 "position = position + 1\n"
                  valid-call suffix)))
 (reject #rx"closing state adds information.period"
         (string-append prefix
@@ -234,3 +234,20 @@
  (let ([method (read-method "#lang sciencelogo\nstage \"Old\"\n")])
    (first (third method)))
  '(stage "Old"))
+
+(check-not-false
+ (read-method
+  (string-append
+   "#lang sciencelogo\n"
+   "to ready [output 3]\n"
+   "performer researcher []\n"
+   "stage \"Check\" by researcher from state [information = [trials = [1 2]]]\n"
+   "for each position in [1 2] [do ready into information.trials.[position]]\n"
+   "end stage with state [information = [trials = [1 2]]]\n")))
+
+(check-not-false
+ (read-method
+  (string-append
+   "#lang sciencelogo\n"
+   "stage \"Check\" from state [information.clock.time = \"12:00\"]\n"
+   "end stage with state [information.clock.time = \"12:00\"]\n")))

@@ -19,6 +19,12 @@ naming convention and file-level rules.
          "Call a procedure for its actions")
    (list (tt "do name value ... as result")
          "Call a procedure and name its returned value")
+   (list (tt "name = value")
+         "Create or update a local named value")
+   (list (tt "name += [field = value ...]")
+         "Update or add fields on an existing record")
+   (list (tt "name += number")
+         "Add a number to an existing numeric value")
    (list (tt "output value")
          "Return a value from inside a procedure")
    (list (tt "print value")
@@ -42,25 +48,36 @@ scientific observation or evidence record.
 
 @section{Local values and scope}
 
-@tt{set name to value} creates a named value or updates a visible value
-previously created with @tt{set}. The procedure can read its declared inputs,
+@tt{name = value} creates a named value or updates a visible value
+previously created by assignment. The procedure can read its declared inputs,
 but does not see the caller's local names. A nested block can read names from
-its parent and update a visible @tt{set} name. A name first introduced inside
+its parent and update a visible assigned name. A name first introduced inside
 @tt{do [ ... ]}, a loop, or a branch remains inside that block; its parent and
 sibling blocks cannot read it. There are no global variable declarations.
 
+At command position, @tt{name = value} is assignment. A dotted target such as
+@tt{trial.clock.time = "12:00"} updates nested content. Inside a record or
+@tt{trial.[field = value]}, @tt{field = value} names a field; inside an
+interface it supplies a field default. @tt{name += [field = value]} updates
+or adds record fields; @tt{name.field += number} adds to an existing numeric
+field. Both forms of @tt{+=} require the name on the left to exist. In a condition such as
+@tt{if count = 10 [ ... ]},
+@tt{=} compares values. Parenthesize a comparison passed directly to a
+procedure, as in @tt{do check (count = 10)}, so the reader can distinguish it
+from a following assignment.
+
 @verbatim|{
-set attempts to 0
+attempts = 0
 do [
-  set attempts to attempts + 1
-  set note to "inside this block"
+  attempts += 1
+  note = "inside this block"
 ]
 print attempts
 }|
 
 Here @tt{attempts} becomes @tt{1}; @tt{note} is local to the @tt{do} block.
 Procedure inputs, @tt{as} results, and @tt{for each} iteration names cannot
-be changed with @tt{set}. An @tt{as} result must introduce a new name in its
+be changed by assignment. An @tt{as} result must introduce a new name in its
 current scope. A @tt{to} procedure sees its own inputs, not values from the
 surrounding workflow. Stages are labels, not variable scopes.
 
@@ -109,18 +126,18 @@ branch. Square brackets delimit each command block.
 
 @tt{repeat} needs a nonnegative integer count. @tt{for each} needs an ordered
 list; its iteration name exists only inside that iteration and cannot be
-updated with @tt{set}. A @tt{repeat ... until} condition may read a name
+updated by assignment. A @tt{repeat ... until} condition may read a name
 introduced in its body. @tt{while} and @tt{repeat ... until} stop with an
 error after 10,000 iterations if they have not terminated.
 
 @verbatim|{
-set lengths to range 0.25 to 1 step 0.25
+lengths = range 0.25 to 1 step 0.25
 for each length in lengths [
   if length > 0.5 [print length]
 ]
 
-set done to false
+done = false
 repeat [
-  set done to true
+  done = true
 ] until done
 }|

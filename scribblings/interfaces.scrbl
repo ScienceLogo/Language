@@ -40,28 +40,39 @@ is a runnable workflow:
 
 workflow "Check timing records"
 interface "Timing" [duration unit = "seconds"]
-set trial to Timing but [duration = 2]
+trial = Timing.[duration = 2]
 must trial implement Timing
-set revised to trial but [unit = "minutes"]
+revised = trial.[unit = "minutes"]
 must revised implement Timing
 must revised implement "interfaces/timing.rkt"
 }|
 
-@tt{Timing but [duration = 2]} creates a record with @tt{unit = "seconds"}.
-Construction fails if any bare field remains absent. @tt{but} on an existing
-record makes a copy with the listed fields changed; it leaves the original
-record unchanged. A literal record can satisfy the same interface even when
-it was not constructed from @tt{Timing}:
+@tt{Timing.[duration = 2]} creates a record with @tt{unit = "seconds"}.
+Construction fails if any bare field remains absent. On the right side of an
+assignment, @tt{trial.[unit = "minutes"]} produces a modified value for
+@tt{revised}; @tt{trial} retains its earlier value. The existing @tt{trial}
+can also be updated:
 
 @verbatim|{
-set direct to [duration = unknown unit = "seconds"]
+trial += [unit = "minutes" note = "hand timed"]
+trial.duration += 2
+}|
+
+After construction, @tt{+=} can replace @tt{unit}, add @tt{note}, or add to
+the existing numeric @tt{duration}. Extra fields remain allowed.
+
+A literal record can satisfy the same interface even when it was not
+constructed from @tt{Timing}:
+
+@verbatim|{
+direct = [duration = unknown unit = "seconds"]
 must direct implement Timing
 }|
 
 @tt{unknown} is an explicit field value and satisfies field presence. It does
 not mean the field is absent or that its scientific value has been established.
 The @tt{must} check is declarative: it examines the written record shape and
-does not run the workflow. A direct @tt{set} to a record or a @tt{but} copy has
+does not run the workflow. A direct record assignment or a dotted update has
 a known shape. A record returned by a procedure, or one possibly changed by
 a conditional or loop, is reported as undetermined. The check itself is
 described in @secref["assessment"].
@@ -95,7 +106,7 @@ interface "Timed-observation" [
 interface "Timing" [duration unit = "seconds"]
 interface "Location" [place]
 
-set trial to Timed-observation but [
+trial = Timed-observation.[
   duration = 2
   place = "lab"
   observation = "ten swings"
@@ -114,8 +125,11 @@ differently, the child must declare that field explicitly to resolve the
 conflict. Unknown parents and extension cycles are reader errors. Construction
 checks all inherited required fields, and @tt{must} can check a resulting
 record against the combined interface or any of its parents by field presence.
-If every field has a default, @tt{Combined but []} constructs a record
+If every field has a default, @tt{Combined.[]} constructs a record
 using those defaults.
+An interface may also require or default a nested field, such as
+@tt{clock.time} or @tt{clock.unit = "seconds"}. These are paths through a
+record, with the same dot meaning used to read and update its values.
 An inherited interface may be declared later in the same workflow, in an
 included workflow file, or imported from a library. Importing a library as
 @tt{timing} makes its @tt{Timing} record interface available as

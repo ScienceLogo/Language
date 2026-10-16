@@ -135,15 +135,19 @@
       (activity-model id (node-kind form) name parent
                       (origin (node-at form)) control #f))
     (set! activities
-          (cons (if (eq? (node-kind form) 'state-call)
-                    (struct-copy activity-model activity
-                                 [details
-                                  (list (for/list ([mapping (in-list (node-children form))])
-                                          (list (node-value mapping)
-                                                (node-value (car (node-children mapping)))))
-                                        (node-value (second (node-value form)))
-                                        effective-performer)])
-                    activity)
+          (cons (case (node-kind form)
+                  [(state-call)
+                   (struct-copy activity-model activity
+                                [details
+                                 (list (for/list ([mapping (in-list (node-children form))])
+                                         (list (node-value mapping)
+                                               (node-value (car (node-children mapping)))))
+                                       (node-value (second (node-value form)))
+                                       effective-performer)])]
+                  [(path-assignment path-update-command)
+                   (struct-copy activity-model activity
+                                [details (node->datum form)])]
+                  [else activity])
                 activities))
     (add-relation 'contains parent id (node-at form))
     (when effective-performer
@@ -156,7 +160,8 @@
       [(literal) #f]
       [(parameter) (hash-ref inputs (node-value value))]
       [(result)
-       (if (hash-has-key? inline-interfaces (node-value value))
+       (if (or (hash-has-key? inline-interfaces (node-value value))
+               (hash-has-key? performer-ids (node-value value)))
            #f
            (let loop ([remaining scopes])
          (cond
@@ -167,9 +172,12 @@
            [else (loop (cdr remaining))])))]))
   (define (add-use activity-id value inputs scopes)
     (case (node-kind value)
-      [(list fields field-entry field-ref item-ref range compare binary unary but)
+      [(list fields field-entry field-ref range compare binary unary
+             dot-update)
        (for ([part (in-list (node-children value))])
          (add-use activity-id part inputs scopes))]
+      [(dot-select)
+       (add-use activity-id (car (node-children value)) inputs scopes)]
       [else
        (define item-id (resolve-item value inputs scopes))
        (when item-id
@@ -209,7 +217,8 @@
          (parameterize ([current-performer (fourth (node-value form))])
            (build-block (node-children form) id inputs scopes))
          (set! current-stage #f)]
-        [(memq kind '(call state-call sequence repeat repeat-until for-each while if set print output))
+        [(memq kind '(call state-call sequence repeat repeat-until for-each while if
+                           assignment path-assignment path-update-command print output))
          (define section (or current-stage parent))
          (define name (and (memq kind '(call state-call))
                            (car (node-value form))))
@@ -256,7 +265,7 @@
             (hash-set! loop-scope name item-id)
             (build-block (node-children form) id inputs
                          (cons loop-scope scopes))]
-           [(set)
+           [(assignment)
             (add-use id (cdr (node-value form)) inputs scopes)
             (define name (car (node-value form)))
             (define existing
@@ -276,6 +285,24 @@
                   (hash-set! (car scopes) name item-id)
                   (add-relation 'contains section item-id (node-at form))
                   (add-relation 'produces id item-id (node-at form))))]
+           [(path-assignment path-update-command)
+            (define target (car (node-children form)))
+            (define (root value)
+              (if (eq? (node-kind value) 'result)
+                  (node-value value)
+                  (root (car (node-children value)))))
+            (define name (root target))
+            (add-use id target inputs scopes)
+            (when (eq? kind 'path-assignment)
+              (add-use id (second (node-children form)) inputs scopes))
+            (define existing
+              (for/first ([scope (in-list scopes)]
+                          #:when (hash-has-key? scope name))
+                (hash-ref scope name)))
+            (when existing
+              (add-relation 'updates id existing (node-at form))
+              (hash-update! update-sites existing
+                            (lambda (sites) (cons id sites)) '()))]
            [(call)
             (add-relation 'invokes id (hash-ref procedure-ids name) (node-at form))
             (for ([argument (in-list (node-children form))])

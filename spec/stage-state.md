@@ -80,7 +80,7 @@ or fields within a record returned to it, can change through a call, including
 when the location is also an input. A procedure can return a record to change
 several fields under one named return location.
 Calls inside a paired stage take scientific inputs from state locations, not
-from literals or detached local names. Local `set` values are restricted to
+from literals or detached local names. Locally assigned values are restricted to
 integer counters or positions; `for each` there likewise needs integer
 positions. A value intended as a scientific input must be placed in state.
 
@@ -104,5 +104,7 @@ guarantee a new closing field.
 
 These checks concern names, locations, and declared flow. They do not verify
 that a procedure ran, that a declared value is scientifically suitable, or
-that an environment existed in a particular run. A position inside a
-list-valued location has no adopted syntax yet; the whole list can be named.
+that an environment existed in a particular run. A one-based position in a
+list-valued location uses `.[position]`, such as `information.trials.[2]` or
+`information.trials.[position]`. A named position must be a stage control
+name. The selected positions must exist in the declared state.

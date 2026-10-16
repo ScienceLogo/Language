@@ -22,6 +22,10 @@
           (hash-set! declarations (string->symbol name) parts)]
          [_ (void)]))
      (define interfaces (resolve-record-interfaces declarations))
+     (define performer-expressions
+       (for/hasheq ([form (in-list forms)]
+                    #:when (match form [`(performer ,_ ,_) #t] [_ #f]))
+         (values (cadr form) (caddr form))))
      (define no-result (gensym 'no-result))
      (define (decimal-text value)
        (define denominator-value (denominator value))
@@ -99,6 +103,67 @@
           (for/or ([part (in-hash-values value)])
             (contains-unknown? part))]
          [else #f]))
+     (define (selector-key selector container inputs scopes)
+       (cond
+         [(hash? container)
+          (match selector
+            [`(result ,name) name]
+            [_ (error 'run-program "record selection needs a field name")])]
+         [(list? container)
+          (define n
+            (match selector
+              [`(result ,name)
+               (or (string->number (symbol->string name))
+                   (value-of selector inputs scopes))]
+              [_ (value-of selector inputs scopes)]))
+          (when (eq? n 'unknown)
+            (error 'run-program "list position is unknown"))
+          (unless (and (exact-positive-integer? n) (<= n (length container)))
+            (error 'run-program "list position must be between 1 and ~a"
+                   (length container)))
+          n]
+         [else (error 'run-program "dot selection needs a record or list")]))
+     (define (select-one container selector inputs scopes)
+       (if (and (list? container)
+                (eq? (value-of selector inputs scopes) 'unknown))
+           'unknown
+           (let ([key (selector-key selector container inputs scopes)])
+             (if (hash? container)
+                 (hash-ref container key
+                           (lambda () (error 'run-program "missing field ~a" key)))
+                 (list-ref container (sub1 key))))))
+     (define (replace-one container key value)
+       (cond
+         [(hash? container) (hash-set container key value)]
+         [(list? container) (list-set container (sub1 key) value)]
+         [else (error 'run-program "dot update needs a record or list")]))
+     (define (merge-records old changes)
+       (for/fold ([result old]) ([(key value) (in-hash changes)])
+         (define earlier (hash-ref result key #f))
+         (when (and (hash-has-key? result key)
+                    (hash? value) (not (hash? earlier)))
+           (error 'run-program "nested update needs a record at ~a" key))
+         (hash-set result key
+                   (if (and (hash? earlier) (hash? value))
+                       (merge-records earlier value)
+                       value))))
+     (define (patch-value original entries inputs scopes)
+       (if (record-interface? original)
+           (interface-record
+            original
+            (for/hasheq ([entry (in-list entries)])
+              (values (car entry) (value-of (cadr entry) inputs scopes)))
+            (lambda (default) (value-of default inputs scopes)))
+           (for/fold ([current original]) ([entry (in-list entries)])
+         (match-define `(,raw-key ,expression) entry)
+         (define key
+           (if (hash? current)
+               raw-key
+               (selector-key `(result ,raw-key) current inputs scopes)))
+         (define value (value-of expression inputs scopes))
+         (if (hash? current)
+             (merge-records current (hasheq key value))
+             (replace-one current key value)))))
      (define (value-of expression inputs scopes)
        (match expression
          [`(literal ,value) value]
@@ -111,36 +176,24 @@
              (match entry
                [`(,name ,value)
                 (cons name (value-of value inputs scopes))])))]
-         [`(but ,source ,changes)
-          (define original (value-of source inputs scopes))
-          (define replacements (value-of changes inputs scopes))
-          (cond
-            [(record-interface? original)
-             (interface-record original replacements
-                               (lambda (default) (value-of default inputs scopes)))]
-            [(hash? original)
-             (for/fold ([record original]) ([(name value) (in-hash replacements)])
-               (hash-set record name value))]
-            [else (error 'run-program "but needs a named-field value or interface")])]
+         [`(dot-select (,receiver ,selectors ...))
+          (define container (value-of receiver inputs scopes))
+          (if (= (length selectors) 1)
+              (select-one container (car selectors) inputs scopes)
+              (if (hash? container)
+                  (for/hasheq ([selector (in-list selectors)])
+                    (define key (selector-key selector container inputs scopes))
+                    (values key (select-one container selector inputs scopes)))
+                  (for/list ([selector (in-list selectors)])
+                    (select-one container selector inputs scopes))))]
+         [`(dot-update (,receiver (fields ,entries)))
+          (patch-value (value-of receiver inputs scopes) entries inputs scopes)]
          [`(field-ref ,name ,receiver)
           (define record (value-of receiver inputs scopes))
           (unless (hash? record)
             (error 'run-program "field ~a needs a named-field value" name))
           (hash-ref record name
                     (lambda () (error 'run-program "missing field ~a" name)))]
-         [`(item-ref ,position ,collection)
-          (define n (value-of position inputs scopes))
-          (define items (value-of collection inputs scopes))
-          (cond
-            [(or (eq? n 'unknown) (eq? items 'unknown)) 'unknown]
-            [(not (and (exact-integer? n) (positive? n)))
-             (error 'run-program "item index must be a positive integer starting at 1")]
-            [(not (list? items))
-             (error 'run-program "item needs an ordered list")]
-            [(> n (length items))
-             (error 'run-program "item index ~a is outside a list of ~a items"
-                    n (length items))]
-            [else (list-ref items (sub1 n))])]
          [`(range (,start ,end ,step))
           (numeric-range (value-of start inputs scopes)
                          (value-of end inputs scopes)
@@ -205,14 +258,18 @@
                [(>=) (>= a b)])])]
          [`(parameter ,name) (hash-ref inputs name)]
          [`(result ,name)
-          (if (hash-has-key? interfaces name)
-              (hash-ref interfaces name)
-              (let loop ([remaining scopes])
+          (cond
+            [(hash-has-key? interfaces name)
+             (hash-ref interfaces name)]
+            [(hash-has-key? performer-expressions name)
+             (value-of (hash-ref performer-expressions name)
+                       (make-hasheq) (list (make-hasheq)))]
+            [else (let loop ([remaining scopes])
             (cond
               [(null? remaining) (error 'run-program "unknown result ~a" name)]
               [(hash-has-key? (car remaining) name)
                (hash-ref (car remaining) name)]
-              [else (loop (cdr remaining))])))]))
+              [else (loop (cdr remaining))]))])]))
      (define (condition-of expression inputs scopes)
        (define value (value-of expression inputs scopes))
        (unless (boolean? value)
@@ -237,6 +294,25 @@
            [(hash-has-key? (car remaining) name)
             (hash-set! (car remaining) name value)]
            [else (loop (cdr remaining))])))
+     (define (assign-path target value inputs scopes)
+       (match target
+         [`(result ,name) (write-name name value scopes)]
+         [`(field-ref ,field ,receiver)
+          (define container
+            (with-handlers ([(lambda (e)
+                               (and (exn:fail? e)
+                                    (regexp-match? #rx"missing field"
+                                                   (exn-message e))))
+                            (lambda (_) (hasheq))])
+              (value-of receiver inputs scopes)))
+          (unless (hash? container)
+            (error 'run-program "field update needs a record"))
+          (assign-path receiver (hash-set container field value) inputs scopes)]
+         [`(dot-select (,receiver ,selector))
+          (define container (value-of receiver inputs scopes))
+          (define key (selector-key selector container inputs scopes))
+          (assign-path receiver (replace-one container key value) inputs scopes)]
+         [_ (error 'run-program "update needs one named field or list position")]))
      (define (run-forms forms inputs scopes return)
        (for ([form (in-list forms)])
          (match form
@@ -262,11 +338,19 @@
               (hash-set! (car scopes) result-name result))]
            [`(sequence ,body)
             (run-forms body inputs (cons (make-hasheq) scopes) return)]
-           [`(set ,name ,expression)
+           [`(assignment ,name ,expression)
             (define value (value-of expression inputs scopes))
             (when (record-interface? value)
-              (error 'run-program "an interface needs but [field = value] to construct a record"))
+              (error 'run-program "an interface needs .[field = value] to construct a record"))
             (write-name name value scopes)]
+           [`(path-assignment ,target ,expression)
+            (assign-path target (value-of expression inputs scopes)
+                         inputs scopes)]
+           [`(path-update-command (dot-update (,receiver (fields ,entries))))
+            (assign-path receiver
+                         (patch-value (value-of receiver inputs scopes)
+                                      entries inputs scopes)
+                         inputs scopes)]
            [`(repeat ,count-expression ,body)
             (define count (value-of count-expression inputs scopes))
             (unless (exact-nonnegative-integer? count)

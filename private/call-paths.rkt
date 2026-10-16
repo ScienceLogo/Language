@@ -7,7 +7,7 @@
 (provide required-call-paths)
 
 ;; This is a conservative check of the written method, not a run trace.
-;; Values obtained from inputs, named results, and set commands are unknown here.
+;; Values obtained from inputs, named results, and assignments are unknown here.
 (struct path-state (called? flow evidence) #:transparent)
 
 (define no-constant (gensym 'no-constant))
@@ -37,13 +37,43 @@
      (if (ormap (lambda (entry) (contains-unresolved? (cdr entry))) values)
          no-constant
          (make-immutable-hasheq values))]
-    [`(but ,source ,changes)
+    [`(dot-update (,source ,changes))
      (define original (constant-value source))
      (define replacements (constant-value changes))
      (if (and (hash? original) (hash? replacements))
          (for/fold ([record original]) ([(name value) (in-hash replacements)])
            (hash-set record name value))
          no-constant)]
+    [`(dot-select (,source ,selectors ...))
+     (define container (constant-value source))
+     (define (one selector)
+       (match selector
+         [`(literal ,n)
+          (match source
+            [`(list ,parts)
+             (if (and (exact-positive-integer? n) (<= n (length parts)))
+                 (constant-value (list-ref parts (sub1 n))) no-constant)]
+            [_
+             (if (and (list? container) (exact-positive-integer? n)
+                      (<= n (length container)))
+                 (list-ref container (sub1 n)) no-constant)])]
+         [`(result ,field)
+          (if (and (hash? container) (hash-has-key? container field))
+              (hash-ref container field) no-constant)]
+         [_
+          (define n (constant-value selector))
+          (if (and (list? container) (exact-positive-integer? n)
+                   (<= n (length container)))
+              (list-ref container (sub1 n)) no-constant)]))
+     (define selected (map one selectors))
+     (cond
+       [(ormap unresolved? selected) no-constant]
+       [(= (length selected) 1) (car selected)]
+       [(hash? container)
+        (for/hasheq ([selector (in-list selectors)]
+                     [value (in-list selected)])
+          (values (cadr selector) value))]
+       [else selected])]
     [`(field-ref ,name ,receiver)
      (match receiver
        [`(fields ,entries)
@@ -53,20 +83,6 @@
         (define record (constant-value receiver))
         (if (and (hash? record) (hash-has-key? record name))
             (hash-ref record name) no-constant)])]
-    [`(item-ref ,position ,collection)
-     (define n (constant-value position))
-     (if (not (and (exact-integer? n) (positive? n)))
-         no-constant
-         (match collection
-           [`(list ,parts)
-            (if (<= n (length parts))
-                (constant-value (list-ref parts (sub1 n)))
-                no-constant)]
-           [_
-            (define values (constant-value collection))
-            (if (and (list? values) (<= n (length values)))
-                (list-ref values (sub1 n))
-                no-constant)]))]
     [`(unary ,operator (,part))
      (define value (constant-value part))
      (cond

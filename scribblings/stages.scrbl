@@ -52,6 +52,7 @@ designated to carry out an activity. It belongs directly in a workflow.
 Its fields are open: @tt{performer researcher []} is valid, and a workflow
 can add fields such as @tt{kind} or @tt{role} when useful. The name is a
 reference to this object, not a quoted label.
+Its fields use ordinary dotted access, such as @tt{researcher.role}.
 
 A paired stage may give its calls a default performer with @tt{by name}.
 A call may use @tt{by another-name} to override that default. Every call
@@ -90,6 +91,8 @@ This is a @emph{method declaration}. It says where a duration and a swing
 count would come from and where the calculated period would go. It does not
 measure the duration or calculate an observed period. The example keeps the
 timer and considered factor at exit because neither was changed by a call.
+The state declaration may also spell nested entries as paths, for example
+@tt{information.clock.time = "12:00"}.
 
 @section{Connect a procedure to state}
 
@@ -114,7 +117,7 @@ uses its qualified name, such as @tt{timing.calculate-period}.
 
 Calls in a paired stage take scientific inputs from state locations. They do
 not take a literal or an unrelated local name as an argument. A local
-@tt{set} name may be used only for an integer counter or position; inside
+assigned name may be used only for an integer counter or position; inside
 this form, @tt{for each} likewise needs integer positions. Only a declared
 @tt{into} location, or fields within a record returned to it, can change
 through a call. The same location can be both an input and an output.
@@ -138,8 +141,11 @@ The reader rejects a paired stage when:
 
 A field returned only on some branches is not guaranteed to exist at exit.
 These checks establish the declared flow of values, not whether the work took
-place or whether its scientific conclusion is sound. A location inside a list
-is not yet part of the syntax; a whole list-valued field can be named.
+place or whether its scientific conclusion is sound. A one-based position
+inside a list can be named, such as @tt{information.trials.[2]} or
+@tt{information.trials.[position]}. A named position must be a stage control
+name. The containing list and selected positions must appear in the declared
+state.
 The @hyperlink[(source-file-url "spec/stage-state.md")]{stage state contract}
 records the accepted reader constraints.
 @secref["assessment"] explains the distinct structural checks available

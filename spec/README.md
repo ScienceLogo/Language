@@ -16,7 +16,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | [Libraries](libraries.md) | Accepted layout, import, and include rules. |
 | [Paired stages and state locations](stage-state.md) | Accepted reader syntax; checked as a written method but not executed. |
 | [Context sets](context.md) | Meaning and rationale for information, environment, and considered factors. |
-| [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications. |
+| [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications; compact and future verbose syntax. |
 | [Shared representation](representation.md) | Design contract for what readers should preserve; portable format remains open. |
 | [Semantic core](core.md) | Wider semantic design and proposed run traces, beyond current accepted syntax. |
 | [Design principles](design-principles.md) | Goals and learning tests, not syntax. |

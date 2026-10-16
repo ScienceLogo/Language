@@ -94,7 +94,7 @@
             "interface \"Timing\" [duration unit = \"seconds\"]\n"
             "to echo :name [output :name]\n"
             "to make-trial :duration [\n"
-            "  set trial to Timing but [duration = :duration]\n"
+            "  trial = Timing.[duration = :duration]\n"
             "  output trial\n"
             "]\n")
            out)))
@@ -201,7 +201,7 @@
             "  print greeting\n"
             "]\n"
             "to make-trial [\n"
-            "  set trial to TimedPlace but [duration = 2 place = \"lab\"]\n"
+            "  trial = TimedPlace.[duration = 2 place = \"lab\"]\n"
             "  output trial\n"
             "]\n")
            out)))
@@ -279,14 +279,14 @@
                     "interface \"Timing\" [duration unit = \"seconds\"]\n"
                     "stage \"Prepare\"\n"
                     "include \"../shared/plan.rkt\"\n"
-                    "set included-trial to [duration = 2]\n"
+                    "included-trial = [duration = 2]\n"
                     "must included-trial implement \"../shared/timing.rkt\"\n"))
      (define entry
        (write-source "entry.rkt"
                      (string-append
                       "#lang sciencelogo\nworkflow \"Split workflow\"\n"
                       "include \"methods/method.rkt\"\n"
-                      "set trial to Timing but [duration = 2]\n"
+                      "trial = Timing.[duration = 2]\n"
                       "must trial implement Timing\n"
                       "do plan as message\nprint message\n")))
      (check-equal? (with-output-to-string (lambda () (dynamic-require entry #f)))
@@ -319,8 +319,8 @@
      "interface \"TimedTrial\" [extends Timing extends Site duration unit = \"minutes\"]\n"
      "interface \"Timing\" [duration unit = \"seconds\"]\n"
      "interface \"Site\" [place]\n"
-     "set trial to TimedTrial but [duration = 2 place = \"lab\"]\n"
-     "print unit of trial\nprint place of trial\n"))
+     "trial = TimedTrial.[duration = 2 place = \"lab\"]\n"
+     "print trial.unit\nprint trial.place\n"))
    "minutes\nlab\n")
   (check-equal?
    (output-of
@@ -329,8 +329,8 @@
      "interface \"Combined\" [extends First extends Second shared = \"resolved\"]\n"
      "interface \"First\" [shared = \"first\" a]\n"
      "interface \"Second\" [shared = \"second\" b]\n"
-     "set record to Combined but [a = 1 b = 2]\n"
-     "print shared of record\n"))
+     "record = Combined.[a = 1 b = 2]\n"
+     "print record.shared\n"))
    "resolved\n")
   (check-equal?
    (output-of
@@ -339,8 +339,8 @@
      "interface \"Combined\" [extends First extends Second]\n"
      "interface \"First\" [unit = \"seconds\"]\n"
      "interface \"Second\" [unit = \"seconds\"]\n"
-     "set trial to Combined but []\n"
-     "print unit of trial\n"))
+     "trial = Combined.[]\n"
+     "print trial.unit\n"))
    "seconds\n")
   (check-equal?
    (output-of
@@ -349,8 +349,8 @@
      "interface \"Leaf\" [extends Middle c]\n"
      "interface \"Middle\" [extends Base b]\n"
      "interface \"Base\" [a]\n"
-     "set value to Leaf but [a = 1 b = 2 c = 3]\n"
-     "print a of value\n"))
+     "value = Leaf.[a = 1 b = 2 c = 3]\n"
+     "print value.a\n"))
    "1\n")
   (check-exn
    #rx"duplicate parent interface Base"
@@ -373,7 +373,7 @@
        "interface \"TimedTrial\" [extends Timing extends Site]\n"
        "interface \"Timing\" [duration]\n"
        "interface \"Site\" [place]\n"
-       "set trial to TimedTrial but [duration = 2]\n"))))
+       "trial = TimedTrial.[duration = 2]\n"))))
   (for ([source (in-list
                  (list
                   (string-append
@@ -388,7 +388,7 @@
                   (string-append
                    "#lang sciencelogo\n"
                    "interface \"One\" [extends Missing]\n"
-                   "set trial to One but [value = 1]\n")))]
+                   "trial = One.[value = 1]\n")))]
         [message (in-list '("conflicting inherited field shared"
                             "interface extension cycle"
                             "unknown parent interface Missing"))])
@@ -404,20 +404,20 @@
      "#lang sciencelogo\n"
      "workflow \"Timing records\"\n"
      "interface \"Timing\" [duration unit = \"seconds\"]\n"
-     "set trial to Timing but [duration = 2]\n"
-     "print unit of trial\n"
-     "set revised to trial but [unit = \"minutes\"]\n"
-     "print unit of revised\n"
-     "print unit of trial\n"
-     "set explicit to [duration = unknown unit = \"seconds\"]\n"
-     "print duration of explicit\n"))
+     "trial = Timing.[duration = 2]\n"
+     "print trial.unit\n"
+     "revised = trial.[unit = \"minutes\"]\n"
+     "print revised.unit\n"
+     "print trial.unit\n"
+     "explicit = [duration = unknown unit = \"seconds\"]\n"
+     "print explicit.duration\n"))
    "seconds\nminutes\nseconds\nunknown\n")
   (check-equal?
    (output-of
     (string-append "#lang sciencelogo\n"
                    "interface \"Timing\" [duration unit = \"seconds\"]\n"
-                   "set trial to Timing but [duration = 2]\n"
-                   "print unit of trial\n"))
+                   "trial = Timing.[duration = 2]\n"
+                   "print trial.unit\n"))
    "seconds\n")
   (check-exn
    #rx"Timing is missing field duration"
@@ -425,7 +425,7 @@
      (output-of
       (string-append "#lang sciencelogo\nworkflow \"Timing\"\n"
                      "interface \"Timing\" [duration unit = \"seconds\"]\n"
-                     "set trial to Timing but [unit = \"minutes\"]\n"))))
+                     "trial = Timing.[unit = \"minutes\"]\n"))))
   (check-exn
    #rx"duplicate interface field duration"
    (lambda ()
@@ -440,7 +440,27 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set lengths to range 0.25 to 1.00 step 0.25\n"
+     "do greet count = 1 print count\n"
+     "to greet []\n"))
+   "1\n")
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "count = 1 do echo (count = 1) as matches print matches\n"
+     "to echo :flag [output :flag]\n"))
+   "true\n")
+
+  (check-exn
+   #rx"write name = value for assignment"
+   (lambda () (output-of "#lang sciencelogo\nset count to 1\n")))
+
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "lengths = range 0.25 to 1.00 step 0.25\n"
      "for each length in lengths [print length]\n"
      "for each length in lengths [if length >= 0.75 [print length]]\n"))
    "0.25\n0.5\n0.75\n1\n0.75\n1\n")
@@ -449,7 +469,7 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set stop to 0.3\n"
+     "stop = 0.3\n"
      "print range 0.1 to stop step 0.1\n"
      "print range 0.1 to 0.35 step 0.1\n"
      "print range 1 to 1 step -1\n"))
@@ -459,9 +479,9 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set lengths to range 1 to 3 step 1\n"
+     "lengths = range 1 to 3 step 1\n"
      "for each length in lengths [print length]\n"
-     "do [set lengths to [4 5]]\n"
+     "do [lengths = [4 5]]\n"
      "for each length in lengths [print length]\n"))
    "1\n2\n3\n4\n5\n")
 
@@ -471,7 +491,7 @@
      "#lang sciencelogo\n"
      "do sweep 1\n"
      "to sweep :limit [\n"
-     "  set values to range 0 to :limit step 0.5\n"
+     "  values = range 0 to :limit step 0.5\n"
      "  for each value in values [print value]\n"
      "]\n"))
    "0\n0.5\n1\n")
@@ -480,13 +500,13 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set values to [1 2 true \"ready\"]\n"
+     "values = [1 2 true \"ready\"]\n"
      "repeat 2 [print values]\n"
      "if 1 > 2 [print \"wrong\"] "
      "else if 2 = 2 [print \"matched\"] "
      "else [print \"wrong\"]\n"
-     "set continue to true\n"
-     "while continue [print \"once\" set continue to false]\n"
+     "continue = true\n"
+     "while continue [print \"once\" continue = false]\n"
      "repeat [print \"once\"] until true\n"))
    "[1 2 true ready]\n[1 2 true ready]\nmatched\nonce\nonce\n")
 
@@ -510,7 +530,7 @@
      "print 5 - 2 - 1\n"
      "print - 2 * 3\n"
      "print 1 / 3\n"
-     "set steps to range 0 to (2 + 2) step 1 + 1\n"
+     "steps = range 0 to (2 + 2) step 1 + 1\n"
      "print steps\n"
      "print [1 + 2 4]\n"))
    "7\n9\n0.75\n2\n-6\n1/3\n[0 2 4]\n[3 4]\n")
@@ -538,9 +558,9 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set attempts to 0\n"
+     "attempts = 0\n"
      "while attempts < 3 and not (attempts = 2) ["
-     "set attempts to attempts + 1 print attempts]\n"
+     "attempts = attempts + 1 print attempts]\n"
      "do add 1 + 2 (3 * 4) as total\n"
      "print total\n"
      "to add :a :b [output :a + :b]\n"))
@@ -550,79 +570,79 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set trial to [temperature = 0.5 + 0.3 "
-     "prompt = \"tell me the capital of Peru\"]\n"
-     "print temperature of trial\n"
-     "print temperature of trial + 0.2\n"
-     "print prompt of trial\n"
+     "trial = [temperature = 0.5 + 0.3 "
+     "prompt = \"tell me the Peru.capital\"]\n"
+     "print trial.temperature\n"
+     "print trial.temperature + 0.2\n"
+     "print trial.prompt\n"
      "print trial\n"
      "do echo trial as copy\n"
-     "print temperature of copy\n"
-     "if trial = [prompt = \"tell me the capital of Peru\" "
+     "print copy.temperature\n"
+     "if trial = [prompt = \"tell me the Peru.capital\" "
      "temperature = 0.8] [print \"same fields\"]\n"
-     "set nested to [measurement = [unit = \"C\"]]\n"
-     "print unit of measurement of nested\n"
-     "set x to 1 set y to 2 print [x y]\n"
+     "nested = [measurement = [unit = \"C\"]]\n"
+     "print nested.measurement.unit\n"
+     "x = 1 y = 2 print [x y]\n"
      "print [[1 2] [3 4]]\n"
      "print [(1 = 1)]\n"
      "to echo :item [output :item]\n"))
    (string-append
-    "0.8\n1\ntell me the capital of Peru\n"
-    "[prompt = \"tell me the capital of Peru\" temperature = 0.8]\n"
+    "0.8\n1\ntell me the Peru.capital\n"
+    "[prompt = \"tell me the Peru.capital\" temperature = 0.8]\n"
     "0.8\nsame fields\nC\n[1 2]\n[[1 2] [3 4]]\n[true]\n"))
 
   (check-exn
    #rx"duplicate field temperature"
    (lambda ()
      (output-of
-      "#lang sciencelogo\nset trial to [temperature = 0.8 temperature = 0.9]\n")))
+      "#lang sciencelogo\ntrial = [temperature = 0.8 temperature = 0.9]\n")))
 
   (check-exn
    #rx"missing field period"
    (lambda ()
      (output-of
-      "#lang sciencelogo\nset trial to [temperature = 0.8]\nprint period of trial\n")))
+      "#lang sciencelogo\ntrial = [temperature = 0.8]\nprint trial.period\n")))
 
   (check-exn
    #rx"field temperature needs a named-field value"
    (lambda ()
      (output-of
-      "#lang sciencelogo\nset trial to [0.8]\nprint temperature of trial\n")))
+      "#lang sciencelogo\ntrial = [0.8]\nprint trial.temperature\n")))
 
   (check-equal?
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set human to [species = \"human\" gender = \"unspecified\"]\n"
-     "set john to human but [gender = \"male\"]\n"
-     "set earlier to john\n"
-     "set john to john but [height = 193]\n"
-     "print gender of human\n"
-     "print gender of earlier\n"
-     "print height of john\n"
+     "human = [species = \"human\" gender = \"unspecified\"]\n"
+     "john = human.[gender = \"male\"]\n"
+     "earlier = john\n"
+     "john = john.[height = 193]\n"
+     "print human.gender\n"
+     "print earlier.gender\n"
+     "print john.height\n"
      "print earlier\n"
-     "print height of (john but [height = 194])\n"
-     "print height of john\n"))
+     "print (john.[height = 194]).height\n"
+     "print john.height\n"))
    (string-append
     "unspecified\nmale\n193\n"
     "[gender = \"male\" species = \"human\"]\n"
     "194\n193\n"))
 
   (check-exn
-   #rx"but needs a named-field value"
+   #rx"unsupported command but"
    (lambda ()
      (output-of "#lang sciencelogo\nprint 1 but [height = 193]\n")))
 
   (check-exn
-   #rx"but needs named fields in"
+   #rx"record selection needs a field name"
    (lambda ()
-     (output-of "#lang sciencelogo\nprint [height = 170] but [193]\n")))
+     (output-of "#lang sciencelogo\nprint [height = 170].[193]\n")))
 
   (check-exn
    #rx"duplicate field height"
    (lambda ()
      (output-of
-      "#lang sciencelogo\nprint [height = 170] but [height = 193 height = 194]\n")))
+      "#lang sciencelogo\nprint [height = 170].[height = 193 height = 194]\n")))
 
   (check-exn
    #rx"condition is undetermined"
@@ -634,37 +654,37 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "set lengths to [0.25 0.5 0.75]\n"
-     "print item 1 of lengths\n"
-     "print item 3 of lengths\n"
-     "set position to 2\n"
-     "print item position of lengths\n"
-     "print item 1 + 1 of lengths\n"
-     "set grid to [[10 20] [30 40]]\n"
-     "print item 2 of grid\n"
-     "print item 2 of item 1 of grid\n"
+     "lengths = [0.25 0.5 0.75]\n"
+     "print lengths.[1]\n"
+     "print lengths.[3]\n"
+     "position = 2\n"
+     "print lengths.[position]\n"
+     "print lengths.[1 + 1]\n"
+     "grid = [[10 20] [30 40]]\n"
+     "print grid.[2]\n"
+     "print grid.[1].[2]\n"
      "for each item in [1 2] [print item]\n"
-     "set trial to [item = \"label\"]\n"
-     "print item of trial\n"
-     "print item unknown of lengths\n"))
+     "trial = [item = \"label\"]\n"
+     "print trial.item\n"
+     "print lengths.[unknown]\n"))
    "0.25\n0.75\n0.5\n0.5\n[30 40]\n20\n1\n2\nlabel\nunknown\n")
 
   (check-exn
-   #rx"item index must be a positive integer starting at 1"
-   (lambda () (output-of "#lang sciencelogo\nprint item 0 of [1 2]\n")))
+   #rx"list position must be between 1 and 2"
+   (lambda () (output-of "#lang sciencelogo\nprint [1 2].[0]\n")))
 
   (check-exn
-   #rx"item index must be a positive integer starting at 1"
-   (lambda () (output-of "#lang sciencelogo\nprint item 1.5 of [1 2]\n")))
+   #rx"list position must be between 1 and 2"
+   (lambda () (output-of "#lang sciencelogo\nprint [1 2].[1.5]\n")))
 
   (check-exn
-   #rx"item index 3 is outside a list of 2 items"
-   (lambda () (output-of "#lang sciencelogo\nprint item 3 of [1 2]\n")))
+   #rx"list position must be between 1 and 2"
+   (lambda () (output-of "#lang sciencelogo\nprint [1 2].[3]\n")))
 
   (check-exn
-   #rx"item needs an ordered list"
+   #rx"record selection needs a field name"
    (lambda ()
-     (output-of "#lang sciencelogo\nprint item 1 of [temperature = 0.8]\n")))
+     (output-of "#lang sciencelogo\nprint [temperature = 0.8].[1]\n")))
 
   (check-exn
    #rx"division by zero"
@@ -708,19 +728,19 @@
                "#lang sciencelogo\nfor each length in [1] [print length]\nprint length\n")))
 
   (check-exn
-   #rx"cannot set protected name length"
+   #rx"cannot assign protected name length"
    (lambda () (output-of
-               "#lang sciencelogo\nfor each length in [1] [set length to 2]\n")))
+               "#lang sciencelogo\nfor each length in [1] [length = 2]\n")))
 
   (check-exn
-   #rx"cannot set protected name result"
+   #rx"cannot assign protected name result"
    (lambda () (output-of
-               "#lang sciencelogo\ndo echo 1 as result\nset result to 2\nto echo :x [output :x]\n")))
+               "#lang sciencelogo\ndo echo 1 as result\nresult = 2\nto echo :x [output :x]\n")))
 
   (check-exn
-   #rx"cannot set protected name x"
+   #rx"cannot assign protected name x"
    (lambda () (output-of
-               "#lang sciencelogo\nto change :x [set x to 2]\n")))
+               "#lang sciencelogo\nto change :x [x = 2]\n")))
 
   (check-exn
    #rx"workflow title appears only once"
@@ -1061,12 +1081,12 @@
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as hello\n"
          "interface \"TimedPlace\" [extends hello.Timing place]\n"
-         "set local to TimedPlace but [duration = 2 place = \"lab\"]\n"
+         "local = TimedPlace.[duration = 2 place = \"lab\"]\n"
          "must local implement hello.Timing\n"
          "do hello.make-trial 3 as remote\n"
          "must remote implement hello.Timing\n"
-         "print unit of local\n"
-         "print duration of remote\n")
+         "print local.unit\n"
+         "print remote.duration\n")
         url))
       "seconds\n3\n")
      (with-source
@@ -1074,7 +1094,7 @@
        (string-append
         "#lang sciencelogo\n"
         "import ~s at \"v1.0.0\" as hello\n"
-        "set trial to [unit = \"seconds\"]\n"
+        "trial = [unit = \"seconds\"]\n"
         "must trial implement hello.Timing\n")
        url)
       (lambda (path)
@@ -1143,11 +1163,11 @@
         (string-append
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as a\n"
-         "set trial to a.TimedPlace but [duration = 3 place = \"field\"]\n"
+         "trial = a.TimedPlace.[duration = 3 place = \"field\"]\n"
          "must trial implement a.TimedPlace\n"
          "do a.make-trial as other\n"
-         "print unit of trial\n"
-         "print place of other\n")
+         "print trial.unit\n"
+         "print other.place\n")
         a-url))
       "seconds\nlab\n")
      (check-exn
@@ -1158,7 +1178,7 @@
           (string-append
            "#lang sciencelogo\n"
            "import ~s at \"v1.0.0\" as a\n"
-           "set trial to a.b.Timing but [duration = 2]\n")
+           "trial = a.b.Timing.[duration = 2]\n")
           a-url))))
      (check-equal?
       (output-of
@@ -1242,3 +1262,136 @@
            "import ~s at \"v-cycle\" as a\n"
            "do a.welcome \"Scientist\"\n")
           a-url)))))))
+
+(module+ test
+  (check-exn exn:fail?
+             (lambda ()
+               (output-of "#lang sciencelogo\ntrial = [time = 1]\nprint time of trial\n")))
+  (check-exn exn:fail?
+             (lambda ()
+               (output-of "#lang sciencelogo\ntrials = [1 2]\nprint item 1 of trials\n")))
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "measurement = [clock.time = \"11:00\" clock.day = \"Tuesday\"]\n"
+     "earlier = measurement\n"
+     "measurement.clock.time = \"12:00\"\n"
+     "measurement.[clock.day = \"Wednesday\"]\n"
+     "selected = measurement.clock.[time day]\n"
+     "print selected\n"
+     "print earlier.clock.time\n"
+     "trials = [[time = 1] [time = 2]]\n"
+     "trials.[2].time = 3\n"
+     "trials.[1 = [time = 4] 2 = [time = 5]]\n"
+     "print trials.[2].time\n"
+     "print trials.[1 2]\n"
+     "to show :trial [output :trial.time]\n"
+     "do show measurement.clock as answer\n"
+     "print answer\n"))
+   "[day = \"Wednesday\" time = \"12:00\"]\n11:00\n5\n[[time = 4] [time = 5]]\n12:00\n")
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "interface \"Clock\" [clock.time clock.unit = \"seconds\"]\n"
+     "trial = Clock.[clock.time = \"12:00\"]\n"
+     "print trial.clock.unit\n"))
+   "seconds\n")
+  (check-equal?
+   (output-of
+    "#lang sciencelogo\nperformer researcher [role = \"scientist\"]\nprint researcher.role\n")
+   "scientist\n")
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "interface \"Base-clock\" [clock.time = \"12:00\"]\n"
+     "interface \"Extended-clock\" [extends Base-clock clock.unit = \"seconds\"]\n"
+     "trial = Extended-clock.[]\n"
+     "print trial.clock.time\n"
+     "print trial.clock.unit\n"))
+   "12:00\nseconds\n")
+  (with-source
+   (string-append
+    "#lang sciencelogo\n"
+    "interface \"Clock\" [clock.time clock.unit = \"seconds\"]\n"
+    "trial = Clock.[clock.time = \"12:00\"]\n"
+    "must trial implement Clock\n")
+   (lambda (path)
+     (check-equal?
+      (map condition-check-outcome (assessment-checks (assess-file path)))
+      '(satisfied))))
+  (with-source
+   (string-append
+    "#lang sciencelogo\n"
+    "interface \"Clock-fields\" [time unit]\n"
+    "trial = [clock = [time = \"12:00\" unit = \"seconds\"]]\n"
+    "must trial.clock implement Clock-fields\n")
+   (lambda (path)
+     (check-equal?
+      (map condition-check-outcome (assessment-checks (assess-file path)))
+      '(satisfied)))))
+
+(module+ test
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+     "x = Timing.[duration = 2]\n"
+     "earlier = x\n"
+     "x += [unit = \"minutes\" note = \"hand timed\"]\n"
+     "x.duration += 2\n"
+     "print x\n"
+     "print earlier\n"
+     "x += [note = \"rechecked\"]\n"
+     "print x.note\n"))
+   (string-append
+    "[duration = 4 note = \"hand timed\" unit = \"minutes\"]\n"
+    "[duration = 2 unit = \"seconds\"]\n"
+    "rechecked\n"))
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "x = [clock = [time = 1 day = \"Monday\"]]\n"
+     "x.clock += [time = 2]\n"
+     "x.clock.time += 3\n"
+     "print x.clock\n"
+     "count = 1\n"
+     "count += 2\n"
+     "print count\n"))
+   "[day = \"Monday\" time = 5]\n3\n")
+  (check-equal?
+   (output-of
+    (string-append
+     "#lang sciencelogo\n"
+     "to identity :value [output :value]\n"
+     "count = 1\n"
+     "do identity count\n"
+     "count += 2\n"
+     "print count\n"))
+   "3\n")
+  (with-source
+   (string-append
+    "#lang sciencelogo\n"
+    "interface \"Timing\" [duration unit]\n"
+    "trial = [duration = 2]\n"
+    "trial += [unit = \"seconds\"]\n"
+    "must trial implement Timing\n")
+   (lambda (path)
+     (check-equal?
+      (map condition-check-outcome (assessment-checks (assess-file path)))
+      '(satisfied))))
+  (check-exn
+   #rx"unknown result x"
+   (lambda () (output-of "#lang sciencelogo\nx += [duration = 2]\n")))
+  (check-exn
+   #rx"missing field duration"
+   (lambda ()
+     (output-of "#lang sciencelogo\nx = [unit = \"seconds\"]\nx.duration += 2\n")))
+  (check-exn
+   #rx"arithmetic needs exact numbers"
+   (lambda ()
+     (output-of "#lang sciencelogo\nx = [duration = \"two\"]\nx.duration += 2\n"))))

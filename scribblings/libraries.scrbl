@@ -129,7 +129,7 @@ After committing and tagging that repository, a workflow can import and use it:
 @verbatim|{
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
 interface "Timed-place" [extends timing.Timing place]
-set trial to Timed-place but [duration = 2 place = "lab"]
+trial = Timed-place.[duration = 2 place = "lab"]
 must trial implement timing.Timing
 }|
 

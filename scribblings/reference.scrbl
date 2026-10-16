@@ -18,6 +18,13 @@ you supply. Square brackets shown in a form are literal ScienceLogo
 brackets. Quoted text is a text value. Commands may share a line or use
 separate lines.
 
+At command position, @tt{name = value} assigns a value. In a condition,
+@tt{=} compares values. Within a record or dotted update, it supplies a field
+value; within an interface, it supplies a default. At command position,
+@tt{name += [field = value]} updates or adds record fields, while
+@tt{name.field += number} adds to an existing numeric field. See
+@secref["procedures"] for scope.
+
 @section{Names and labels}
 
 Names are case-sensitive. The table gives the project's spelling convention.
@@ -56,9 +63,10 @@ display text: imports use its Git URL and the chosen alias, not that name.
 Workflow and stage titles are display text; a @tt{must stages in order} check
 uses the stage title exactly.
 
-The reader rejects reserved command words as most user names, and rejects a
-dot inside a procedure definition, import alias, or record interface name.
-Dots qualify imported names and separate fields in stage state locations.
+The reader rejects reserved command words as most user names. A dot separates
+parts of a path: record fields, list positions, stage state locations, and
+imported names. Simple procedure, input, value, result, loop, performer,
+import alias, and interface names do not contain dots.
 A name used as a word has no spaces;
 quoted workflow and stage titles can contain spaces. Procedure names must be
 distinct; interface names must be distinct from each other and from procedures;
@@ -109,10 +117,10 @@ procedures, and record interfaces; it has no top-level executable commands.
          (tt "numbers, text, true, false, unknown, lists, records")
          "Values used by runnable forms")
    (list (secref "values")
-         (tt "range, item, of, but, arithmetic, comparisons, not, and, xor, or")
+         (tt "range, .field, .[ ... ], arithmetic, comparisons, not, and, xor, or")
          "Expressions used by runnable forms")
    (list (secref "procedures")
-         (tt "to, :input, do, as, output, set, print")
+         (tt "to, :input, do, as, output, name = value, name += value, print")
          "Definitions and executable commands")
    (list (secref "procedures")
          (tt "repeat, until, for each, while, if, else if, else")

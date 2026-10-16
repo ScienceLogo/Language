@@ -10,7 +10,7 @@ interface "Timed-observation" [
 interface "Timing" [duration unit = "seconds"]
 interface "Location" [place]
 
-set trial to Timed-observation but [
+trial = Timed-observation.[
   duration = 2
   place = "lab"
   observation = "ten swings"
@@ -18,4 +18,4 @@ set trial to Timed-observation but [
 must trial implement Timed-observation
 must trial implement Timing
 must trial implement Location
-print unit of trial
+print trial.unit

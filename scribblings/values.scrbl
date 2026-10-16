@@ -4,7 +4,7 @@
 @title[#:style (page-style) #:tag "values"]{Values and expressions}
 
 Values can be written directly or obtained from a name. Expressions can be
-used in @tt{set}, procedure calls, @tt{output}, conditions, records, and ranges.
+used in assignments, procedure calls, @tt{output}, conditions, records, and ranges.
 The @secref["reference"] page defines the naming convention.
 
 @section{Direct values and names}
@@ -31,11 +31,10 @@ it is present even though its scientific value is unknown.
 @tt{[[1 2] [3 4]]} is a list of rows. To put a comparison in a list, group
 it with parentheses: @tt{[(x = y)]}.
 
-@tt{item position of sequence} reads one list element. Positions start at
-@tt{1}, not @tt{0}, and the position must be an exact positive integer within
-the list. For nested lists, repeat @tt{item}: @tt{item 2 of item 1 of grid}
-reads the second value of the first row. @tt{item} requires a list; use
-@tt{field of record} for named fields.
+@tt{sequence.[position]} reads one list element. Positions start at @tt{1},
+and the position must be an exact positive integer within the list.
+@tt{grid.[1].[2]} reads the second value of the first row. Several positions,
+as in @tt{sequence.[1 3]}, select a new list in the stated order.
 
 @section{Records and fields}
 
@@ -43,29 +42,48 @@ Brackets whose first entry is @tt{name = value} make a record with named
 fields. Field names are unquoted and distinct within one record:
 
 @verbatim|{
-set trial to [
+trial = [
   duration = 2
   unit = "seconds"
 ]
-print unit of trial
+print trial.unit
 }|
 
-@tt{field of record} reads a field. It is an error if the record lacks that
-field. Field order does not affect record equality. Brackets without an
-initial @tt{name = value} make a list instead.
+@tt{trial.unit} reads one named field. @tt{trial.[duration unit]} selects a
+new record containing both named fields; it does not create local names.
+It is an error to read a missing field. Field order does not affect record
+equality. Brackets without an initial @tt{name = value} make a list instead.
+In a record declaration, @tt{clock.time = "12:00"} creates nested fields;
+it has the same shape as @tt{clock = [time = "12:00"]}.
 
-@tt{record but [field = value ...]} makes a copy with the listed changes;
-the original remains unchanged. @tt{record but []} makes an identical copy.
-The left side can also be a record interface; its defaults are applied to a
-new record, and every required field must be supplied. See
-@secref["interfaces"] for interface declarations.
+@tt{trial.unit = "minutes"} updates one field. At command position,
+@tt{trial.[unit = "minutes" duration = 3]} updates or adds several fields.
+The equivalent update command @tt{trial += [unit = "minutes" duration = 3]}
+also updates existing fields and adds missing ones. Its right side must be a
+record written with named fields. The name on the left must already exist.
+An earlier value assigned from @tt{trial} retains its earlier contents.
+On the right side of an assignment, @tt{trial.[unit = "minutes"]} makes a
+modified value for another name. An interface name can be used the same way
+to construct a record with its defaults and required fields; see
+@secref["interfaces"].
 
 @verbatim|{
-set trial to [duration = 2 unit = "seconds"]
-set revised to trial but [unit = "minutes"]
+trial = [duration = 2 unit = "seconds"]
+revised = trial.[unit = "minutes"]
+trial += [unit = "minutes"]
+trial.duration += 2
 }|
 
-After these lines, @tt{trial} still has @tt{unit = "seconds"}.
+Here @tt{revised} keeps its earlier contents after @tt{trial} changes.
+On a numeric value, @tt{+=} adds the number on its right: the last line
+changes @tt{trial.duration} from @tt{2} to @tt{4}. The numeric value must
+already exist and both values must be exact numbers.
+Nested fields use the same path, such as @tt{trial.clock.unit}.
+@tt{trial.[clock.time = "12:00"]} updates that nested field while preserving
+other fields of @tt{clock}. Missing containing fields are created as records;
+an existing containing value must be a record.
+For lists, @tt{trials.[2] = value} replaces an existing position;
+@tt{trials.[1 = first 2 = second]} replaces several positions.
 
 @section{Numeric ranges}
 
@@ -74,7 +92,7 @@ The end is included only when a step lands on it. The step must be nonzero and
 move toward the end. Bounds and step can be expressions:
 
 @verbatim|{
-set lengths to range 0.25 to 1 step 0.25
+lengths = range 0.25 to 1 step 0.25
 for each length in lengths [print length]
 }|
 
@@ -100,16 +118,15 @@ From strongest to weakest, the reader groups operations in this order:
   (list
    (list (bold "Order") (bold "Operations"))
    (list "1" "Parentheses")
-   (list "2" (tt "field of value; item position of sequence"))
-   (list "3" (tt "but"))
-   (list "4" (tt "unary -"))
-   (list "5" (tt "* /"))
-   (list "6" (tt "+ -"))
-   (list "7" (tt "= != < <= > >="))
-   (list "8" (tt "not"))
-   (list "9" (tt "and"))
-   (list "10" (tt "xor"))
-   (list "11" (tt "or"))))
+   (list "2" (tt ".field and .[ ... ]"))
+   (list "3" (tt "unary -"))
+   (list "4" (tt "* /"))
+   (list "5" (tt "+ -"))
+   (list "6" (tt "= != < <= > >="))
+   (list "7" (tt "not"))
+   (list "8" (tt "and"))
+   (list "9" (tt "xor"))
+   (list "10" (tt "or"))))
 
 Operations at the same level associate left to right. Use parentheses when
 the intended grouping is not immediately clear. For example,

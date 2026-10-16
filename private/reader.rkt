@@ -95,7 +95,7 @@
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
-                       "unknown" "=" "!=" "<" "<=" ">" ">="
+                       "unknown" "=" "+=" "!=" "<" "<=" ">" ">="
                        "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement"
                        "extends")))
   (define (current) (vector-ref tokens index))
@@ -122,6 +122,7 @@
       (read-error source found (format "expected ~a" description)))
     (string->symbol text))
   (define comparisons '("=" "!=" "<" "<=" ">" ">="))
+  (define import-aliases '())
   (define (valid-inline-interface-name? name)
     (and (not (string=? name ""))
          (not (regexp-match? #px"[\\s\\[\\]();\"#]" name))
@@ -130,9 +131,7 @@
          (not (regexp-match? #px"^[+-]?[0-9]" name))
          (not (member name reserved))))
   (define (operator-precedence name)
-    (cond [(string=? name "of") 80]
-          [(string=? name "but") 75]
-          [(member name '("*" "/")) 60]
+    (cond [(member name '("*" "/")) 60]
           [(member name '("+" "-")) 50]
           [(member name comparisons) 40]
           [(string=? name "and") 30]
@@ -151,36 +150,130 @@
           (begin
             (when (and (= operator 40) (eq? (node-kind left) 'compare))
               (read-error source found "comparison cannot be chained; use and"))
-            (when (and (= operator 80) (not (eq? (node-kind left) 'result)))
-              (read-error source found "expected a field name before of"))
             (advance!)
-            (let ([right (if (= operator 75)
-                             (let ([value (parse-atom stop-word)])
-                               (unless (or (eq? (node-kind value) 'fields)
-                                           (and (eq? (node-kind value) 'list)
-                                                (null? (node-children value))))
-                                 (read-error source found
-                                             "but needs named fields in [name = value] or []"))
-                               (if (eq? (node-kind value) 'fields)
-                                   value
-                                   (struct-copy node value [kind 'fields])))
-                             (parse-value (if (= operator 80)
-                                              operator
-                                              (add1 operator))
-                                          stop-word))])
-              (loop (cond
-                      [(= operator 80)
-                       (node 'field-ref (node-value left) (list right) found)]
-                      [(= operator 75)
-                       (node 'but #f (list left right) found)]
-                      [else
-                       (node (if (= operator 40) 'compare 'binary)
-                             (string->symbol (token-value found))
-                             (list left right) found)]))))
+            (let ([right (parse-value (add1 operator) stop-word)])
+              (loop (node (if (= operator 40) 'compare 'binary)
+                          (string->symbol (token-value found))
+                          (list left right) found))))
           left)))
-  (define (parse-atom [stop-word #f])
+  (define (dotted-value found text)
+    (define input? (string-prefix? text ":"))
+    (define parts (string-split (if input? (substring text 1) text)
+                                "." #:trim? #f))
+    (when (or (string=? (car parts) "")
+              (member "" (drop-right parts 1)))
+      (read-error source found "empty part in dotted path"))
+    (define imported-interface?
+      (and (not input?)
+           (>= (length parts) 2)
+           (member (car parts) import-aliases)
+           (regexp-match? #px"^[A-Z]"
+                          (last (filter (lambda (part) (not (string=? part "")))
+                                        parts)))))
+    (define root-count
+      (if imported-interface?
+          (length (filter (lambda (part) (not (string=? part ""))) parts))
+          1))
+    (define root
+      (node (if input? 'parameter 'result)
+            (string->symbol (string-join (take parts root-count) "."))
+            '() found))
+    (define (bracket receiver at)
+      (define selector (parse-atom #f #f))
+      (case (node-kind selector)
+        [(fields) (node 'dot-update #f (list receiver selector) at)]
+        [(list)
+         (if (null? (node-children selector))
+             (node 'dot-update #f
+                   (list receiver (struct-copy node selector [kind 'fields])) at)
+             (node 'dot-select #f (cons receiver (node-children selector)) at))]
+        [else (read-error source at "expected [ ... ] after dot")]))
+    (define (fields receiver tail at)
+      (for/fold ([value receiver]) ([part (in-list tail)]
+                                    #:unless (string=? part ""))
+        (node 'field-ref (string->symbol part) (list value) at)))
+    (define initial (fields root (drop parts root-count) found))
+    (define after-bracket
+      (if (string=? (last parts) "") (bracket initial found) initial))
+    (let loop ([value after-bracket])
+      (define next (current))
+      (if (and (eq? (token-kind next) 'word)
+               (string-prefix? (token-value next) "."))
+          (let* ([text (token-value (advance!))]
+                 [tail (cdr (string-split text "." #:trim? #f))])
+            (when (or (null? tail) (member "" (drop-right tail 1)))
+              (read-error source next "empty part in dotted path"))
+            (define extended (fields value tail next))
+            (loop (if (string=? (last tail) "")
+                      (bracket extended next)
+                      extended)))
+          value)))
+  (define (normalize-fields fields)
+    (define (insert entries parts value at)
+      (define name (string->symbol (car parts)))
+      (define existing (findf (lambda (entry) (eq? (node-value entry) name)) entries))
+      (define replacement
+        (cond
+          [(null? (cdr parts))
+           (when existing
+             (read-error source at (format "duplicate field ~a" name)))
+           (node 'field-entry name (list value) at)]
+          [else
+           (define old-value (and existing (car (node-children existing))))
+           (when (and old-value (not (eq? (node-kind old-value) 'fields)))
+             (read-error source at (format "field ~a is already a value" name)))
+           (define nested
+             (node 'fields #f
+                   (insert (if old-value (node-children old-value) '())
+                           (cdr parts) value at)
+                   at))
+           (node 'field-entry name (list nested) at)]))
+      (if existing
+          (for/list ([entry (in-list entries)])
+            (if (eq? (node-value entry) name) replacement entry))
+          (append entries (list replacement))))
+    (struct-copy node fields
+                 [children
+                  (for/fold ([entries '()]) ([entry (in-list (node-children fields))])
+                    (define parts
+                      (string-split (symbol->string (node-value entry)) "."
+                                    #:trim? #f))
+                    (when (member "" parts)
+                      (read-error source (node-at entry) "empty part in field path"))
+                    (insert entries parts (car (node-children entry))
+                            (node-at entry)))]))
+  (define (postfix-value base)
+    (let loop ([value base])
+      (define at (current))
+      (if (and (eq? (token-kind at) 'word)
+               (string-prefix? (token-value at) "."))
+          (let* ([text (token-value (advance!))]
+                 [parts (cdr (string-split text "." #:trim? #f))])
+            (when (or (null? parts) (member "" (drop-right parts 1)))
+              (read-error source at "empty part in dotted path"))
+            (define extended
+              (for/fold ([receiver value]) ([part (in-list parts)]
+                                            #:unless (string=? part ""))
+                (node 'field-ref (string->symbol part) (list receiver) at)))
+            (if (string=? (last parts) "")
+                (let ([selector (parse-atom #f #f)])
+                  (case (node-kind selector)
+                    [(fields) (loop (node 'dot-update #f
+                                          (list extended selector) at))]
+                    [(list)
+                     (loop (if (null? (node-children selector))
+                               (node 'dot-update #f
+                                     (list extended
+                                           (struct-copy node selector [kind 'fields]))
+                                     at)
+                               (node 'dot-select #f
+                                     (cons extended (node-children selector)) at)))]
+                    [else (read-error source at "expected [ ... ] after dot")]))
+                (loop extended)))
+          value)))
+  (define (parse-atom [stop-word #f] [allow-postfix? #t])
     (define found (current))
-    (case (token-kind found)
+    (define raw (case (token-kind found)
       [(left-paren)
        (advance!)
        (define value (parse-value))
@@ -195,7 +288,7 @@
                 (and (eq? (token-kind next) 'word)
                      (string=? (token-value next) "=")))))
        (if fields?
-           (node 'fields #f
+           (normalize-fields (node 'fields #f
                  (let loop ([backward '()] [seen '()])
                    (case (token-kind (current))
                      [(close) (advance!) (reverse backward)]
@@ -211,7 +304,7 @@
                       (loop (cons (node 'field-entry name (list value) field-at)
                                   backward)
                             (cons name seen))]))
-                 found)
+                 found))
            (node 'list #f
                  (let loop ([backward '()])
                    (case (token-kind (current))
@@ -230,20 +323,6 @@
           (node 'unary 'not (list (parse-value 40 stop-word)) found)]
          [(string=? text "-")
           (node 'unary '- (list (parse-value 70 stop-word)) found)]
-         [(string=? text "item")
-          (define saved index)
-          (define position
-            (with-handlers ([exn:fail:read? (lambda (_) #f)])
-              (parse-value 0 "of")))
-          (if (and position
-                   (eq? (token-kind (current)) 'word)
-                   (string=? (token-value (current)) "of"))
-              (begin
-                (advance!)
-                (node 'item-ref #f (list position (parse-value 80)) found))
-              (begin
-                (set! index saved)
-                (node 'result 'item '() found)))]
          [(string=? text "range")
           (define start (parse-value))
           (expect-word "to")
@@ -256,12 +335,13 @@
          [(regexp-match? #px"^[+-]?[0-9]+(?:[.][0-9]+)?$" text)
           (node 'literal (string->number (string-append "#e" text)) '() found)]
          [(and (> (string-length text) 1) (char=? (string-ref text 0) #\:))
-          (node 'parameter (string->symbol (substring text 1)) '() found)]
+          (dotted-value found text)]
          [(or (member text reserved)
               (string=? text ":"))
           (read-error source found "expected a value")]
-         [else (node 'result (string->symbol text) '() found)])]
+         [else (dotted-value found text)])]
       [else (read-error source found "expected a value")]))
+    (if allow-postfix? (postfix-value raw) raw))
   (define (parse-condition) (parse-value))
   (define (parse-if command in-procedure?)
     (define (branch start condition)
@@ -285,7 +365,19 @@
     (define found (current))
     (or (memq (token-kind found) '(close eof))
         (and (eq? (token-kind found) 'word)
-             (member (token-value found) commands))))
+             (member (token-value found) commands))
+        (and (eq? (token-kind found) 'word)
+             (< (add1 index) (vector-length tokens))
+             (let ([next (vector-ref tokens (add1 index))])
+               (and (eq? (token-kind next) 'word)
+                    (member (token-value next) '("=" "+=")))))
+        (and (eq? (token-kind found) 'word)
+             (string-suffix? (token-value found) ".")
+             (< (+ index 3) (vector-length tokens))
+             (eq? (token-kind (vector-ref tokens (add1 index))) 'open)
+             (eq? (token-kind (vector-ref tokens (+ index 2))) 'word)
+             (member (token-value (vector-ref tokens (+ index 3)))
+                     '("=" "+=")))))
   (define (parse-import start)
     (define url (token-value (expect 'string "a quoted Git repository URL")))
     (expect-word "at")
@@ -294,6 +386,7 @@
     (define alias (named-word "an import alias"))
     (when (regexp-match? #rx"[.]" (symbol->string alias))
       (read-error source start "an import alias cannot contain a dot"))
+    (set! import-aliases (cons (symbol->string alias) import-aliases))
     (node 'import (list url revision alias) '() start))
   (define (parse-state-object)
     (expect-word "state")
@@ -314,17 +407,41 @@
                         "performer needs named fields in [name = value] or []")]))
   (define (parse-location)
     (define at (expect 'word "a state location such as information.elapsed"))
-    (define parts (string-split (token-value at) "." #:trim? #f))
+    (define value (dotted-value at (token-value at)))
+    (define (path-parts part)
+      (case (node-kind part)
+        [(result) (list (node-value part))]
+        [(field-ref)
+         (append (path-parts (car (node-children part)))
+                 (list (node-value part)))]
+        [(dot-select)
+         (define children (node-children part))
+         (unless (= (length children) 2)
+           (read-error source at "state list location needs one position"))
+         (define position (second children))
+         (define index
+           (case (node-kind position)
+             [(literal)
+              (unless (exact-positive-integer? (node-value position))
+                (read-error source at "state list position starts at 1"))
+              (node-value position)]
+             [(result) (list 'index (node-value position))]
+             [else (read-error source at "state list position needs a number or name")]))
+         (append (path-parts (first children))
+                 (list index))]
+        [else (read-error source at "state location needs one field or position")]))
+    (define parts (path-parts value))
     (unless (and (>= (length parts) 2)
-                 (member (car parts) '("information" "environment" "factors"))
+                 (memq (car parts) '(information environment factors))
                  (andmap (lambda (part)
-                           (and (not (string=? part ""))
-                                (not (member part reserved))
-                                (not (regexp-match? #rx"^:" part))))
+                           (or (exact-positive-integer? part)
+                               (and (pair? part) (eq? (car part) 'index))
+                               (and (symbol? part)
+                                    (not (member (symbol->string part) reserved)))))
                          (cdr parts)))
       (read-error source at
                   "location must begin with information, environment, or factors and name a field"))
-    (node 'location (map string->symbol parts) '() at))
+    (node 'location parts '() at))
   (define (parse-state-mappings)
     (expect 'open "[ after with")
     (let loop ([backward '()] [seen '()])
@@ -389,6 +506,8 @@
                    (read-error source found "expected an input such as :paper"))
                  (when (memq input backward)
                    (read-error source found (format "duplicate input ~a" input)))
+                (when (regexp-match? #rx"[.]" word)
+                  (read-error source found "an input name cannot contain a dot"))
                  (loop (cons input backward))))))
        (expect 'open "[ after procedure inputs")
        (node 'to (cons name inputs) (parse-body #f #t #f #f) command)]
@@ -546,6 +665,9 @@
                (and (eq? (token-kind (current)) 'word)
                     (string=? (token-value (current)) "as")
                     (begin (advance!) (named-word "a result name"))))
+             (when (and result-name
+                        (regexp-match? #rx"[.]" (symbol->string result-name)))
+               (read-error source command "a result name cannot contain a dot"))
              (node 'call (cons name result-name) arguments command)))))]
       ["repeat"
        (if (eq? (token-kind (current)) 'open)
@@ -560,15 +682,15 @@
       ["for"
        (expect-word "each")
        (define name (named-word "a loop variable"))
+       (when (regexp-match? #rx"[.]" (symbol->string name))
+         (read-error source command "a loop name cannot contain a dot"))
        (expect-word "in")
        (define collection (parse-value))
        (expect 'open "[ after the collection")
        (node 'for-each (cons name collection)
              (parse-body #f in-procedure? #f #f) command)]
       ["set"
-       (define name (named-word "a value name"))
-       (expect-word "to")
-       (node 'set (cons name (parse-value)) '() command)]
+       (read-error source command "write name = value for assignment")]
       ["while"
        (define condition (parse-condition))
        (expect 'open "[ after while condition")
@@ -580,9 +702,32 @@
        (unless in-procedure?
          (read-error source command "output belongs inside a procedure"))
        (node 'output (parse-value) '() command)]
-      [_ (read-error source command
+      [_
+       (define name (token-value command))
+       (unless (and (not (member name reserved))
+                    (not (regexp-match? #px"^[+-]?[0-9]" name)))
+         (read-error source command
                      (format "unsupported command ~a in the first ScienceLogo slice"
-                             (token-value command)))]))
+                             name)))
+       (define target (dotted-value command name))
+       (cond
+         [(and (eq? (token-kind (current)) 'word)
+               (member (token-value (current)) '("=" "+=")))
+          (define operator (token-value (advance!)))
+          (define expression (parse-value))
+          (define value
+            (if (string=? operator "+=")
+                (if (eq? (node-kind expression) 'fields)
+                    (node 'dot-update #f (list target expression) command)
+                    (node 'binary '+ (list target expression) command))
+                expression))
+          (if (eq? (node-kind target) 'result)
+              (node 'assignment (cons (node-value target) value) '() command)
+              (node 'path-assignment #f (list target value) command))]
+         [(eq? (node-kind target) 'dot-update)
+          (node 'path-update-command #f (list target) command)]
+         [else
+          (read-error source command "expected = or += after assignment target")])]))
   (define (parse-interface-body)
     (let loop ([backward '()])
       (define found (current))
@@ -929,7 +1074,7 @@
      (struct-copy node form
                   [value (cons (qualified (call-name form))
                                (cdr (node-value form)))])]
-    [(set)
+    [(assignment)
      (struct-copy node form
                   [value (cons (car (node-value form))
                                (qualify-value (cdr (node-value form))))])]
@@ -1108,17 +1253,25 @@
 
 (define (state-paths state source)
   (define seen (make-hash))
-  (define (walk fields prefix)
-    (for ([entry (in-list (node-children fields))])
-      (define name (node-value entry))
-      (when (regexp-match? #rx"[.]" (symbol->string name))
-        (read-error source (node-at entry)
-                    "state field names cannot contain a dot"))
-      (define path (append prefix (list name)))
-      (define value (car (node-children entry)))
-      (hash-set! seen path (node->datum value))
-      (when (eq? (node-kind value) 'fields)
-        (walk value path))))
+  (define (walk value prefix)
+    (case (node-kind value)
+      [(fields)
+       (for ([entry (in-list (node-children value))])
+         (define name (node-value entry))
+         (when (regexp-match? #rx"[.]" (symbol->string name))
+           (read-error source (node-at entry)
+                       "state field names cannot contain a dot"))
+         (define path (append prefix (list name)))
+         (define child (car (node-children entry)))
+         (hash-set! seen path (node->datum child))
+         (walk child path))]
+      [(list)
+       (for ([child (in-list (node-children value))]
+             [position (in-naturals 1)])
+         (define path (append prefix (list position)))
+         (hash-set! seen path (node->datum child))
+         (walk child path))]
+      [else (void)]))
   (for ([entry (in-list (node-children state))])
     (define root (node-value entry))
     (unless (memq root '(information environment factors))
@@ -1131,8 +1284,7 @@
       (read-error source (node-at entry)
                   (format "state set ~a needs named fields or []" root)))
     (hash-set! seen (list root) (node->datum value))
-    (when (eq? (node-kind value) 'fields)
-      (walk value (list root))))
+    (walk value (list root)))
   seen)
 
 (define (validate-interface interface source)
@@ -1244,16 +1396,20 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list fields field-entry field-ref item-ref range compare binary unary but)
+      [(list fields field-entry field-ref range compare binary unary
+             dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
+      [(dot-select)
+       (check-value (car (node-children value)) inputs results)]
       [(parameter)
        (unless (memq (node-value value) inputs)
          (read-error source (node-at value)
                      (format "unknown input :~a" (node-value value))))]
       [(result)
        (unless (or (memq (node-value value) results)
-                   (hash-has-key? interfaces (node-value value)))
+                   (hash-has-key? interfaces (node-value value))
+                   (hash-has-key? performers (node-value value)))
          (read-error source (node-at value)
                      (format "unknown result ~a" (node-value value))))]))
   (define (check-state-stage stage)
@@ -1282,6 +1438,28 @@
         [(list) (andmap control-expression? (node-children value))]
         [(range) (andmap control-expression? (node-children value))]
         [else #f]))
+    (define (expand-path known path)
+      (let loop ([prefix '()] [remaining path])
+        (cond
+          [(null? remaining) (list prefix)]
+          [(and (pair? (car remaining)) (eq? (caar remaining) 'index))
+           (define name (cadar remaining))
+           (unless (hash-has-key? controls name)
+             (read-error source (node-at stage)
+                         (format "unknown stage list position ~a" name)))
+           (append*
+            (for/list ([(candidate _) (in-hash known)]
+                       #:when (and (= (length candidate) (add1 (length prefix)))
+                                   (equal? prefix (take candidate (length prefix)))
+                                   (exact-positive-integer? (last candidate))))
+              (loop candidate (cdr remaining))))]
+          [else (loop (append prefix (list (car remaining)))
+                      (cdr remaining))])))
+    (define (declared-path? known path)
+      (define candidates (expand-path known path))
+      (and (pair? candidates)
+           (andmap (lambda (candidate) (hash-has-key? known candidate))
+                   candidates)))
     (define (validate-body forms available)
       (for/fold ([known available]) ([form (in-list forms)])
         (case (node-kind form)
@@ -1304,20 +1482,32 @@
                          (format "input mappings for ~a must match its declared inputs" name)))
            (for ([mapping (in-list (node-children form))])
              (define path (node-value (car (node-children mapping))))
-             (unless (hash-has-key? known path)
+             (unless (declared-path? known path)
                (read-error source (node-at mapping)
                            (format "input location ~a is not available"
-                                   (string-join (map symbol->string path) ".")))))
+                                   (string-join (map (lambda (part) (format "~a" part)) path) ".")))))
            (unless (always-outputs? (node-children definition))
              (read-error source (node-at form)
                          (format "procedure ~a may finish without output" name)))
            (define target (node-value (second (node-value form))))
-           (unless (hash-has-key? known (drop-right target 1))
+           (unless (declared-path? known (drop-right target 1))
              (read-error source (node-at form)
                          "return location needs an existing parent in state"))
-           (hash-set! written target #t)
+           (when (or (exact-positive-integer? (last target))
+                     (and (pair? (last target))
+                          (eq? (car (last target)) 'index)))
+             (unless (declared-path? known target)
+               (read-error source (node-at form)
+                           "return list position must exist in state")))
+           (define dynamic-at
+             (for/first ([part (in-list target)] [i (in-naturals)]
+                         #:when (and (pair? part) (eq? (car part) 'index)))
+               i))
+           (define tracked-target (if dynamic-at (take target dynamic-at) target))
+           (when dynamic-at (expand-path known target))
+           (hash-set! written tracked-target #t)
            (define next (hash-copy known))
-           (hash-set! next target #t)
+           (hash-set! next tracked-target #t)
            next]
           [(call)
            (read-error source (node-at form)
@@ -1328,7 +1518,7 @@
           [(output)
            (read-error source (node-at form)
                        "output cannot leave a state stage before end stage")]
-          [(set)
+          [(assignment)
            (define name (car (node-value form)))
            (unless (and (not (memq name '(information environment factors)))
                         (control-expression? (cdr (node-value form))))
@@ -1376,7 +1566,7 @@
       (unless (hash-has-key? exit-paths path)
         (read-error source (node-at stage)
                     (format "closing state omits ~a"
-                            (string-join (map symbol->string path) ".")))))
+                            (string-join (map (lambda (part) (format "~a" part)) path) ".")))))
     (for ([(path _) (in-hash exit-paths)])
       (unless (or (hash-has-key? available path)
                   (for/or ([(target _) (in-hash written)])
@@ -1385,7 +1575,7 @@
                          (equal? target (take path (length target))))))
         (read-error source (node-at stage)
                     (format "closing state adds ~a without a return location"
-                            (string-join (map symbol->string path) ".")))))
+                            (string-join (map (lambda (part) (format "~a" part)) path) ".")))))
     (define (prefix? first second)
       (and (<= (length first) (length second))
            (equal? first (take second (length first)))))
@@ -1399,7 +1589,7 @@
                  (not (equal? before (hash-ref exit-paths path))))
         (read-error source (node-at stage)
                     (format "closing state changes ~a without a return location"
-                            (string-join (map symbol->string path) "."))))))
+                            (string-join (map (lambda (part) (format "~a" part)) path) "."))))))
   (define in-state-stage? (make-parameter #f))
   (define (check-forms forms inputs results [settable '()])
     (define writable settable)
@@ -1421,7 +1611,9 @@
          visible]
         [(must-implement)
          (define name (car (node-value form)))
-         (unless (memq name visible)
+         (define root (string->symbol
+                       (car (string-split (symbol->string name) "."))))
+         (unless (memq root visible)
            (read-error source (node-at form)
                        (format "unknown record ~a in must implement" name)))
          (define reference (cadr (node-value form)))
@@ -1460,7 +1652,7 @@
                        (format "loop variable ~a shadows a visible name" name)))
          (check-forms (node-children form) inputs (cons name visible) writable)
          visible]
-        [(set)
+        [(assignment)
          (define name (car (node-value form)))
          (check-value (cdr (node-value form)) inputs visible)
          (when (or (hash-has-key? interfaces name)
@@ -1468,10 +1660,24 @@
                    (memq name inputs)
                    (and (memq name visible) (not (memq name writable))))
            (read-error source (node-at form)
-                       (format "cannot set protected name ~a" name)))
+                       (format "cannot assign protected name ~a" name)))
          (unless (memq name writable)
            (set! writable (cons name writable)))
          (if (memq name visible) visible (cons name visible))]
+        [(path-assignment path-update-command)
+         (define target (car (node-children form)))
+         (define (root value)
+           (if (eq? (node-kind value) 'result)
+               (node-value value)
+               (root (car (node-children value)))))
+         (define name (root target))
+         (unless (and (memq name visible) (memq name writable))
+           (read-error source (node-at form)
+                       (format "cannot update protected or unknown name ~a" name)))
+         (check-value target inputs visible)
+         (when (eq? (node-kind form) 'path-assignment)
+           (check-value (second (node-children form)) inputs visible))
+         visible]
         [(print output)
          (check-value (node-value form) inputs visible)
          visible]
@@ -1580,8 +1786,15 @@
     [(for-each) (list 'for-each (car (node-value form))
                       (node->datum (cdr (node-value form)))
                       (map node->datum (node-children form)))]
-    [(set) (list 'set (car (node-value form))
+    [(assignment) (list 'assignment (car (node-value form))
                  (node->datum (cdr (node-value form))))]
+    [(path-assignment)
+     (list 'path-assignment
+           (node->datum (first (node-children form)))
+           (node->datum (second (node-children form))))]
+    [(path-update-command)
+     (list 'path-update-command
+           (node->datum (first (node-children form))))]
     [(print output) (list (node-kind form) (node->datum (node-value form)))]
     [(list range) (list (node-kind form) (map node->datum (node-children form)))]
     [(fields)
@@ -1592,14 +1805,8 @@
     [(field-ref)
      (list 'field-ref (node-value form)
            (node->datum (car (node-children form))))]
-    [(item-ref)
-     (list 'item-ref
-           (node->datum (first (node-children form)))
-           (node->datum (second (node-children form))))]
-    [(but)
-     (list 'but
-           (node->datum (first (node-children form)))
-           (node->datum (second (node-children form))))]
+    [(dot-select dot-update)
+     (list (node-kind form) (map node->datum (node-children form)))]
     [(compare binary unary)
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]

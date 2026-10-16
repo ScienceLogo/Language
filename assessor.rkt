@@ -140,10 +140,12 @@
         [(uses)
          (and (eq? from-type 'activity) (eq? to-type 'item))]
         [(produces)
-         (and (memq (activity-kind from) '(call for-each set)) (eq? to-type 'item)
+         (and (memq (activity-kind from) '(call for-each assignment)) (eq? to-type 'item)
               (equal? (item-model-producer (cdr (hash-ref elements to))) from))]
         [(updates)
-         (and (eq? (activity-kind from) 'set) (eq? to-type 'item)
+         (and (memq (activity-kind from)
+                    '(assignment path-assignment path-update-command))
+              (eq? to-type 'item)
               (eq? (item-model-role (cdr (hash-ref elements to))) 'value))]
         [(depends-on precedes)
          (and (eq? from-type 'activity) (eq? to-type 'activity))]
@@ -397,30 +399,60 @@
           (append provision-findings missing-findings impact-findings)
           checks))
 
+(define (shape-put shape path value)
+  (define name (car path))
+  (if (null? (cdr path))
+      (hash-set shape name value)
+      (hash-set shape name
+                (shape-put (let ([earlier (hash-ref shape name #f)])
+                             (if (hash? earlier) earlier (hasheq)))
+                           (cdr path) value))))
+
+(define (shape-merge base changes)
+  (for/fold ([result base]) ([(name value) (in-hash changes)])
+    (define earlier (hash-ref result name #f))
+    (hash-set result name
+              (if (and (hash? earlier) (hash? value))
+                  (shape-merge earlier value)
+                  value))))
+
+(define (shape-has-path? shape path)
+  (and (hash? shape)
+       (hash-has-key? shape (car path))
+       (or (null? (cdr path))
+           (shape-has-path? (hash-ref shape (car path)) (cdr path)))))
+
 (define (record-shape expression environment templates)
   ;; Only written, direct record constructions are known here. A procedure result
   ;; or an executable block can depend on information absent from the method.
   (match expression
     [`(fields ,entries)
      (for/hasheq ([entry (in-list entries)])
-       (values (car entry) #t))]
+       (values (car entry)
+               (if (and (pair? (cadr entry)) (eq? (caadr entry) 'fields))
+                   (record-shape (cadr entry) environment templates)
+                   #t)))]
     [`(result ,name)
      (hash-ref environment name 'undetermined)]
-    [`(but ,source (fields ,entries))
+    [`(dot-update (,source (fields ,entries)))
      (define base
        (match source
          [`(result ,name)
           (if (hash-has-key? templates name)
-              (for/hasheq ([field (in-list
-                                   (record-interface-fields
-                                    (hash-ref templates name)))]
-                           #:when (cdr field))
-                (values (car field) #t))
+              (for/fold ([shape (hasheq)])
+                        ([field (in-list
+                                 (record-interface-fields
+                                  (hash-ref templates name)))]
+                         #:when (cdr field))
+                (shape-put shape
+                           (map string->symbol
+                                (string-split (symbol->string (car field)) "."))
+                           #t))
               (hash-ref environment name 'undetermined))]
          [_ (record-shape source environment templates)]))
      (if (hash? base)
-         (for/fold ([shape base]) ([entry (in-list entries)])
-           (hash-set shape (car entry) #t))
+         (shape-merge base
+                      (record-shape `(fields ,entries) environment templates))
          base)]
     [`(literal ,_) 'not-a-record]
     [_ 'undetermined]))
@@ -481,9 +513,31 @@
      (define environment (make-hasheq))
      (for ([form (in-list earlier)])
        (match form
-         [`(set ,name ,expression)
+         [`(assignment ,name ,expression)
           (hash-set! environment name
                      (record-shape expression environment templates))]
+         [`(path-assignment ,target ,_)
+          (define (path value)
+            (match value
+              [`(result ,name) (list name)]
+              [`(field-ref ,field ,receiver)
+               (append (path receiver) (list field))]
+              [_ #f]))
+          (define location (path target))
+          (when (and location (hash? (hash-ref environment (car location) #f)))
+            (hash-set! environment (car location)
+                       (shape-put (hash-ref environment (car location))
+                                  (cdr location) #t)))]
+         [`(path-update-command (dot-update (,receiver (fields ,entries))))
+          (match receiver
+            [`(result ,name)
+             (define earlier (hash-ref environment name 'undetermined))
+             (when (hash? earlier)
+               (hash-set! environment name
+                          (shape-merge earlier
+                                       (record-shape `(fields ,entries)
+                                                     environment templates))))]
+            [_ (void)])]
          [`(call ,_ ,_ ,name)
           (when name (hash-set! environment name 'undetermined))]
          [`(sequence ,_) (for ([name (in-hash-keys environment)])
@@ -499,11 +553,24 @@
          [`(if ,_) (for ([name (in-hash-keys environment)])
                      (hash-set! environment name 'undetermined))]
          [_ (void)]))
-     (define shape (hash-ref environment target 'undetermined))
+     (define target-parts
+       (map string->symbol (string-split (symbol->string target) ".")))
+     (define shape
+       (for/fold ([current (hash-ref environment (car target-parts)
+                                    'undetermined)])
+                 ([part (in-list (cdr target-parts))])
+         (if (hash? current)
+             (hash-ref current part 'undetermined)
+             'undetermined)))
      (define missing
        (and (hash? shape)
             (for/list ([part (in-list (interface-model-conditions interface))]
-                       #:unless (hash-has-key? shape (condition-model-target part)))
+                       #:unless (shape-has-path?
+                                 shape
+                                 (map string->symbol
+                                      (string-split
+                                       (symbol->string (condition-model-target part))
+                                       "."))))
               (condition-model-target part))))
      (define-values (outcome gap)
        (cond [(not record-interface?) (values 'violated 'wrong-interface-kind)]

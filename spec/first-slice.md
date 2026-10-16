@@ -207,7 +207,7 @@ the workflow revision reflects its source and resolved library definitions. Dire
 imports record their resolved Git commits; imported procedures retain source references.
 A `do` call has an `invokes` relation to its procedure. Sequential
 commands have `precedes` relations; a named result has `produces` and `uses` relations.
-The first `set` of a name produces a value slot; later `set` commands record
+The first assignment to a name produces a value slot; later assignments record
 `updates` links to that slot. A later read records possible dependencies on
 both its creation and earlier update sites.
 For example, `do collect as observations` followed by `do analyze observations`
@@ -249,7 +249,7 @@ The procedure returns the plan; the caller prints it. A procedure may also decla
 inputs after its name. For instance, `to echo :text [output :text]` returns the one
 value supplied by `do echo "Pendulum P1" as subject`. The colon is used only for an
 input inside that procedure. A bare name such as `plan` or `subject` refers to a
-value named earlier with `as` or `set` in the current block or an enclosing block. A value
+value named earlier with `as` or assignment in the current block or an enclosing block. A value
 can be quoted text, an exact decimal or integer, `true`, `false`, `unknown`,
 a list, a numeric range, a declared input, or a named value. Values can be
 combined into arithmetic and Boolean expressions. Write spaces around
@@ -267,16 +267,16 @@ procedure sees only its declared inputs, not the caller's result names.
 Brackets beginning with `name = value` create a value with named fields:
 
 ```text
-set trial to [
+trial = [
   temperature = 0.8
   prompt = "tell me the capital of Peru"
 ]
-print temperature of trial
+print trial.temperature
 ```
 
 The field names are labels, and the values can be quoted text, exact numbers,
 expressions, lists, or other values with named fields. Field names are unique.
-`temperature of trial` reads a field and raises an error if `trial` has no
+`trial.temperature` reads a field and raises an error if `trial` has no
 named fields or lacks `temperature`. Field order does not affect equality.
 The brackets still denote an ordinary list when they do not begin with
 `name = value`: `[x y]` contains two named values, and `[[1 2] [3 4]]`
@@ -284,22 +284,22 @@ contains two rows. Parenthesize a comparison meant to be a list item, as in
 `[(x = y)]`. The language supplies this generic structure; libraries can
 define what particular fields mean.
 
-`record but [field = value ...]` makes a new named-field value from `record`.
-Fields in the brackets replace existing fields or add new ones; other fields
-are retained. The original value is unchanged. The value before `but` must
-have named fields, and the brackets after `but` must contain named fields.
-For example:
+Dot paths read nested content throughout expressions: `trial.clock.time`
+reads `time` within `clock`. `trial.[temperature prompt]` selects those two
+named fields into a new record; it does not introduce two local variables.
+`trials.[2]` selects the second item of a list. Brackets after a dot can
+also specify several updates. For example:
 
 ```text
-set human to [species = "human" gender = "unspecified"]
-set john to human but [gender = "male"]
-set earlier to john
-set john to john but [height = 193]
+human = [species = "human" gender = "unspecified"]
+john = human.[gender = "male"]
+earlier = john
+john.[height = 193]
 ```
 
-`earlier` still has the value it received before the last assignment, while
-`john` now also has `height`. A plain `set another to john` assigns
-the same immutable value without needing `but`. Quoted text such as `"male"`
+`earlier` still has the value it received before the update, while
+`john` now also has `height`. `john.height = 194` updates one field.
+A plain `another = john` assigns the same value. Quoted text such as `"male"`
 is literal; an unquoted name refers to a value defined earlier. A record
 interface may supply defaults when constructing a new record. It also states
 structural obligations that can be checked independently with `must`.
@@ -308,21 +308,28 @@ A record interface may be declared directly in a workflow:
 
 ```text
 interface "Timing" [duration unit = "seconds"]
-set trial to Timing but [duration = 2]
+trial = Timing.[duration = 2]
 must trial implement Timing
 ```
 
 `duration` is required; `unit` defaults to `"seconds"` and can be overridden
-with `but [unit = "minutes"]`. Every field named in the interface must be
+with `trial.unit = "minutes"`. Every field named in the interface must be
 present in the resulting record, but additional fields are allowed. There is
 no separate optional-field category. A record made without the constructor
 can also satisfy the interface. `unknown` is an explicit value and counts as
 present; omission does not. A standalone interface file can be checked with
 `must trial implement "relative/path.rkt"`. The assessor checks field
-presence from direct `set` and `but` statements. When the record depends on
+presence from direct assignments and dotted updates. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and
 standalone interfaces may omit `version`; assessments retain the source
 revision hash.
+
+`trial += [unit = "minutes" note = "hand timed"]` updates the existing
+`unit` field and adds `note`. The right side of a record update is written
+with named fields, and `trial` must already exist. An existing numeric field
+can be increased with `trial.duration += 2`; known numeric values must be
+exact numbers. A missing field is created with `=` or a record update, not
+with numeric `+=`.
 
 Record interfaces can inherit and combine other record interfaces:
 
@@ -347,23 +354,36 @@ different inherited requirements or defaults for the same field are a read
 error. Unknown parents, duplicate parents, and extension cycles are errors.
 Constructing from the combined interface applies the resolved defaults and
 requires all resolved bare fields. A `must` check uses those same resolved
-fields. `but []` can construct an interface when no bare field remains to be
+fields. `Combined.[]` can construct an interface when no bare field remains to be
 supplied. Standalone interface files cannot use local `extends` references.
+An interface may declare nested fields such as `clock.time` and defaults such
+as `clock.unit = "seconds"`. Missing containing fields are created as records;
+an existing containing value must be a record.
 
 ## Lists, ranges, loops, and conditions
 
-`set name to value` creates a local name or updates a visible name previously
-created with `set`. This separates a range's definition from its uses. For
+`name = value` creates a local name or updates a visible name previously
+created by assignment. This separates a range's definition from its uses. For
 instance, the same range can drive two parameter sweeps:
 
 ```text
 workflow "Which pendulum lengths should we compare?"
-set lengths to range 0.25 to 1.00 step 0.25
+lengths = range 0.25 to 1.00 step 0.25
 for each length in lengths [print length]
 for each length in lengths [
   if length >= 0.75 [print "longer trial"]
 ]
 ```
+
+At command position, `name = value` assigns. A dotted target, such as
+`trial.clock.time = "12:00"`, updates nested content. Within a record or
+dotted update,
+`field = value` supplies a field; within an interface it supplies a default.
+`name += [field = value]` updates or adds record fields. On an existing number,
+`name += increment` or `name.field += increment` adds the numeric expression.
+In an `if` condition, `=` compares values. A comparison passed directly to a
+procedure must be parenthesized, as in `do check (count = 10)`, because an
+unparenthesized `count = 10` after a call starts a new assignment.
 
 The range is an ordered sequence of exact numbers. It includes the end only
 when a whole number of steps lands on it. Its bounds and step can also be
@@ -373,13 +393,13 @@ other values or lists. A `for each` collection must evaluate to a list. Nested
 `for each` blocks express combinations of parameters. These forms describe and
 run the iteration of the written method; `print` still only displays text.
 
-List positions start at 1. `item 1 of lengths` reads the first value;
-`item 0 of lengths` is an error. An index can be a named value or expression,
-as in `item position of lengths` or `item 1 + 1 of lengths`. It must be an
+List positions start at 1. `lengths.[1]` reads the first value;
+`lengths.[0]` is an error. An index can be a named value or expression,
+as in `lengths.[position]` or `lengths.[1 + 1]`. It must be an
 exact positive integer within the list. A matrix represented as a list of
-rows uses the same rule at each level: `item 2 of item 1 of grid` reads the
-second value of the first row. `item` needs a list; named fields use
-`field of value`. A numeric range may still start at zero because its values
+rows uses the same rule at each level: `grid.[1].[2]` reads the
+second value of the first row. `lengths.[2] = value` replaces an existing
+position. A numeric range may still start at zero because its values
 are not list positions.
 
 `repeat 3 [ ... ]` runs a block a fixed number of times; its count must be a
@@ -387,20 +407,20 @@ nonnegative integer. `while condition [ ... ]` tests before each iteration.
 `repeat [ ... ] until condition` runs at least once and tests afterward. The
 post-test condition can use a value named inside the block for that iteration.
 Each iteration has a fresh local scope, so new names do not leak into the
-next iteration or the surrounding block. A `set` inside that block can update
-a visible `set` name from an enclosing block. Procedure inputs, `as` results,
+next iteration or the surrounding block. An assignment inside that block can update
+a visible assigned name from an enclosing block. Procedure inputs, `as` results,
 and `for each` iteration names cannot be updated this way. This makes a
 terminating condition possible, for example:
 
 ```text
-set continue to true
+continue = true
 while continue [
   print "One planned pass"
-  set continue to false
+  continue = false
 ]
 ```
 
-A changing count can be written `set attempts to attempts + 1`. Arithmetic
+A changing count can be written `attempts = attempts + 1`. Arithmetic
 supports `+`, `-`, `*`, and `/` on exact numbers. A finite decimal quotient
 is displayed as a decimal; another rational quotient is displayed as a
 fraction, such as `1/3`. Division by zero is an error. Expressions also work
@@ -414,8 +434,8 @@ can combine Boolean values and comparisons with `=`, `!=`, `<`, `<=`, `>`, or
 `and` needs both sides true, `or` needs either side true, and `xor` needs
 exactly one side true. Precedence from strongest to weakest is parentheses,
 unary `-`, `*` and `/`, `+` and `-`, comparisons, `not`, `and`, `xor`, then
-`or`. Field access with `of` binds more tightly than `but`, which binds more
-tightly than unary `-` and arithmetic. Operators at one level associate left to
+`or`. Dotted access binds more tightly than unary `-` and arithmetic.
+Operators at one level associate left to
 right. Comparisons cannot be
 chained; combine them with `and`. `unknown` explicitly represents an
 undetermined value. `false and unknown` resolves to `false`, and `true or

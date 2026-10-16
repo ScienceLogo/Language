@@ -77,10 +77,10 @@
             "  to make-plan [output \"ready\"]\n"
             "  stage \"Review\"\n"
             "  print plan\n"
-            "  set bundle to [summary = plan]\n"
-            "  set revised to bundle but [summary = plan]\n"
-            "  print summary of bundle\n"
-            "  print item 1 of [plan]\n"
+            "  bundle = [summary = plan]\n"
+            "  revised = bundle.[summary = plan]\n"
+            "  print bundle.summary\n"
+            "  print [plan].[1]\n"
             "\n")
            out))
         #:exists 'truncate)
@@ -102,7 +102,7 @@
       (check-true (relation? 'depends-on (activity-model-id display-step)
                                 (activity-model-id call) links))
       (define bundle-step
-        (findf (lambda (a) (eq? (activity-model-kind a) 'set)) activities))
+        (findf (lambda (a) (eq? (activity-model-kind a) 'assignment)) activities))
       (define field-step
         (second (filter (lambda (a) (eq? (activity-model-kind a) 'print))
                         activities)))
@@ -112,7 +112,7 @@
       (check-true (relation? 'depends-on (activity-model-id bundle-step)
                              (activity-model-id call) links))
       (define revised-step
-        (findf (lambda (a) (and (eq? (activity-model-kind a) 'set)
+        (findf (lambda (a) (and (eq? (activity-model-kind a) 'assignment)
                                 (not (equal? (activity-model-id a)
                                              (activity-model-id bundle-step)))))
                activities))
@@ -140,15 +140,15 @@
           (display
            (string-append
             "#lang sciencelogo\n"
-            "set lengths to range 0.25 to 1 step 0.25\n"
+            "lengths = range 0.25 to 1 step 0.25\n"
             "for each length in lengths [\n"
             "  if length + 0.25 <= 1 and not false [print length] else [print \"last\"]\n"
             "]\n"
             "repeat 2 [print \"again\"]\n"
-            "set continue to true\n"
-            "while continue [set continue to false]\n"
+            "continue = true\n"
+            "while continue [continue = false]\n"
             "print continue\n"
-            "repeat [set done to true] until done\n")
+            "repeat [done = true] until done\n")
            out))
         #:exists 'truncate)
       (define model (read-workflow-model loop-source))
