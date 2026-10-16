@@ -35,18 +35,41 @@ and conditions of a method understandable to people, including when AI
 participates. The language is under development: the current runnable subset
 is small, and broader scientific and AI constructs are still being designed.
 
+@section{Current language status}
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Part") (bold "Current behavior"))
+   (list (secref "values")
+         "Values, records, expressions, and ranges run")
+   (list (secref "procedures")
+         "Procedures, assignments, branches, and loops run")
+   (list (secref "libraries")
+         "Includes and pinned Git library imports are resolved")
+   (list (secref "stages")
+         "Simple headers label commands; paired stages are read and checked as a written method")
+   (list (secref "resources")
+         "External reads and writes are represented; no external data is transferred")
+   (list (secref "assessment")
+         "The assessor checks declared method structure and record fields")))
+
+Scientific adequacy, protocol conformance, bias and uncertainty analysis,
+records of observed runs, and the planned verbose syntax remain outside the
+current implementation. The
+@hyperlink[(source-file-url "spec/README.md")]{specification index} identifies
+which design documents describe future work.
+
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to
-stages, reusable definitions, and declared checks. Each page says whether its
-forms run, are read and checked as a written method, or remain design work.
-The @hyperlink[(source-file-url "spec/README.md")]{specification index}
-separates adopted rules from open design questions.
+stages, external resources, reusable definitions, and declared checks. Each
+page states what its forms currently do.
 
 @include-section["getting-started.scrbl"]
 @include-section["reference.scrbl"]
 @include-section["values.scrbl"]
 @include-section["procedures.scrbl"]
 @include-section["stages.scrbl"]
+@include-section["resources.scrbl"]
 @include-section["interfaces.scrbl"]
 @include-section["libraries.scrbl"]
 @include-section["assessment.scrbl"]

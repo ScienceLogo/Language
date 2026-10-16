@@ -83,6 +83,9 @@ Calls inside a paired stage take scientific inputs from state locations, not
 from literals or detached local names. Locally assigned values are restricted to
 integer counters or positions; `for each` there likewise needs integer
 positions. A value intended as a scientific input must be placed in state.
+An assignment from a declared [external resource](resources.md) can also
+change a state field. It needs an existing parent in state; an assignment to a
+resource path declares an outbound transfer and does not change stage state.
 
 ## Reader constraints
 
@@ -97,8 +100,8 @@ without an existing parent for its `into` path is an error.
 
 Every path guaranteed to be available after the stage body must appear in the
 closing state. A closing field without a corresponding entry field needs an
-explicit return that guarantees it on every path. An entry field cannot
-silently change or disappear. A return to that field or its containing record
+explicit return or resource read that guarantees it on every path. An entry field cannot
+silently change or disappear. A return or resource read to that field or its containing record
 can account for a change. A return confined to an unresolved branch cannot
 guarantee a new closing field.
 

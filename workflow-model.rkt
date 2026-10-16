@@ -12,6 +12,7 @@
          (struct-out workflow-model)
          (struct-out stage-model)
          (struct-out performer-model)
+         (struct-out resource-model)
          (struct-out procedure-model)
          (struct-out activity-model)
          (struct-out item-model)
@@ -25,9 +26,10 @@
 ;; These records describe a method. They do not report that any activity occurred.
 (struct source-ref (source line column position) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
-                           relations imports implementations conditions performers) #:transparent)
+                           relations imports implementations conditions performers resources) #:transparent)
 (struct stage-model (id name parent source entry exit performer) #:transparent)
 (struct performer-model (id name fields source) #:transparent)
+(struct resource-model (id name fields source) #:transparent)
 (struct procedure-model (id name inputs source) #:transparent)
 (struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
@@ -108,7 +110,30 @@
        (node-value declaration)
        (node->datum (first (node-children declaration)))
        (origin (node-at declaration)))))
+  (define resource-declarations
+    (filter (lambda (form) (eq? (node-kind form) 'resource)) forms))
+  (define resource-ids
+    (for/hasheq ([declaration (in-list resource-declarations)])
+      (values (node-value declaration)
+              (element-id root 'resource (node-at declaration)
+                          (node-value declaration)))))
+  (define resources
+    (for/list ([declaration (in-list resource-declarations)])
+      (resource-model
+       (hash-ref resource-ids (node-value declaration))
+       (node-value declaration)
+       (node->datum (first (node-children declaration)))
+       (origin (node-at declaration)))))
+  (define (path-root value)
+    (case (node-kind value)
+      [(result) (node-value value)]
+      [(field-ref dot-select) (path-root (car (node-children value)))]
+      [else #f]))
+  (define (resource-path? value)
+    (and (memq (node-kind value) '(field-ref dot-select))
+         (hash-has-key? resource-ids (path-root value))))
   (define current-performer (make-parameter #f))
+  (define in-state-stage (make-parameter #f))
   (define procedures '())
   (define stages '())
   (define activities '())
@@ -129,8 +154,17 @@
         [(for-each) (node->datum (cdr (node-value form)))]
         [else #f]))
     (define effective-performer
-      (and (eq? (node-kind form) 'state-call)
-           (or (third (node-value form)) (current-performer))))
+      (case (node-kind form)
+        [(state-call) (or (third (node-value form)) (current-performer))]
+        [(assignment path-assignment)
+         (and (current-performer)
+              (or (and (eq? (node-kind form) 'assignment)
+                       (resource-path? (cdr (node-value form))))
+                  (and (eq? (node-kind form) 'path-assignment)
+                       (or (resource-path? (first (node-children form)))
+                           (resource-path? (second (node-children form))))))
+              (current-performer))]
+        [else #f]))
     (define activity
       (activity-model id (node-kind form) name parent
                       (origin (node-at form)) control #f))
@@ -144,7 +178,7 @@
                                                (node-value (car (node-children mapping)))))
                                        (node-value (second (node-value form)))
                                        effective-performer)])]
-                  [(path-assignment path-update-command)
+                  [(call assignment path-assignment path-update-command print output)
                    (struct-copy activity-model activity
                                 [details (node->datum form)])]
                   [else activity])
@@ -161,7 +195,10 @@
       [(parameter) (hash-ref inputs (node-value value))]
       [(result)
        (if (or (hash-has-key? inline-interfaces (node-value value))
-               (hash-has-key? performer-ids (node-value value)))
+               (hash-has-key? performer-ids (node-value value))
+               (and (in-state-stage)
+                    (memq (node-value value)
+                          '(information environment factors))))
            #f
            (let loop ([remaining scopes])
          (cond
@@ -171,7 +208,10 @@
             (hash-ref (car remaining) (node-value value))]
            [else (loop (cdr remaining))])))]))
   (define (add-use activity-id value inputs scopes)
-    (case (node-kind value)
+    (if (resource-path? value)
+        (add-relation 'reads-from activity-id
+                      (hash-ref resource-ids (path-root value)) (node-at value))
+        (case (node-kind value)
       [(list fields field-entry field-ref range compare binary unary
              dot-update)
        (for ([part (in-list (node-children value))])
@@ -189,7 +229,7 @@
          (when producer
            (add-relation 'depends-on activity-id producer (node-at value)))
          (for ([updater (in-list (hash-ref update-sites item-id '()))])
-           (add-relation 'depends-on activity-id updater (node-at value))))]))
+           (add-relation 'depends-on activity-id updater (node-at value))))])))
   (define (build-block body parent inputs scopes)
     (define previous #f)
     (define current-stage #f)
@@ -214,7 +254,8 @@
                                   (fourth (node-value form)))
                      stages))
          (add-relation 'contains parent id (node-at form))
-         (parameterize ([current-performer (fourth (node-value form))])
+         (parameterize ([current-performer (fourth (node-value form))]
+                        [in-state-stage #t])
            (build-block (node-children form) id inputs scopes))
          (set! current-stage #f)]
         [(memq kind '(call state-call sequence repeat repeat-until for-each while if
@@ -292,7 +333,10 @@
                   (node-value value)
                   (root (car (node-children value)))))
             (define name (root target))
-            (add-use id target inputs scopes)
+            (if (resource-path? target)
+                (add-relation 'writes-to id (hash-ref resource-ids name)
+                              (node-at target))
+                (add-use id target inputs scopes))
             (when (eq? kind 'path-assignment)
               (add-use id (second (node-children form)) inputs scopes))
             (define existing
@@ -350,6 +394,10 @@
       [(performer)
        (add-relation 'defines-performer root
                      (hash-ref performer-ids (node-value form))
+                     (node-at form))]
+      [(resource)
+       (add-relation 'defines-resource root
+                     (hash-ref resource-ids (node-value form))
                      (node-at form))]
       [(import)
        (match-define (list url requested commit alias library-name)
@@ -409,7 +457,7 @@
   (workflow-model root (node-value tree) source revision
                   (reverse procedures) (reverse stages) (reverse activities) (reverse items)
                   (reverse relations) (reverse imports)
-                  (reverse implementations) (reverse conditions) performers))
+                  (reverse implementations) (reverse conditions) performers resources))
 
 (define (read-interface-model path)
   (define source (path->string (path->complete-path path)))

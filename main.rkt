@@ -26,6 +26,16 @@
        (for/hasheq ([form (in-list forms)]
                     #:when (match form [`(performer ,_ ,_) #t] [_ #f]))
          (values (cadr form) (caddr form))))
+     (define resources
+       (for/hasheq ([form (in-list forms)]
+                    #:when (match form [`(resource ,_ ,_) #t] [_ #f]))
+         (values (cadr form) #t)))
+     (define (resource-root expression)
+       (match expression
+         [`(result ,name) (and (hash-has-key? resources name) name)]
+         [`(field-ref ,_ ,receiver) (resource-root receiver)]
+         [`(dot-select (,receiver ,_ ...)) (resource-root receiver)]
+         [_ #f]))
      (define no-result (gensym 'no-result))
      (define (decimal-text value)
        (define denominator-value (denominator value))
@@ -177,23 +187,27 @@
                [`(,name ,value)
                 (cons name (value-of value inputs scopes))])))]
          [`(dot-select (,receiver ,selectors ...))
-          (define container (value-of receiver inputs scopes))
-          (if (= (length selectors) 1)
-              (select-one container (car selectors) inputs scopes)
-              (if (hash? container)
-                  (for/hasheq ([selector (in-list selectors)])
-                    (define key (selector-key selector container inputs scopes))
-                    (values key (select-one container selector inputs scopes)))
-                  (for/list ([selector (in-list selectors)])
-                    (select-one container selector inputs scopes))))]
+          (if (resource-root expression)
+              'unknown
+              (let ([container (value-of receiver inputs scopes)])
+                (if (= (length selectors) 1)
+                    (select-one container (car selectors) inputs scopes)
+                    (if (hash? container)
+                        (for/hasheq ([selector (in-list selectors)])
+                          (define key (selector-key selector container inputs scopes))
+                          (values key (select-one container selector inputs scopes)))
+                        (for/list ([selector (in-list selectors)])
+                          (select-one container selector inputs scopes))))))]
          [`(dot-update (,receiver (fields ,entries)))
           (patch-value (value-of receiver inputs scopes) entries inputs scopes)]
          [`(field-ref ,name ,receiver)
-          (define record (value-of receiver inputs scopes))
-          (unless (hash? record)
-            (error 'run-program "field ~a needs a named-field value" name))
-          (hash-ref record name
-                    (lambda () (error 'run-program "missing field ~a" name)))]
+          (if (resource-root expression)
+              'unknown
+              (let ([record (value-of receiver inputs scopes)])
+                (unless (hash? record)
+                  (error 'run-program "field ~a needs a named-field value" name))
+                (hash-ref record name
+                          (lambda () (error 'run-program "missing field ~a" name)))))]
          [`(range (,start ,end ,step))
           (numeric-range (value-of start inputs scopes)
                          (value-of end inputs scopes)
@@ -324,6 +338,7 @@
            [`(must-implement ,_ ,_) (void)]
            [`(interface ,_ ,_) (void)]
            [`(performer ,_ ,_) (void)]
+           [`(resource ,_ ,_) (void)]
            [`(stage ,_) (void)]
            [`(state-stage ,_ ,_ ,_ ,_ ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
@@ -344,8 +359,9 @@
               (error 'run-program "an interface needs .[field = value] to construct a record"))
             (write-name name value scopes)]
            [`(path-assignment ,target ,expression)
-            (assign-path target (value-of expression inputs scopes)
-                         inputs scopes)]
+            (define value (value-of expression inputs scopes))
+            (unless (resource-root target)
+              (assign-path target value inputs scopes))]
            [`(path-update-command (dot-update (,receiver (fields ,entries))))
             (assign-path receiver
                          (patch-value (value-of receiver inputs scopes)

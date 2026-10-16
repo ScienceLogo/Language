@@ -53,3 +53,6 @@ conditions behind its values.
 Read @secref["values"] and @secref["procedures"] for the exact rules. Then
 @secref["stages"] shows how a written method declares what enters and leaves
 a stage. Its paired stage form is checked by the reader but is not executed.
+@secref["resources"] shows how the method names external scientific data and
+records where values would be read or written. The language does not perform
+those transfers.

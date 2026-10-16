@@ -53,6 +53,8 @@ print trial.unit
 new record containing both named fields; it does not create local names.
 It is an error to read a missing field. Field order does not affect record
 equality. Brackets without an initial @tt{name = value} make a list instead.
+External scientific storage uses a declared @secref["resources"] instead of
+an ordinary record path.
 In a record declaration, @tt{clock.time = "12:00"} creates nested fields;
 it has the same shape as @tt{clock = [time = "12:00"]}.
 

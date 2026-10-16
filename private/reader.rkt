@@ -90,7 +90,7 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "repeat" "for" "while" "if" "else" "set"))
+  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "repeat" "for" "while" "if" "else" "set"))
   (define reserved
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
@@ -405,6 +405,14 @@
        (struct-copy node value [kind 'fields])]
       [else (read-error source (node-at value)
                         "performer needs named fields in [name = value] or []")]))
+  (define (parse-resource-object)
+    (define value (parse-atom))
+    (cond
+      [(eq? (node-kind value) 'fields) value]
+      [(and (eq? (node-kind value) 'list) (null? (node-children value)))
+       (struct-copy node value [kind 'fields])]
+      [else (read-error source (node-at value)
+                        "resource needs named fields in [name = value] or []")]))
   (define (parse-location)
     (define at (expect 'word "a state location such as information.elapsed"))
     (define value (dotted-value at (token-value at)))
@@ -548,6 +556,14 @@
        (when (regexp-match? #rx"[.]" (symbol->string name))
          (read-error source command "a performer name cannot contain a dot"))
        (node 'performer name (list (parse-performer-object)) command)]
+      ["resource"
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "resource belongs directly in a workflow"))
+       (define name (named-word "a resource name"))
+       (when (regexp-match? #rx"[.]" (symbol->string name))
+         (read-error source command "a resource name cannot contain a dot"))
+       (node 'resource name (list (parse-resource-object)) command)]
       ["implements"
        (unless (and definitions-allowed? (not in-procedure?)
                     (not includes-allowed?) (not imports-allowed?))
@@ -1341,6 +1357,7 @@
   (define definitions (make-hasheq))
   (define interfaces (make-hasheq))
   (define performers (make-hasheq))
+  (define resources (make-hasheq))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'interface))
     (define name (string->symbol (node-value form)))
@@ -1372,6 +1389,32 @@
       (read-error source (node-at form)
                   (format "performer name ~a conflicts with another definition" name)))
     (hash-set! performers name form))
+  (for ([form (in-list (node-children program))]
+        #:when (eq? (node-kind form) 'resource))
+    (define name (node-value form))
+    (when (hash-has-key? resources name)
+      (read-error source (node-at form) (format "duplicate resource ~a" name)))
+    (when (or (hash-has-key? definitions name)
+              (hash-has-key? interfaces name)
+              (hash-has-key? performers name)
+              (memq name '(information environment factors))
+              (for/or ([other (in-list (node-children program))])
+                (case (node-kind other)
+                  [(import) (eq? name (list-ref (node-value other) 3))]
+                  [(implements) (eq? name (second (node-value other)))]
+                  [else #f])))
+      (read-error source (node-at form)
+                  (format "resource name ~a conflicts with another definition" name)))
+    (hash-set! resources name form))
+  (define (path-root value)
+    (case (node-kind value)
+      [(result) (node-value value)]
+      [(field-ref dot-select dot-update)
+       (path-root (car (node-children value)))]
+      [else #f]))
+  (define (resource-path? value)
+    (and (memq (node-kind value) '(field-ref dot-select))
+         (hash-has-key? resources (path-root value))))
   (define (check-performer name at)
     (unless (hash-has-key? performers name)
       (read-error source at (format "unknown performer ~a" name))))
@@ -1396,12 +1439,16 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list fields field-entry field-ref range compare binary unary
+      [(list fields field-entry range compare binary unary
              dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
+      [(field-ref)
+       (unless (resource-path? value)
+         (check-value (car (node-children value)) inputs results))]
       [(dot-select)
-       (check-value (car (node-children value)) inputs results)]
+       (unless (resource-path? value)
+         (check-value (car (node-children value)) inputs results))]
       [(parameter)
        (unless (memq (node-value value) inputs)
          (read-error source (node-at value)
@@ -1422,6 +1469,31 @@
     (define exit-paths (state-paths exit-state source))
     (define written (make-hash))
     (define controls (make-hasheq))
+    (define (state-path value)
+      (case (node-kind value)
+        [(result)
+         (and (memq (node-value value) '(information environment factors))
+              (list (node-value value)))]
+        [(field-ref)
+         (define parent (state-path (car (node-children value))))
+         (and parent (append parent (list (node-value value))))]
+        [(dot-select)
+         (define parent (state-path (car (node-children value))))
+         (and parent
+              (= (length (node-children value)) 2)
+              (let* ([selector (second (node-children value))]
+                     [position
+                      (case (node-kind selector)
+                        [(literal) (node-value selector)]
+                        [(result) (list 'index (node-value selector))]
+                        [else #f])])
+                (unless (or (exact-positive-integer? position)
+                            (and (pair? position)
+                                 (hash-has-key? controls (cadr position))))
+                  (read-error source (node-at selector)
+                              "state list position needs a positive number or stage control name"))
+                (append parent (list position))))]
+        [else #f]))
     (define (control-expression? value)
       (case (node-kind value)
         [(literal) (exact-integer? (node-value value))]
@@ -1460,6 +1532,14 @@
       (and (pair? candidates)
            (andmap (lambda (candidate) (hash-has-key? known candidate))
                    candidates)))
+    (define (check-state-reads value known)
+      (define path (state-path value))
+      (if path
+          (unless (declared-path? known path)
+            (read-error source (node-at value)
+                        "resource write reads an unavailable state location"))
+          (for ([part (in-list (node-children value))])
+            (check-state-reads part known))))
     (define (validate-body forms available)
       (for/fold ([known available]) ([form (in-list forms)])
         (case (node-kind form)
@@ -1526,6 +1606,37 @@
                          "local names in a state stage are only for integer counters or positions"))
            (hash-set! controls name #t)
            known]
+          [(path-assignment)
+           (define target (first (node-children form)))
+           (define expression (second (node-children form)))
+           (define target-path (state-path target))
+           (check-state-reads expression known)
+           (cond
+             [(and (resource-path? target) (not target-path)) known]
+             [(and target-path (resource-path? expression)
+                   (>= (length target-path) 2))
+              (unless (declared-path? known (drop-right target-path 1))
+                (read-error source (node-at form)
+                            "resource read needs an existing parent in state"))
+              (when (or (exact-positive-integer? (last target-path))
+                        (and (pair? (last target-path))
+                             (eq? (car (last target-path)) 'index)))
+                (unless (declared-path? known target-path)
+                  (read-error source (node-at form)
+                              "resource read list position must exist in state")))
+              (define dynamic-at
+                (for/first ([part (in-list target-path)] [i (in-naturals)]
+                            #:when (and (pair? part) (eq? (car part) 'index)))
+                  i))
+              (define tracked-target
+                (if dynamic-at (take target-path dynamic-at) target-path))
+              (hash-set! written tracked-target #t)
+              (define next (hash-copy known))
+              (hash-set! next tracked-target #t)
+              next]
+             [else
+              (read-error source (node-at form)
+                          "state assignment needs a resource read or resource write")])]
           [(sequence)
            (validate-body (node-children form) known)]
           [(if)
@@ -1595,14 +1706,15 @@
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import interface performer implements must-call must-stage-order stage
+        [(to import interface performer resource implements must-call must-stage-order stage
              included-file) visible]
         [(state-stage)
          (check-value (second (node-value form)) inputs visible)
          (check-value (third (node-value form)) inputs visible)
          (check-state-stage form)
          (parameterize ([in-state-stage? #t])
-           (check-forms (node-children form) inputs visible writable))
+           (check-forms (node-children form) inputs
+                        (append '(information environment factors) visible) writable))
          visible]
         [(state-call)
          (unless (in-state-stage?)
@@ -1647,6 +1759,7 @@
          (define name (car (node-value form)))
          (check-value (cdr (node-value form)) inputs visible)
          (when (or (hash-has-key? interfaces name)
+                   (hash-has-key? resources name)
                    (memq name inputs) (memq name visible))
            (read-error source (node-at form)
                        (format "loop variable ~a shadows a visible name" name)))
@@ -1657,6 +1770,7 @@
          (check-value (cdr (node-value form)) inputs visible)
          (when (or (hash-has-key? interfaces name)
                    (hash-has-key? performers name)
+                   (hash-has-key? resources name)
                    (memq name inputs)
                    (and (memq name visible) (not (memq name writable))))
            (read-error source (node-at form)
@@ -1671,10 +1785,18 @@
                (node-value value)
                (root (car (node-children value)))))
          (define name (root target))
-         (unless (and (memq name visible) (memq name writable))
+         (define resource-target? (hash-has-key? resources name))
+         (define state-target?
+           (and (in-state-stage?)
+                (memq name '(information environment factors))))
+         (unless (or (and resource-target? (eq? (node-kind form) 'path-assignment)
+                          (resource-path? target))
+                     (and state-target? (eq? (node-kind form) 'path-assignment))
+                     (and (memq name visible) (memq name writable)))
            (read-error source (node-at form)
                        (format "cannot update protected or unknown name ~a" name)))
-         (check-value target inputs visible)
+         (unless (or resource-target? state-target?)
+           (check-value target inputs visible))
          (when (eq? (node-kind form) 'path-assignment)
            (check-value (second (node-children form)) inputs visible))
          visible]
@@ -1698,12 +1820,15 @@
              (read-error source (node-at form)
                          (format "procedure ~a has no output" name)))
            (when (or (hash-has-key? interfaces result-name)
+                     (hash-has-key? resources result-name)
                      (memq result-name inputs) (memq result-name visible))
              (read-error source (node-at form)
                          (format "duplicate result ~a" result-name))))
          (if result-name (cons result-name visible) visible)])))
   (check-forms (node-children program) '() '())
   (for ([declaration (in-hash-values performers)])
+    (check-value (first (node-children declaration)) '() '()))
+  (for ([declaration (in-hash-values resources)])
     (check-value (first (node-children declaration)) '() '()))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'must-call))
@@ -1755,6 +1880,9 @@
     [(stage) (list 'stage (node-value form))]
     [(performer)
      (list 'performer (node-value form)
+           (node->datum (first (node-children form))))]
+    [(resource)
+     (list 'resource (node-value form)
            (node->datum (first (node-children form))))]
     [(state-stage)
      (list 'state-stage (car (node-value form))

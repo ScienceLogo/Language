@@ -46,6 +46,8 @@ case or the suggested word separator.
          (tt "trial-duration"))
    (list "Performer" "Lowercase words joined by hyphens"
          (tt "researcher"))
+   (list "Resource" "Lowercase words joined by hyphens"
+         (tt "timing-data"))
    (list "Record field or required part" "Lowercase words joined by hyphens"
          (tt "mean-period"))
    (list "Interface" "First letter capitalized; later words lowercase and joined by hyphens"
@@ -65,12 +67,12 @@ uses the stage title exactly.
 
 The reader rejects reserved command words as most user names. A dot separates
 parts of a path: record fields, list positions, stage state locations, and
-imported names. Simple procedure, input, value, result, loop, performer,
+imported names. Simple procedure, input, value, result, loop, performer, resource,
 import alias, and interface names do not contain dots.
 A name used as a word has no spaces;
 quoted workflow and stage titles can contain spaces. Procedure names must be
 distinct; interface names must be distinct from each other and from procedures;
-performer names must be distinct from each other, procedures, and interfaces;
+performer and resource names must be distinct from each other, procedures, and interfaces;
 stage names must be distinct across the assembled workflow. Each procedure has
 distinct input names, and record fields are distinct within a record.
 @secref["procedures"] explains local value scope and result names.
@@ -99,12 +101,15 @@ Definitions may appear after their uses.
          "Declares record fields or workflow requirements")
    (list (tt "performer name [field = value ...]")
          "Top level of a workflow"
-         "Declares an open performer object for paired stages")))
+         "Declares an open performer object for paired stages")
+   (list (tt "resource name [field = value ...]")
+         "Top level of a workflow"
+         "Names external scientific information or storage")))
 
 A library import selects a tag or full commit ID on its @tt{main} branch.
 @secref["libraries"] explains import, @tt{include}, repository layout, and
 dependency rules. @secref["interfaces"] explains the two interface forms.
-Workflow files may contain commands, procedures, stages, performers, interfaces,
+Workflow files may contain commands, procedures, stages, performers, resources, interfaces,
 obligations, and includes. A library file may contain imports, includes,
 procedures, and record interfaces; it has no top-level executable commands.
 
@@ -131,6 +136,9 @@ procedures, and record interfaces; it has no top-level executable commands.
    (list (secref "stages")
          (tt "performer, stage ... by ... from state, do ... by ... into, end stage with state, at")
          "Read and checked; paired body not executed")
+   (list (secref "resources")
+         (tt "resource name [ ... ], name.field = value, value = name.field")
+         "Resource access represented; no external I/O")
    (list (secref "interfaces")
          (tt "interface, version, extends, require, affects")
          "Declarations checked for structure")
@@ -155,7 +163,10 @@ commands, duplicate names, unknown procedures or values, wrong input counts,
 a requested result from a procedure without @tt{output}, recursive procedure
 calls, invalid interface inheritance, and misplaced file-level forms.
 For state stages it also checks named input locations, compulsory return
-locations, and the declared exit state. A state stage is read and checked but
+locations, resource paths, and the declared exit state. A state stage is read
+and checked but
 its body is not executed by the current interpreter.
+External scientific reads and writes require a declared @secref["resources"];
+source-code paths in imports and includes have separate rules.
 Structural obligations are assessed separately; a successful read does not
 establish that scientific work occurred.

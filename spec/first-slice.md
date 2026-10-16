@@ -9,6 +9,9 @@ The reader also accepts the [paired stage state and location-based call forms](s
 checks their declared structure, and retains them in the workflow model. The
 current interpreter does not execute the body of a paired state stage; the
 runnable forms described below keep their existing behavior.
+The [resource form](resources.md) names external scientific information and
+storage. Its assignments are represented in the model; the interpreter performs
+no external scientific I/O.
 
 ## Source file, procedures, and stage headers
 

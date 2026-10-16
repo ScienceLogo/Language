@@ -121,6 +121,8 @@ assigned name may be used only for an integer counter or position; inside
 this form, @tt{for each} likewise needs integer positions. Only a declared
 @tt{into} location, or fields within a record returned to it, can change
 through a call. The same location can be both an input and an output.
+An assignment from a declared @secref["resources"] can also change a state
+field; an assignment to a resource path declares an outbound transfer.
 
 @section{Reader checks for paired stages}
 
@@ -135,7 +137,7 @@ The reader rejects a paired stage when:
  @item{A @tt{by} name has no performer declaration, or a state-changing call
        has neither its own performer nor a stage default.}
  @item{The closing state omits an available field, adds a field without a
-       guaranteed return, or changes an entry value without a return that
+       guaranteed return or resource read, or changes an entry value without a return or resource read that
        targets that field or its containing record.}
 ]
 
@@ -148,5 +150,7 @@ name. The containing list and selected positions must appear in the declared
 state.
 The @hyperlink[(source-file-url "spec/stage-state.md")]{stage state contract}
 records the accepted reader constraints.
+@secref["resources"] shows how a paired stage can declare reads from and
+writes to external scientific storage.
 @secref["assessment"] explains the distinct structural checks available
 through @tt{must} and workflow interfaces.

@@ -64,6 +64,8 @@
     (register (procedure-model-id procedure) 'procedure procedure))
   (for ([performer (in-list (workflow-model-performers method))])
     (register (performer-model-id performer) 'performer performer))
+  (for ([resource (in-list (workflow-model-resources method))])
+    (register (resource-model-id resource) 'resource resource))
   (for ([activity (in-list (workflow-model-activities method))])
     (register (activity-model-id activity) 'activity activity))
   (for ([item (in-list (workflow-model-items method))])
@@ -127,8 +129,12 @@
         [(defines) (and (eq? from-type 'workflow) (eq? to-type 'procedure))]
         [(defines-performer)
          (and (eq? from-type 'workflow) (eq? to-type 'performer))]
+        [(defines-resource)
+         (and (eq? from-type 'workflow) (eq? to-type 'resource))]
+        [(reads-from writes-to)
+         (and (eq? from-type 'activity) (eq? to-type 'resource))]
         [(performed-by)
-         (and (eq? (activity-kind from) 'state-call)
+         (and (memq (activity-kind from) '(state-call assignment path-assignment))
               (eq? to-type 'performer))]
         [(imports)
          (and (eq? from-type 'workflow) (memq to-type '(import procedure)))]

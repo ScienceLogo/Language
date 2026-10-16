@@ -2,7 +2,7 @@
 
 **Status:** design contract for a portable representation. The current Racket
 reader produces an inspectable Racket workflow model, including paired-stage
-state, call locations, and declared performers. A language-neutral exchange format and its versioning
+state, call locations, declared performers, and external resources. A language-neutral exchange format and its versioning
 rules remain to be specified.
 This contract covers a **written method**. A record of what happened and an
 assessment of that record are separate things.
@@ -46,7 +46,7 @@ pendulum.
   their spelling and stability across revisions remain to be defined.
 - **Definitions and structure.** Preserve the workflow title, procedure
   definitions and inputs, stage headers and paired-stage entry and exit state,
-  performer objects, record interfaces, imports, and includes. A stage remains a label and
+  performer and resource objects, record interfaces, imports, and includes. A stage remains a label and
   checkpoint, not a procedure call or variable scope. A procedure definition
   does not count as a call.
 - **Commands and values.** Preserve each command, its arguments and result
@@ -55,7 +55,7 @@ pendulum.
   explicit value `unknown` retain their distinct forms. An absent field is
   different from a field whose value is `unknown`.
 - **References and relationships.** Preserve the resolved target of each
-  procedure call, performer reference, imported name, variable read, assignment, and interface
+  procedure call, performer reference, imported name, variable read, assignment, resource read or write, and interface
   reference. For a paired-stage call, preserve each named input location and
   its return location and effective performer, whether named on the call or
   inherited from its stage. Preserve containment, required order, result production and use,
