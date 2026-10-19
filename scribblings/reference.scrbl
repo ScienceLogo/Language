@@ -132,6 +132,9 @@ procedures, and record interfaces; it has no top-level executable commands.
    (list (secref "values")
          (tt "range, .field, .[ ... ], arithmetic, comparisons, not, and, xor, or")
          "Expressions used by runnable forms")
+   (list (secref "uncertainty")
+         (tt "value u [declared = [ ... ] omitted = [ ... ]], value.u")
+         "Attached descriptions of named uncertainty sources")
    (list (secref "procedures")
          (tt "to, :input, do, as, output, name = value, name += value, print")
          "Definitions and executable commands")
@@ -182,6 +185,8 @@ Proposition declarations use named collections. The reader catches repeated
 top-level additions; the interpreter rejects other duplicates when a
 runnable @tt{+=} command executes. See
 @secref["propositions"].
+Uncertainty descriptions accept only @tt{declared} and @tt{omitted}
+collections of named sources; see @secref["uncertainty"].
 Source-code paths in imports and includes have separate rules.
 Structural obligations are assessed separately; a successful read does not
 establish that scientific work occurred.

@@ -97,7 +97,7 @@
                        "each" "in" "until" "range" "step" "true" "false"
                        "unknown" "=" "+=" "!=" "<" "<=" ">" ">="
                        "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement"
-                       "extends" "hypotheses" "assumptions" "conclusions")))
+                       "extends" "hypotheses" "assumptions" "conclusions" "u")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -245,8 +245,42 @@
   (define (postfix-value base)
     (let loop ([value base])
       (define at (current))
-      (if (and (eq? (token-kind at) 'word)
-               (string-prefix? (token-value at) "."))
+      (cond
+        [(and (eq? (token-kind at) 'word)
+              (string=? (token-value at) "u"))
+         (when (eq? (node-kind value) 'uncertain)
+           (read-error source at "a value can have only one u description"))
+         (advance!)
+         (define raw (parse-atom #f #f))
+         (define fields
+           (cond
+             [(eq? (node-kind raw) 'fields) raw]
+             [(and (eq? (node-kind raw) 'list)
+                   (null? (node-children raw)))
+              (struct-copy node raw [kind 'fields])]
+             [else (read-error source at "u needs named fields or []")]))
+         (for ([entry (in-list (node-children fields))])
+           (unless (memq (node-value entry) '(declared omitted))
+             (read-error source (node-at entry)
+                         "u fields must be declared or omitted"))
+           (define collection (first (node-children entry)))
+           (unless (or (eq? (node-kind collection) 'fields)
+                       (and (eq? (node-kind collection) 'list)
+                            (null? (node-children collection))))
+             (read-error source (node-at entry)
+                         (format "u ~a needs named entries or []"
+                                 (node-value entry))))
+           (when (eq? (node-kind collection) 'fields)
+             (for ([source-entry (in-list (node-children collection))])
+               (define source-fields (first (node-children source-entry)))
+               (unless (or (eq? (node-kind source-fields) 'fields)
+                           (and (eq? (node-kind source-fields) 'list)
+                                (null? (node-children source-fields))))
+                 (read-error source (node-at source-entry)
+                             "a u source needs named fields or []")))))
+         (loop (node 'uncertain #f (list value fields) at))]
+        [(and (eq? (token-kind at) 'word)
+              (string-prefix? (token-value at) "."))
           (let* ([text (token-value (advance!))]
                  [parts (cdr (string-split text "." #:trim? #f))])
             (when (or (null? parts) (member "" (drop-right parts 1)))
@@ -269,8 +303,8 @@
                                (node 'dot-select #f
                                      (cons extended (node-children selector)) at)))]
                     [else (read-error source at "expected [ ... ] after dot")]))
-                (loop extended)))
-          value)))
+                (loop extended)))]
+        [else value])))
   (define (parse-atom [stop-word #f] [allow-postfix? #t])
     (define found (current))
     (define raw (case (token-kind found)
@@ -1486,7 +1520,7 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list fields field-entry proposition-value range compare binary unary augment
+      [(list fields field-entry proposition-value uncertain range compare binary unary augment
              dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
@@ -1985,6 +2019,10 @@
     [(proposition-value)
      (list 'proposition-value (node-value form)
            (node->datum (first (node-children form))))]
+    [(uncertain)
+     (list 'uncertain
+           (node->datum (first (node-children form)))
+           (node->datum (second (node-children form))))]
     [(state-stage)
      (list 'state-stage (car (node-value form))
            (node->datum (second (node-value form)))

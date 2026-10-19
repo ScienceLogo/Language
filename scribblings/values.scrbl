@@ -55,6 +55,8 @@ It is an error to read a missing field. Field order does not affect record
 equality. Brackets without an initial @tt{name = value} make a list instead.
 Data stored outside the workflow uses a declared @secref["resources"] instead of
 an ordinary record path.
+An attached @secref["uncertainty"] is read with @tt{value.u}; @tt{u} is not
+an ordinary user field name.
 In a record declaration, @tt{clock.time = "12:00"} creates nested fields;
 it has the same shape as @tt{clock = [time = "12:00"]}.
 
@@ -124,7 +126,7 @@ From strongest to weakest, the reader groups operations in this order:
   (list
    (list (bold "Order") (bold "Operations"))
    (list "1" "Parentheses")
-   (list "2" (tt ".field and .[ ... ]"))
+   (list "2" (tt ".field, .[ ... ], and u [ ... ]"))
    (list "3" (tt "unary -"))
    (list "4" (tt "* /"))
    (list "5" (tt "+ -"))

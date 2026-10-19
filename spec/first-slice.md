@@ -15,6 +15,9 @@ not transfer data to or from them.
 The [proposition forms](propositions.md) name hypotheses, assumptions, and
 conclusions. A named proposition can be nested under another with `+=`;
 its declarations and updates remain inspectable in the workflow model.
+The [uncertainty form](uncertainty.md) attaches named sources to a value with
+`u [ ... ]`. Its description is readable at `.u`; the interpreter does not
+calculate or propagate uncertainty.
 
 ## Source file, procedures, and stage headers
 

@@ -57,7 +57,9 @@ pendulum.
   name where present, nested blocks, branches, loops, and the expressions
   needed to understand them. Lists, records, ranges, quoted text, and the
   explicit value `unknown` retain their distinct forms. An absent field is
-  different from a field whose value is `unknown`.
+  different from a field whose value is `unknown`. Preserve a value's attached
+  `u` description, including its named `declared` and `omitted` sources and
+  open fields, separately from the underlying value.
 - **References and relationships.** Preserve the resolved target of each
   procedure call, performer reference, imported name, variable read, assignment,
   data read or write, and interface

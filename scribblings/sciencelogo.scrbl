@@ -42,6 +42,8 @@ is small, and broader scientific and AI constructs are still being designed.
    (list (bold "Part") (bold "Current behavior"))
    (list (secref "values")
          "Values, records, expressions, and ranges run")
+   (list (secref "uncertainty")
+         "Values can carry named uncertainty descriptions")
    (list (secref "procedures")
          "Procedures, assignments, branches, and loops run")
    (list (secref "libraries")
@@ -55,7 +57,7 @@ is small, and broader scientific and AI constructs are still being designed.
    (list (secref "assessment")
          "The assessor checks declared method structure and record fields")))
 
-Scientific adequacy, protocol conformance, bias and uncertainty analysis,
+Scientific adequacy, protocol conformance, bias and quantitative uncertainty analysis,
 records of observed runs, and the planned verbose syntax remain outside the
 current implementation. The
 @hyperlink[(source-file-url "spec/README.md")]{specification index} identifies
@@ -63,7 +65,8 @@ which design documents describe future work.
 
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to
-stages, propositions, data sources and storage, reusable definitions, and declared checks. Each
+stages, propositions, uncertainty descriptions, data sources and storage,
+reusable definitions, and declared checks. Each
 page states what its forms currently do.
 
 @include-section["getting-started.scrbl"]
@@ -72,6 +75,7 @@ page states what its forms currently do.
 @include-section["procedures.scrbl"]
 @include-section["stages.scrbl"]
 @include-section["propositions.scrbl"]
+@include-section["uncertainty.scrbl"]
 @include-section["resources.scrbl"]
 @include-section["interfaces.scrbl"]
 @include-section["libraries.scrbl"]

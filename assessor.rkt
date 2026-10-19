@@ -437,6 +437,7 @@
   ;; Only written, direct record constructions are known here. A procedure result
   ;; or an executable block can depend on information absent from the method.
   (match expression
+    [`(uncertain ,base ,_) (record-shape base environment templates)]
     [`(fields ,entries)
      (for/hasheq ([entry (in-list entries)])
        (values (car entry)

@@ -5,6 +5,8 @@
 
 (provide (all-from-out racket/base) run-program)
 
+(struct uncertain-value (value uncertainty) #:transparent)
+
 ;; The reader validates the complete method before producing this representation.
 (define (run-program program)
   (match program
@@ -115,6 +117,26 @@
          [`(dot-select (,receiver ,_ ...)) (resource-root receiver)]
          [_ #f]))
      (define no-result (gensym 'no-result))
+     (define (plain-value value)
+       (if (uncertain-value? value) (uncertain-value-value value) value))
+     (define (normalize-uncertainty value)
+       (unless (hash? value)
+         (error 'run-program "u needs named fields"))
+       (for ([name (in-hash-keys value)])
+         (unless (memq name '(declared omitted))
+           (error 'run-program "u fields must be declared or omitted")))
+       (for/fold ([result (hasheq)]) ([name '(declared omitted)])
+         (define collection (hash-ref value name (hasheq)))
+         (define sources (if (null? collection) (hasheq) collection))
+         (unless (hash? sources)
+           (error 'run-program "u ~a needs named entries" name))
+         (hash-set
+          result name
+          (for/hasheq ([(source fields) (in-hash sources)])
+            (define details (if (null? fields) (hasheq) fields))
+            (unless (hash? details)
+              (error 'run-program "u source ~a needs named fields" source))
+            (values source details)))))
      (define (decimal-text value)
        (define denominator-value (denominator value))
        (define (strip-factor n factor)
@@ -140,6 +162,7 @@
                                                (substring padded split)))))))
      (define (render-value value)
        (cond
+         [(uncertain-value? value) (render-value (uncertain-value-value value))]
          [(string? value) value]
          [(boolean? value) (if value "true" "false")]
          [(eq? value 'unknown) "unknown"]
@@ -162,6 +185,9 @@
           (string-append "[" (string-join (map render-value value) " ") "]")]
          [else (format "~a" value)]))
      (define (numeric-range start end step)
+       (set! start (plain-value start))
+       (set! end (plain-value end))
+       (set! step (plain-value step))
        (unless (and (real? start) (exact? start)
                     (real? end) (exact? end)
                     (real? step) (exact? step))
@@ -176,15 +202,19 @@
              (reverse backward)
              (loop (+ value step) (cons value backward)))))
      (define (boolean-value value)
+       (set! value (plain-value value))
        (unless (or (boolean? value) (eq? value 'unknown))
          (error 'run-program "Boolean operator needs true or false"))
        value)
      (define (number-value value)
+       (set! value (plain-value value))
        (unless (and (real? value) (exact? value))
          (error 'run-program "arithmetic needs exact numbers"))
        value)
      (define (contains-unknown? value)
        (cond
+         [(uncertain-value? value)
+          (contains-unknown? (uncertain-value-value value))]
          [(eq? value 'unknown) #t]
          [(list? value) (ormap contains-unknown? value)]
          [(hash? value)
@@ -192,6 +222,7 @@
             (contains-unknown? part))]
          [else #f]))
      (define (selector-key selector container inputs scopes)
+       (set! container (plain-value container))
        (cond
          [(hash? container)
           (match selector
@@ -212,6 +243,7 @@
           n]
          [else (error 'run-program "dot selection needs a record or list")]))
      (define (select-one container selector inputs scopes)
+       (set! container (plain-value container))
        (if (and (list? container)
                 (eq? (value-of selector inputs scopes) 'unknown))
            'unknown
@@ -251,6 +283,8 @@
                 (hash-ref child 'type) name))
        (hash-set collection name child))
      (define (patch-value original entries inputs scopes)
+       (when (uncertain-value? original)
+         (error 'run-program "update a qualified value with = and an explicit u description"))
        (if (record-interface? original)
            (interface-record
             original
@@ -270,6 +304,10 @@
      (define (value-of expression inputs scopes)
        (match expression
          [`(literal ,value) value]
+         [`(uncertain ,base ,description)
+          (uncertain-value (plain-value (value-of base inputs scopes))
+                           (normalize-uncertainty
+                            (value-of description inputs scopes)))]
          [`(list ,values)
           (for/list ([value (in-list values)])
             (value-of value inputs scopes))]
@@ -284,7 +322,7 @@
          [`(dot-select (,receiver ,selectors ...))
           (if (resource-root expression)
               'unknown
-              (let ([container (value-of receiver inputs scopes)])
+              (let ([container (plain-value (value-of receiver inputs scopes))])
                 (if (= (length selectors) 1)
                     (select-one container (car selectors) inputs scopes)
                     (if (hash? container)
@@ -298,6 +336,9 @@
          [`(augment ,_ (,left ,right))
           (define old (value-of left inputs scopes))
           (define added (value-of right inputs scopes))
+          (when (or (uncertain-value? old) (uncertain-value? added))
+            (error 'run-program
+                   "update a qualified value with = and an explicit u description"))
           (cond
             [(list? old) (append old (list added))]
             [(and (proposition? old) (proposition? added))
@@ -323,33 +364,39 @@
             [(or (eq? old 'unknown) (eq? added 'unknown)) 'unknown]
             [else (+ (number-value old) (number-value added))])]
          [`(field-ref ,name ,receiver)
-          (if (resource-root expression)
-              'unknown
-              (match receiver
-                [`(result ,collection)
-                 (if (and (memq collection '(hypotheses assumptions conclusions))
-                          (hash-has-key? proposition-expressions
-                                         (list (singular collection) name))
-                          (not (hash-has-key? proposition-roots collection)))
-                     (proposition-of (singular collection) name)
-                     (let ([record (value-of receiver inputs scopes)])
-                       (unless (hash? record)
-                         (error 'run-program "field ~a needs a named-field value" name))
-                       (hash-ref record name
-                               (lambda ()
-                                 (error 'run-program "missing field ~a" name)))))]
-                [_
-                 (define record (value-of receiver inputs scopes))
-                 (unless (hash? record)
-                   (error 'run-program "field ~a needs a named-field value" name))
-                 (hash-ref record name
-                           (lambda () (error 'run-program "missing field ~a" name)))]))]
+          (cond
+            [(resource-root expression) 'unknown]
+            [(eq? name 'u)
+             (define value (value-of receiver inputs scopes))
+             (unless (uncertain-value? value)
+               (error 'run-program "this value has no u description"))
+             (uncertain-value-uncertainty value)]
+            [else
+             (match receiver
+               [`(result ,collection)
+                (if (and (memq collection '(hypotheses assumptions conclusions))
+                         (hash-has-key? proposition-expressions
+                                        (list (singular collection) name))
+                         (not (hash-has-key? proposition-roots collection)))
+                    (proposition-of (singular collection) name)
+                    (let ([record (plain-value (value-of receiver inputs scopes))])
+                      (unless (hash? record)
+                        (error 'run-program "field ~a needs a named-field value" name))
+                      (hash-ref record name
+                                (lambda ()
+                                  (error 'run-program "missing field ~a" name)))))]
+               [_
+                (define record (plain-value (value-of receiver inputs scopes)))
+                (unless (hash? record)
+                  (error 'run-program "field ~a needs a named-field value" name))
+                (hash-ref record name
+                          (lambda () (error 'run-program "missing field ~a" name)))])])]
          [`(range (,start ,end ,step))
           (numeric-range (value-of start inputs scopes)
                          (value-of end inputs scopes)
                          (value-of step inputs scopes))]
          [`(unary ,operator (,part))
-          (define value (value-of part inputs scopes))
+          (define value (plain-value (value-of part inputs scopes)))
           (case operator
             [(not)
              (define checked (boolean-value value))
@@ -357,7 +404,7 @@
             [(-)
              (if (eq? value 'unknown) 'unknown (- (number-value value)))])]
          [`(binary ,operator (,left ,right))
-          (define a (value-of left inputs scopes))
+          (define a (plain-value (value-of left inputs scopes)))
           (case operator
             [(and or)
              (define first (boolean-value a))
@@ -379,7 +426,7 @@
                  'unknown
                  (not (eq? first second)))]
             [else
-             (define b (value-of right inputs scopes))
+             (define b (plain-value (value-of right inputs scopes)))
              (if (or (eq? a 'unknown) (eq? b 'unknown))
                  'unknown
                  (let ([x (number-value a)] [y (number-value b)])
@@ -392,8 +439,8 @@
                         (error 'run-program "division by zero"))
                       (/ x y)])))])]
          [`(compare ,operator (,left ,right))
-          (define a (value-of left inputs scopes))
-          (define b (value-of right inputs scopes))
+          (define a (plain-value (value-of left inputs scopes)))
+          (define b (plain-value (value-of right inputs scopes)))
           (cond
             [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]
             [(eq? operator '=) (equal? a b)]
@@ -423,7 +470,7 @@
                (hash-ref (car remaining) name)]
               [else (loop (cdr remaining))]))])]))
      (define (condition-of expression inputs scopes)
-       (define value (value-of expression inputs scopes))
+       (define value (plain-value (value-of expression inputs scopes)))
        (unless (boolean? value)
          (error 'run-program
                 (if (eq? value 'unknown)
@@ -465,20 +512,28 @@
        (match target
          [`(result ,name) (write-name name value scopes allow-new?)]
          [`(field-ref ,field ,receiver)
-          (define container
-            (with-handlers ([(lambda (e)
-                               (and (exn:fail? e)
-                                    (regexp-match? #rx"missing field"
-                                                   (exn-message e))))
-                            (lambda (_) (hasheq))])
-              (value-of receiver inputs scopes)))
-          (unless (hash? container)
-            (error 'run-program "field update needs a record"))
-          (when (and (collection-target receiver inputs scopes)
-                     (not (hash-has-key? container field)))
-            (error 'run-program "missing proposition ~a; use += to add it" field))
-          (assign-path receiver (hash-set container field value)
-                       inputs scopes allow-new?)]
+          (if (eq? field 'u)
+              (let ([old (value-of receiver inputs scopes)])
+                (unless (uncertain-value? old)
+                  (error 'run-program "this value has no u description"))
+                (assign-path receiver
+                             (uncertain-value (uncertain-value-value old)
+                                              (normalize-uncertainty value))
+                             inputs scopes allow-new?))
+              (let ([container
+                     (with-handlers ([(lambda (e)
+                                        (and (exn:fail? e)
+                                             (regexp-match? #rx"missing field"
+                                                            (exn-message e))))
+                                     (lambda (_) (hasheq))])
+                       (value-of receiver inputs scopes))])
+                (unless (hash? container)
+                  (error 'run-program "field update needs a record"))
+                (when (and (collection-target receiver inputs scopes)
+                           (not (hash-has-key? container field)))
+                  (error 'run-program "missing proposition ~a; use += to add it" field))
+                (assign-path receiver (hash-set container field value)
+                             inputs scopes allow-new?)))]
          [`(dot-select (,receiver ,selector))
           (define container (value-of receiver inputs scopes))
           (define key (selector-key selector container inputs scopes))
@@ -529,13 +584,14 @@
                                       entries inputs scopes)
                          inputs scopes)]
            [`(repeat ,count-expression ,body)
-            (define count (value-of count-expression inputs scopes))
+            (define count (plain-value (value-of count-expression inputs scopes)))
             (unless (exact-nonnegative-integer? count)
               (error 'run-program "repeat count must be a nonnegative integer"))
             (for ([_ (in-range count)])
               (run-forms body inputs (cons (make-hasheq) scopes) return))]
            [`(for-each ,name ,collection-expression ,body)
-            (define collection (value-of collection-expression inputs scopes))
+            (define collection (plain-value
+                                (value-of collection-expression inputs scopes)))
             (unless (list? collection)
               (error 'run-program "for each needs an ordered sequence"))
             (for ([value (in-list collection)])

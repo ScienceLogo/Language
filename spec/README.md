@@ -2,7 +2,8 @@
 
 The [language manual](../scribblings/sciencelogo.scrbl) is the reading and
 lookup path. Its pages progress from a small investigation to values,
-procedures, stages, propositions, data sources and storage, interfaces, files, and structural
+procedures, stages, propositions, uncertainty descriptions, data sources and storage,
+interfaces, files, and structural
 checks. The Syntax page maps each accepted form to its main explanation. The website keeps these as
 one level of pages with headings within each page.
 
@@ -16,6 +17,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | [Libraries](libraries.md) | Accepted layout, import, and include rules. |
 | [Paired stages and state locations](stage-state.md) | Accepted reader syntax; checked as a written method but not executed. |
 | [Propositions](propositions.md) | Named hypotheses, assumptions, conclusions, and nested relationships. |
+| [Uncertainty descriptions](uncertainty.md) | Accepted compact `u` attachment and named source rules. |
 | [Data sources and storage](resources.md) | Accepted declarations and directional data paths; no external I/O. |
 | [Context sets](context.md) | Meaning and rationale for information, environment, and considered factors. |
 | [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications; compact and future verbose syntax. |
