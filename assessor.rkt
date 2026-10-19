@@ -66,6 +66,8 @@
     (register (performer-model-id performer) 'performer performer))
   (for ([resource (in-list (workflow-model-resources method))])
     (register (resource-model-id resource) 'resource resource))
+  (for ([proposition (in-list (workflow-model-propositions method))])
+    (register (proposition-model-id proposition) 'proposition proposition))
   (for ([activity (in-list (workflow-model-activities method))])
     (register (activity-model-id activity) 'activity activity))
   (for ([item (in-list (workflow-model-items method))])
@@ -131,6 +133,8 @@
          (and (eq? from-type 'workflow) (eq? to-type 'performer))]
         [(defines-resource)
          (and (eq? from-type 'workflow) (eq? to-type 'resource))]
+        [(defines-proposition)
+         (and (eq? from-type 'workflow) (eq? to-type 'proposition))]
         [(reads-from writes-to)
          (and (eq? from-type 'activity) (eq? to-type 'resource))]
         [(performed-by)
@@ -144,15 +148,16 @@
          (and (memq (activity-kind from) '(call state-call))
               (eq? to-type 'procedure))]
         [(uses)
-         (and (eq? from-type 'activity) (eq? to-type 'item))]
+         (and (eq? from-type 'activity) (memq to-type '(item proposition)))]
         [(produces)
          (and (memq (activity-kind from) '(call for-each assignment)) (eq? to-type 'item)
               (equal? (item-model-producer (cdr (hash-ref elements to))) from))]
         [(updates)
          (and (memq (activity-kind from)
                     '(assignment path-assignment path-update-command))
-              (eq? to-type 'item)
-              (eq? (item-model-role (cdr (hash-ref elements to))) 'value))]
+              (or (eq? to-type 'proposition)
+                  (and (eq? to-type 'item)
+                       (eq? (item-model-role (cdr (hash-ref elements to))) 'value))))]
         [(depends-on precedes)
          (and (eq? from-type 'activity) (eq? to-type 'activity))]
         [else #f]))
@@ -460,6 +465,12 @@
          (shape-merge base
                       (record-shape `(fields ,entries) environment templates))
          base)]
+    [`(augment ,_ (,source ,changes))
+     (define base (record-shape source environment templates))
+     (define added (record-shape changes environment templates))
+     (if (and (hash? base) (hash? added))
+         (shape-merge base added)
+         'undetermined)]
     [`(literal ,_) 'not-a-record]
     [_ 'undetermined]))
 

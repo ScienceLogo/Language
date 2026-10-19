@@ -13,6 +13,7 @@
          (struct-out stage-model)
          (struct-out performer-model)
          (struct-out resource-model)
+         (struct-out proposition-model)
          (struct-out procedure-model)
          (struct-out activity-model)
          (struct-out item-model)
@@ -26,10 +27,12 @@
 ;; These records describe a method. They do not report that any activity occurred.
 (struct source-ref (source line column position) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
-                           relations imports implementations conditions performers resources) #:transparent)
+                           relations imports implementations conditions performers resources
+                           propositions) #:transparent)
 (struct stage-model (id name parent source entry exit performer) #:transparent)
 (struct performer-model (id name fields source) #:transparent)
 (struct resource-model (id name fields source) #:transparent)
+(struct proposition-model (id type name fields source) #:transparent)
 (struct procedure-model (id name inputs source) #:transparent)
 (struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
@@ -124,11 +127,40 @@
        (node-value declaration)
        (node->datum (first (node-children declaration)))
        (origin (node-at declaration)))))
+  (define proposition-declarations
+    (filter (lambda (form) (eq? (node-kind form) 'proposition)) forms))
+  (define proposition-ids
+    (for/hash ([declaration (in-list proposition-declarations)])
+      (values (node-value declaration)
+              (element-id root 'proposition (node-at declaration)
+                          (node-value declaration)))))
+  (define propositions
+    (for/list ([declaration (in-list proposition-declarations)])
+      (proposition-model
+       (hash-ref proposition-ids (node-value declaration))
+       (first (node-value declaration))
+       (second (node-value declaration))
+       (node->datum (first (node-children declaration)))
+       (origin (node-at declaration)))))
   (define (path-root value)
     (case (node-kind value)
       [(result) (node-value value)]
       [(field-ref dot-select) (path-root (car (node-children value)))]
       [else #f]))
+  (define (proposition-key value)
+    (define (parts node)
+      (case (node-kind node)
+        [(result) (list (node-value node))]
+        [(field-ref)
+         (append (parts (first (node-children node)))
+                 (list (node-value node)))]
+        [(dot-select) (parts (first (node-children node)))]
+        [else '()]))
+    (match (parts value)
+      [(list* 'hypotheses name _) (list 'hypothesis name)]
+      [(list* 'assumptions name _) (list 'assumption name)]
+      [(list* 'conclusions name _) (list 'conclusion name)]
+      [_ #f]))
   (define (resource-path? value)
     (and (memq (node-kind value) '(field-ref dot-select))
          (hash-has-key? resource-ids (path-root value))))
@@ -194,42 +226,52 @@
       [(literal) #f]
       [(parameter) (hash-ref inputs (node-value value))]
       [(result)
-       (if (or (hash-has-key? inline-interfaces (node-value value))
-               (hash-has-key? performer-ids (node-value value))
-               (and (in-state-stage)
-                    (memq (node-value value)
-                          '(information environment factors))))
-           #f
-           (let loop ([remaining scopes])
-         (cond
-           [(null? remaining)
-            (error 'read-workflow-model "unresolved result ~a" (node-value value))]
-           [(hash-has-key? (car remaining) (node-value value))
-            (hash-ref (car remaining) (node-value value))]
-           [else (loop (cdr remaining))])))]))
+       (cond
+         [(memq (node-value value) '(hypotheses assumptions conclusions)) #f]
+         [(or (hash-has-key? inline-interfaces (node-value value))
+              (hash-has-key? performer-ids (node-value value))
+              (and (in-state-stage)
+                   (memq (node-value value)
+                         '(information environment factors))))
+          #f]
+         [else
+          (let loop ([remaining scopes])
+            (cond
+              [(null? remaining)
+               (error 'read-workflow-model "unresolved result ~a"
+                      (node-value value))]
+              [(hash-has-key? (car remaining) (node-value value))
+               (hash-ref (car remaining) (node-value value))]
+              [else (loop (cdr remaining))]))])]))
   (define (add-use activity-id value inputs scopes)
-    (if (resource-path? value)
-        (add-relation 'reads-from activity-id
-                      (hash-ref resource-ids (path-root value)) (node-at value))
-        (case (node-kind value)
-      [(list fields field-entry field-ref range compare binary unary
-             dot-update)
-       (for ([part (in-list (node-children value))])
-         (add-use activity-id part inputs scopes))]
-      [(dot-select)
-       (add-use activity-id (car (node-children value)) inputs scopes)]
+    (define key (proposition-key value))
+    (cond
+      [(resource-path? value)
+       (add-relation 'reads-from activity-id
+                     (hash-ref resource-ids (path-root value)) (node-at value))]
+      [(and key (hash-has-key? proposition-ids key))
+       (add-relation 'uses activity-id
+                     (hash-ref proposition-ids key) (node-at value))]
       [else
-       (define item-id (resolve-item value inputs scopes))
-       (when item-id
-         (add-relation 'uses activity-id item-id (node-at value))
-         (define producer
-           (for/first ([item (in-list items)]
-                       #:when (equal? (item-model-id item) item-id))
-             (item-model-producer item)))
-         (when producer
-           (add-relation 'depends-on activity-id producer (node-at value)))
-         (for ([updater (in-list (hash-ref update-sites item-id '()))])
-           (add-relation 'depends-on activity-id updater (node-at value))))])))
+       (case (node-kind value)
+         [(list fields field-entry proposition-value field-ref range compare
+                binary unary augment dot-update)
+          (for ([part (in-list (node-children value))])
+            (add-use activity-id part inputs scopes))]
+         [(dot-select)
+          (add-use activity-id (car (node-children value)) inputs scopes)]
+         [else
+          (define item-id (resolve-item value inputs scopes))
+          (when item-id
+            (add-relation 'uses activity-id item-id (node-at value))
+            (define producer
+              (for/first ([item (in-list items)]
+                          #:when (equal? (item-model-id item) item-id))
+                (item-model-producer item)))
+            (when producer
+              (add-relation 'depends-on activity-id producer (node-at value)))
+            (for ([updater (in-list (hash-ref update-sites item-id '()))])
+              (add-relation 'depends-on activity-id updater (node-at value))))])]))
   (define (build-block body parent inputs scopes)
     (define previous #f)
     (define current-stage #f)
@@ -346,7 +388,26 @@
             (when existing
               (add-relation 'updates id existing (node-at form))
               (hash-update! update-sites existing
-                            (lambda (sites) (cons id sites)) '()))]
+                            (lambda (sites) (cons id sites)) '()))
+            (when (memq name '(hypotheses assumptions conclusions))
+              (define (first-child value)
+                (case (node-kind value)
+                  [(field-ref)
+                   (define receiver (first (node-children value)))
+                   (if (eq? (node-kind receiver) 'result)
+                       (node-value value)
+                       (first-child receiver))]
+                  [else #f]))
+              (define child (first-child target))
+              (define type
+                (case name
+                  [(hypotheses) 'hypothesis]
+                  [(assumptions) 'assumption]
+                  [(conclusions) 'conclusion]))
+              (when (hash-has-key? proposition-ids (list type child))
+                (add-relation 'updates id
+                              (hash-ref proposition-ids (list type child))
+                              (node-at form))))]
            [(call)
             (add-relation 'invokes id (hash-ref procedure-ids name) (node-at form))
             (for ([argument (in-list (node-children form))])
@@ -398,6 +459,10 @@
       [(resource)
        (add-relation 'defines-resource root
                      (hash-ref resource-ids (node-value form))
+                     (node-at form))]
+      [(proposition)
+       (add-relation 'defines-proposition root
+                     (hash-ref proposition-ids (node-value form))
                      (node-at form))]
       [(import)
        (match-define (list url requested commit alias library-name)
@@ -457,7 +522,8 @@
   (workflow-model root (node-value tree) source revision
                   (reverse procedures) (reverse stages) (reverse activities) (reverse items)
                   (reverse relations) (reverse imports)
-                  (reverse implementations) (reverse conditions) performers resources))
+                  (reverse implementations) (reverse conditions) performers resources
+                  propositions))
 
 (define (read-interface-model path)
   (define source (path->string (path->complete-path path)))

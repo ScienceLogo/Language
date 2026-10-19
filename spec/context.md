@@ -27,10 +27,11 @@ relevant setup; it does not claim that an intended setting was in effect during 
 observed run. The written method and a record of what actually happened remain
 distinct.
 
-Hypotheses can be kept as a named collection within the information set. Each
-claim can retain its identity, status, and links to the observations used to
-assess it. A later claim can refer to an earlier one without erasing it. This
-does not make hypotheses a fourth set required by every workflow.
+A named [proposition](propositions.md) can be carried within the information
+set. A conclusion nested under a hypothesis explicitly records which
+hypothesis it answers. The language preserves the written relationship
+without judging whether the evidence supports it. This does not make
+propositions a fourth set required by every workflow.
 
 The factors set is a set of **considered** influences, not a list of factors the
 scientist has necessarily controlled. A factor can refer to something already

@@ -31,6 +31,8 @@ not proof that it existed in a particular run. A factor is @emph{considered};
 its presence does not claim that it was controlled or negligible. The three
 sets are available for human and AI activities. A hypothesis can be a named
 field within @tt{information}; it is not a compulsory fourth set. The
+@secref["propositions"] page shows how a named proposition can be carried in
+@tt{information} across stages. The
 @hyperlink[(source-file-url "spec/context.md")]{context design notes} explain
 why these distinctions matter.
 

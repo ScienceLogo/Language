@@ -22,7 +22,8 @@ At command position, @tt{name = value} assigns a value. In a condition,
 @tt{=} compares values. Within a record or dotted update, it supplies a field
 value; within an interface, it supplies a default. At command position,
 @tt{name += [field = value]} updates or adds record fields, while
-@tt{name.field += number} adds to an existing numeric field. See
+@tt{name.field += number} adds to an existing numeric field. On a list,
+@tt{name += value} appends one item. See
 @secref["procedures"] for scope.
 
 @section{Names and labels}
@@ -48,6 +49,8 @@ case or the suggested word separator.
          (tt "researcher"))
    (list "Resource" "Lowercase words joined by hyphens"
          (tt "timing-data"))
+   (list "Proposition" "Lowercase words joined by hyphens"
+         (tt "swing-period"))
    (list "Record field or required part" "Lowercase words joined by hyphens"
          (tt "mean-period"))
    (list "Interface" "First letter capitalized; later words lowercase and joined by hyphens"
@@ -67,12 +70,13 @@ uses the stage title exactly.
 
 The reader rejects reserved command words as most user names. A dot separates
 parts of a path: record fields, list positions, stage state locations, and
-imported names. Simple procedure, input, value, result, loop, performer, resource,
+imported names. Simple procedure, input, value, result, loop, performer, resource, proposition,
 import alias, and interface names do not contain dots.
 A name used as a word has no spaces;
 quoted workflow and stage titles can contain spaces. Procedure names must be
 distinct; interface names must be distinct from each other and from procedures;
-performer and resource names must be distinct from each other, procedures, and interfaces;
+performer and resource names follow their declaration rules;
+proposition names are unique within their type and parent;
 stage names must be distinct across the assembled workflow. Each procedure has
 distinct input names, and record fields are distinct within a record.
 @secref["procedures"] explains local value scope and result names.
@@ -104,12 +108,16 @@ Definitions may appear after their uses.
          "Declares an open performer object for paired stages")
    (list (tt "resource name [field = value ...]")
          "Top level of a workflow"
-         "Names a data source or storage location")))
+         "Names a data source or storage location")
+   (list (tt "hypothesis name [text = \"...\"] (also assumption, conclusion)")
+         "Top level of a workflow"
+         "Declares a named proposition")))
 
 A library import selects a tag or full commit ID on its @tt{main} branch.
 @secref["libraries"] explains import, @tt{include}, repository layout, and
 dependency rules. @secref["interfaces"] explains the two interface forms.
-Workflow files may contain commands, procedures, stages, performers, resources, interfaces,
+Workflow files may contain commands, procedures, stages, performers, resources,
+propositions, interfaces,
 obligations, and includes. A library file may contain imports, includes,
 procedures, and record interfaces; it has no top-level executable commands.
 
@@ -136,6 +144,9 @@ procedures, and record interfaces; it has no top-level executable commands.
    (list (secref "stages")
          (tt "performer, stage ... by ... from state, do ... by ... into, end stage with state, at")
          "Read and checked; paired body not executed")
+   (list (secref "propositions")
+         (tt "hypothesis, assumption, conclusion, +=, dotted paths")
+         "Named declarations, nesting, and updates")
    (list (secref "resources")
          (tt "resource name [ ... ], name.field = value, value = name.field")
          "Data flow represented; no external I/O")
@@ -167,6 +178,10 @@ locations, resource paths, and the declared exit state. A state stage is read
 and checked, but its body is not executed by the current interpreter.
 Reading or writing data outside the workflow requires a declared
 @tt{resource}; see @secref["resources"].
+Proposition declarations use named collections. The reader catches repeated
+top-level additions; the interpreter rejects other duplicates when a
+runnable @tt{+=} command executes. See
+@secref["propositions"].
 Source-code paths in imports and includes have separate rules.
 Structural obligations are assessed separately; a successful read does not
 establish that scientific work occurred.

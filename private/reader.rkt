@@ -90,14 +90,14 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "repeat" "for" "while" "if" "else" "set"))
+  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "hypothesis" "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set"))
   (define reserved
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
                        "unknown" "=" "+=" "!=" "<" "<=" ">" ">="
                        "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement"
-                       "extends")))
+                       "extends" "hypotheses" "assumptions" "conclusions")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
     (define result (current))
@@ -113,10 +113,10 @@
     (unless (string=? (token-value found) expected)
       (read-error source found (format "expected ~a" expected)))
     found)
-  (define (named-word description)
+  (define (named-word description [allowed '()])
     (define found (expect 'word description))
     (define text (token-value found))
-    (when (or (member text reserved)
+    (when (or (and (member text reserved) (not (member text allowed)))
               (and (positive? (string-length text))
                    (char=? (string-ref text 0) #\:)))
       (read-error source found (format "expected ~a" description)))
@@ -295,7 +295,9 @@
                      [(eof) (read-error source (current) "expected ] after named fields")]
                      [else
                       (define field-at (current))
-                      (define name (named-word "a field name"))
+                      (define name
+                        (named-word "a field name"
+                                    '("hypotheses" "assumptions" "conclusions")))
                       (when (memq name seen)
                         (read-error source field-at
                                     (format "duplicate field ~a" name)))
@@ -329,6 +331,14 @@
           (define end (parse-value))
           (expect-word "step")
           (node 'range #f (list start end (parse-value)) found)]
+         [(member text '("hypothesis" "assumption" "conclusion"))
+          (define name (named-word "a proposition name"))
+          (when (regexp-match? #rx"[.]" (symbol->string name))
+            (read-error source found "a proposition name cannot contain a dot"))
+          (node 'proposition-value (list (string->symbol text) name)
+                (list (parse-proposition-object)) found)]
+         [(member text '("hypotheses" "assumptions" "conclusions"))
+          (node 'result (string->symbol text) '() found)]
          [(member text '("true" "false" "unknown"))
           (node 'literal (cond [(string=? text "unknown") 'unknown]
                                [else (string=? text "true")]) '() found)]
@@ -413,6 +423,27 @@
        (struct-copy node value [kind 'fields])]
       [else (read-error source (node-at value)
                         "resource needs named fields in [name = value] or []")]))
+  (define (parse-proposition-object)
+    (define value (parse-atom))
+    (define fields
+      (cond
+        [(eq? (node-kind value) 'fields) value]
+        [(and (eq? (node-kind value) 'list) (null? (node-children value)))
+         (struct-copy node value [kind 'fields])]
+        [else (read-error source (node-at value)
+                          "proposition needs named fields in [text = value] or []")]))
+    (for ([entry (in-list (node-children fields))])
+      (unless (memq (node-value entry) '(text hypotheses assumptions conclusions))
+        (read-error source (node-at entry)
+                    "proposition fields must be text, hypotheses, assumptions, or conclusions"))
+      (when (memq (node-value entry) '(hypotheses assumptions conclusions))
+        (define collection (first (node-children entry)))
+        (unless (or (eq? (node-kind collection) 'fields)
+                    (and (eq? (node-kind collection) 'list)
+                         (null? (node-children collection))))
+          (read-error source (node-at entry)
+                      (format "proposition ~a needs named entries" (node-value entry))))))
+    fields)
   (define (parse-location)
     (define at (expect 'word "a state location such as information.elapsed"))
     (define value (dotted-value at (token-value at)))
@@ -564,6 +595,15 @@
        (when (regexp-match? #rx"[.]" (symbol->string name))
          (read-error source command "a resource name cannot contain a dot"))
        (node 'resource name (list (parse-resource-object)) command)]
+      [(or "hypothesis" "assumption" "conclusion")
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "proposition belongs directly in a workflow"))
+       (define name (named-word "a proposition name"))
+       (when (regexp-match? #rx"[.]" (symbol->string name))
+         (read-error source command "a proposition name cannot contain a dot"))
+       (node 'proposition (list (string->symbol (token-value command)) name)
+             (list (parse-proposition-object)) command)]
       ["implements"
        (unless (and definitions-allowed? (not in-procedure?)
                     (not includes-allowed?) (not imports-allowed?))
@@ -720,7 +760,8 @@
        (node 'output (parse-value) '() command)]
       [_
        (define name (token-value command))
-       (unless (and (not (member name reserved))
+       (unless (and (or (not (member name reserved))
+                        (member name '("hypotheses" "assumptions" "conclusions")))
                     (not (regexp-match? #px"^[+-]?[0-9]" name)))
          (read-error source command
                      (format "unsupported command ~a in the first ScienceLogo slice"
@@ -733,9 +774,7 @@
           (define expression (parse-value))
           (define value
             (if (string=? operator "+=")
-                (if (eq? (node-kind expression) 'fields)
-                    (node 'dot-update #f (list target expression) command)
-                    (node 'binary '+ (list target expression) command))
+                (node 'augment #f (list target expression) command)
                 expression))
           (if (eq? (node-kind target) 'result)
               (node 'assignment (cons (node-value target) value) '() command)
@@ -1358,6 +1397,7 @@
   (define interfaces (make-hasheq))
   (define performers (make-hasheq))
   (define resources (make-hasheq))
+  (define propositions (make-hash))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'interface))
     (define name (string->symbol (node-value form)))
@@ -1406,6 +1446,13 @@
       (read-error source (node-at form)
                   (format "resource name ~a conflicts with another definition" name)))
     (hash-set! resources name form))
+  (for ([form (in-list (node-children program))]
+        #:when (eq? (node-kind form) 'proposition))
+    (define key (node-value form))
+    (when (hash-has-key? propositions key)
+      (read-error source (node-at form)
+                  (format "duplicate ~a ~a" (first key) (second key))))
+    (hash-set! propositions key form))
   (define (path-root value)
     (case (node-kind value)
       [(result) (node-value value)]
@@ -1439,7 +1486,7 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list fields field-entry range compare binary unary
+      [(list fields field-entry proposition-value range compare binary unary augment
              dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
@@ -1456,7 +1503,8 @@
       [(result)
        (unless (or (memq (node-value value) results)
                    (hash-has-key? interfaces (node-value value))
-                   (hash-has-key? performers (node-value value)))
+                   (hash-has-key? performers (node-value value))
+                   (memq (node-value value) '(hypotheses assumptions conclusions)))
          (read-error source (node-at value)
                      (format "unknown result ~a" (node-value value))))]))
   (define (check-state-stage stage)
@@ -1706,7 +1754,7 @@
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import interface performer resource implements must-call must-stage-order stage
+        [(to import interface performer resource proposition implements must-call must-stage-order stage
              included-file) visible]
         [(state-stage)
          (check-value (second (node-value form)) inputs visible)
@@ -1760,6 +1808,7 @@
          (check-value (cdr (node-value form)) inputs visible)
          (when (or (hash-has-key? interfaces name)
                    (hash-has-key? resources name)
+                   (memq name '(hypotheses assumptions conclusions))
                    (memq name inputs) (memq name visible))
            (read-error source (node-at form)
                        (format "loop variable ~a shadows a visible name" name)))
@@ -1767,17 +1816,26 @@
          visible]
         [(assignment)
          (define name (car (node-value form)))
-         (check-value (cdr (node-value form)) inputs visible)
-         (when (or (hash-has-key? interfaces name)
+         (define expression (cdr (node-value form)))
+         (check-value expression inputs visible)
+         (define root-append?
+           (and (memq name '(hypotheses assumptions conclusions))
+                (eq? (node-kind expression) 'augment)
+                (eq? (node-kind (second (node-children expression)))
+                     'proposition-value)))
+         (when (and (not root-append?)
+                    (or (hash-has-key? interfaces name)
                    (hash-has-key? performers name)
                    (hash-has-key? resources name)
+                   (memq name '(hypotheses assumptions conclusions))
                    (memq name inputs)
-                   (and (memq name visible) (not (memq name writable))))
+                   (and (memq name visible) (not (memq name writable)))))
            (read-error source (node-at form)
                        (format "cannot assign protected name ~a" name)))
-         (unless (memq name writable)
+         (unless (or root-append? (memq name writable))
            (set! writable (cons name writable)))
-         (if (memq name visible) visible (cons name visible))]
+         (if (or root-append? (memq name visible))
+             visible (cons name visible))]
         [(path-assignment path-update-command)
          (define target (car (node-children form)))
          (define (root value)
@@ -1786,16 +1844,19 @@
                (root (car (node-children value)))))
          (define name (root target))
          (define resource-target? (hash-has-key? resources name))
+         (define proposition-target?
+           (memq name '(hypotheses assumptions conclusions)))
          (define state-target?
            (and (in-state-stage?)
                 (memq name '(information environment factors))))
          (unless (or (and resource-target? (eq? (node-kind form) 'path-assignment)
                           (resource-path? target))
+                     (and proposition-target? (eq? (node-kind form) 'path-assignment))
                      (and state-target? (eq? (node-kind form) 'path-assignment))
                      (and (memq name visible) (memq name writable)))
            (read-error source (node-at form)
                        (format "cannot update protected or unknown name ~a" name)))
-         (unless (or resource-target? state-target?)
+         (unless (or resource-target? state-target? proposition-target?)
            (check-value target inputs visible))
          (when (eq? (node-kind form) 'path-assignment)
            (check-value (second (node-children form)) inputs visible))
@@ -1821,14 +1882,48 @@
                          (format "procedure ~a has no output" name)))
            (when (or (hash-has-key? interfaces result-name)
                      (hash-has-key? resources result-name)
+                     (memq result-name '(hypotheses assumptions conclusions))
                      (memq result-name inputs) (memq result-name visible))
              (read-error source (node-at form)
                          (format "duplicate result ~a" result-name))))
          (if result-name (cons result-name visible) visible)])))
   (check-forms (node-children program) '() '())
+  (define seen-top-level-additions (make-hash))
+  (define (written-path value)
+    (case (node-kind value)
+      [(result) (list (node-value value))]
+      [(field-ref)
+       (define parent (written-path (first (node-children value))))
+       (and parent (append parent (list (node-value value))))]
+      [else #f]))
+  (for ([form (in-list (node-children program))])
+    (define-values (target expression)
+      (case (node-kind form)
+        [(assignment)
+         (values (node 'result (car (node-value form)) '() (node-at form))
+                 (cdr (node-value form)))]
+        [(path-assignment)
+         (values (first (node-children form))
+                 (second (node-children form)))]
+        [else (values #f #f)]))
+    (when (and target expression
+               (eq? (node-kind expression) 'augment))
+      (define child (second (node-children expression)))
+      (define parent-path (written-path target))
+      (when (and parent-path (eq? (node-kind child) 'proposition-value))
+        (define key (append parent-path (node-value child)))
+        (when (hash-has-key? seen-top-level-additions key)
+          (read-error source (node-at form)
+                      (format "duplicate ~a ~a at ~a"
+                              (first (node-value child))
+                              (second (node-value child))
+                              (string-join (map symbol->string parent-path) "."))))
+        (hash-set! seen-top-level-additions key #t))))
   (for ([declaration (in-hash-values performers)])
     (check-value (first (node-children declaration)) '() '()))
   (for ([declaration (in-hash-values resources)])
+    (check-value (first (node-children declaration)) '() '()))
+  (for ([declaration (in-hash-values propositions)])
     (check-value (first (node-children declaration)) '() '()))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'must-call))
@@ -1884,6 +1979,12 @@
     [(resource)
      (list 'resource (node-value form)
            (node->datum (first (node-children form))))]
+    [(proposition)
+     (list 'proposition (node-value form)
+           (node->datum (first (node-children form))))]
+    [(proposition-value)
+     (list 'proposition-value (node-value form)
+           (node->datum (first (node-children form))))]
     [(state-stage)
      (list 'state-stage (car (node-value form))
            (node->datum (second (node-value form)))
@@ -1935,7 +2036,7 @@
            (node->datum (car (node-children form))))]
     [(dot-select dot-update)
      (list (node-kind form) (map node->datum (node-children form)))]
-    [(compare binary unary)
+    [(compare binary unary augment)
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))

@@ -48,6 +48,8 @@ is small, and broader scientific and AI constructs are still being designed.
          "Includes and pinned Git library imports are resolved")
    (list (secref "stages")
          "Simple headers label commands; paired stages are read and checked as a written method")
+   (list (secref "propositions")
+         "Named hypotheses, assumptions, and conclusions can be nested")
    (list (secref "resources")
          "Data reads and writes are represented; no external data is transferred")
    (list (secref "assessment")
@@ -61,7 +63,7 @@ which design documents describe future work.
 
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to
-stages, data sources and storage, reusable definitions, and declared checks. Each
+stages, propositions, data sources and storage, reusable definitions, and declared checks. Each
 page states what its forms currently do.
 
 @include-section["getting-started.scrbl"]
@@ -69,6 +71,7 @@ page states what its forms currently do.
 @include-section["values.scrbl"]
 @include-section["procedures.scrbl"]
 @include-section["stages.scrbl"]
+@include-section["propositions.scrbl"]
 @include-section["resources.scrbl"]
 @include-section["interfaces.scrbl"]
 @include-section["libraries.scrbl"]

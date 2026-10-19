@@ -86,6 +86,10 @@ other fields of @tt{clock}. Missing containing fields are created as records;
 an existing containing value must be a record.
 For lists, @tt{trials.[2] = value} replaces an existing position;
 @tt{trials.[1 = first 2 = second]} replaces several positions.
+@tt{trials += value} appends one item, even when @tt{value} is itself a list
+or record. Lists remain lists from their first entry; @tt{+=} does not
+convert a scalar into a list. @secref["propositions"] describes a separate
+@tt{+=} rule for adding named propositions under another proposition.
 
 @section{Numeric ranges}
 

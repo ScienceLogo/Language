@@ -12,6 +12,9 @@ runnable forms described below keep their existing behavior.
 The [resource form](resources.md) names data sources and storage outside the
 workflow. Its assignments are represented in the model; the interpreter does
 not transfer data to or from them.
+The [proposition forms](propositions.md) name hypotheses, assumptions, and
+conclusions. A named proposition can be nested under another with `+=`;
+its declarations and updates remain inspectable in the workflow model.
 
 ## Source file, procedures, and stage headers
 
@@ -333,6 +336,10 @@ with named fields, and `trial` must already exist. An existing numeric field
 can be increased with `trial.duration += 2`; known numeric values must be
 exact numbers. A missing field is created with `=` or a record update, not
 with numeric `+=`.
+For an existing list, `list-name += value` appends one item. If the value is
+itself a list or record, that whole value is the new item. The
+[proposition contract](propositions.md) uses `+=` to add a named child,
+with a duplicate-name check for that child collection.
 
 Record interfaces can inherit and combine other record interfaces:
 
@@ -384,6 +391,8 @@ dotted update,
 `field = value` supplies a field; within an interface it supplies a default.
 `name += [field = value]` updates or adds record fields. On an existing number,
 `name += increment` or `name.field += increment` adds the numeric expression.
+On an existing list, `name += value` appends one item. These meanings depend
+on the current value on the left; a scalar is never converted into a list.
 In an `if` condition, `=` compares values. A comparison passed directly to a
 procedure must be parenthesized, as in `do check (count = 10)`, because an
 unparenthesized `count = 10` after a call starts a new assignment.

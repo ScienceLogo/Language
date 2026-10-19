@@ -72,6 +72,8 @@ language package; the language supplies the syntax and representation they need.
   reader syntax that is checked as a method but not executed.
 - [Data sources and storage](resources.md) describes accepted `resource`
   declarations and data-flow syntax; the interpreter performs no external I/O.
+- [Propositions](propositions.md) describes accepted named hypotheses,
+  assumptions, conclusions, and their updates.
 - [Semantic core](core.md), [Design principles](design-principles.md),
   [Context sets](context.md), [Prompts and obligations](prompts-and-obligations.md),
   [LLM variation](llm-variation.md), and

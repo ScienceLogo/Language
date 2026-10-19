@@ -25,6 +25,8 @@ naming convention and file-level rules.
          "Update or add fields on an existing record")
    (list (tt "name += number")
          "Add a number to an existing numeric value")
+   (list (tt "name += value")
+         "Append one item when name holds a list")
    (list (tt "output value")
          "Return a value from inside a procedure")
    (list (tt "print value")
@@ -60,7 +62,8 @@ At command position, @tt{name = value} is assignment. A dotted target such as
 @tt{trial.[field = value]}, @tt{field = value} names a field; inside an
 interface it supplies a field default. @tt{name += [field = value]} updates
 or adds record fields; @tt{name.field += number} adds to an existing numeric
-field. Both forms of @tt{+=} require the name on the left to exist. In a condition such as
+field. When the left side is a list, @tt{+=} appends one item. These updates
+require an existing value on the left. In a condition such as
 @tt{if count = 10 [ ... ]},
 @tt{=} compares values. Parenthesize a comparison passed directly to a
 procedure, as in @tt{do check (count = 10)}, so the reader can distinguish it
