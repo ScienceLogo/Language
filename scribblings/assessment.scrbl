@@ -59,6 +59,9 @@ file or establish that the work exists or is correct. ScienceLogo does not
 require every workflow activity to have an author-written name. An interface
 may omit @tt{version}; the assessment report identifies the source revision
 with a hash and does not compare versions.
+An interface may also declare a bare name for an optional workflow part.
+The workflow may provide that part, but its absence does not produce a
+missing-part finding. A provision for an undeclared name remains an error.
 
 The current command for inspecting these declarations is:
 

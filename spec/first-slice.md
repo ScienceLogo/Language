@@ -120,16 +120,22 @@ interface "Assessment process" [
   require collect
   require review
   require report
+  supplementary-notes
   affects collect review
   affects review report
 ]
 ```
 
-An interface may have one nonempty `version`, or omit it. A workflow-part
-interface needs at least one `require`.
-Required part names must be unique. Each `affects source target` names two required
-parts; it says that a missing source can affect the target. This is a structural
-dependency, not a measured uncertainty calculation.
+An interface may have one nonempty `version`, or omit it. In a workflow-part
+interface, `require name` declares a required part and a bare name declares
+an optional one. At least one `require` line identifies the interface as a
+workflow-part interface. All part names must be unique. An omitted optional
+part does not cause a missing-part finding; providing an undeclared part still
+causes an unknown-part finding. Each
+`affects source target` names two required parts; it says that a missing source
+can affect the target. This is a structural dependency, not a measured
+uncertainty calculation. In a record interface without `require`, a bare name
+still declares a required record field.
 
 An investigation can also state a directly checkable obligation:
 

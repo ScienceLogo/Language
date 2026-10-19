@@ -209,6 +209,39 @@
                    '(duplicate-part unknown-part))))
 
   (with-sources
+   "#lang sciencelogo\ninterface \"Parts\" [version \"1\" require measure review]\n"
+   (string-append
+    "#lang sciencelogo\n"
+    "workflow \"Optional review\"\n"
+    "implements \"requirement.rkt\" as p [provide measure by \"timing\"]\n")
+   (lambda (interface method)
+     (check-equal? (map condition-model-kind
+                        (interface-model-conditions (read-interface-model interface)))
+                   '(provided-part optional-part))
+     (define result (assess-file method))
+     (check-equal? (assessment-findings result) '())
+     (check-equal? (length (assessment-checks result)) 1)))
+
+  (with-sources
+   "#lang sciencelogo\ninterface \"Parts\" [require measure review]\n"
+   (string-append
+    "#lang sciencelogo\n"
+    "workflow \"Optional review\"\n"
+    "implements \"requirement.rkt\" as p [provide measure by \"timing\" "
+    "provide review by \"notes\"]\n")
+   (lambda (_interface method)
+     (define result (assess-file method))
+     (check-equal? (assessment-findings result) '())
+     (check-equal? (length (assessment-checks result)) 1)))
+
+  (with-sources
+   "#lang sciencelogo\ninterface \"Parts\" [require review review]\n"
+   "#lang sciencelogo\nworkflow \"Invalid\"\n"
+   (lambda (interface _method)
+     (check-exn #rx"duplicate workflow part review"
+                (lambda () (parse-sciencelogo-file interface)))))
+
+  (with-sources
    "#lang sciencelogo\ninterface \"Parts\" [version \"1\" require a]\n"
    (string-append
     "#lang sciencelogo\n"

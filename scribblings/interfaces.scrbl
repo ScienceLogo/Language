@@ -17,14 +17,16 @@ purposes. Fields and workflow parts cannot be mixed in one interface.
          "Declare a record shape and optional defaults")
    (list (tt "extends Parent")
          "Inherit fields from a local or imported record interface")
-   (list (tt "interface \"Name\" [version \"...\" require part affects source target ...]")
-         "Declare required workflow parts in a separate file")))
+   (list (tt "interface \"Name\" [version \"...\" require name optional-name affects source target ...]")
+         "Declare required and optional workflow parts in a separate file")))
 
 An @tt{interface} may have one nonempty @tt{version} line or omit it.
 Record interfaces have fields and optional @tt{extends} lines. A bare field
 must be supplied; @tt{field = value} gives a default. Workflow-part
-interfaces have distinct @tt{require} lines and optional @tt{affects source
-target} links between required parts. @tt{extends} does not apply to a
+interfaces use @tt{require name} for a required part. A bare name in the same
+interface is optional. A workflow-part interface needs at least one
+@tt{require} line to distinguish it from a record interface. An @tt{affects
+source target} line links two required parts. @tt{extends} does not apply to a
 workflow-part interface.
 
 @section{Record interfaces}
@@ -142,9 +144,11 @@ needs to name the interface.
 @section{Workflow-part interfaces}
 
 A workflow-part interface lives in a separate @tt{#lang sciencelogo} file.
-Its @tt{require} lines name the parts to provide; @tt{affects source target}
-marks a possible downstream effect if a required part is missing. A version
-line can identify the interface, but the assessor does not compare versions.
+Its @tt{require} lines name parts that must be provided. Bare names in that
+interface name parts that may be provided. An omitted optional part is not a
+missing requirement. @tt{affects source target} marks a possible downstream effect
+if a required part is missing. A version line can identify the interface,
+but the assessor does not compare versions.
 
 The @hyperlink[(source-file-url "examples/meta-assessor/requirements/assessor.rkt")]{assessor interface}
 is a separate @tt{#lang sciencelogo} file. It has one version and five required
@@ -171,3 +175,18 @@ interface "Assessor-process" [
 The @hyperlink[(source-file-url "examples/meta-assessor/method.rkt")]{example workflow}
 that supplies these parts is explained in @secref["assessment"]. These five
 parts belong to the example interface; they are not built-in ScienceLogo parts.
+
+For example, an interface can require measurement and allow supplementary
+notes:
+
+@verbatim|{
+interface "Pendulum-recording" [
+  version "1"
+  require measurement
+  supplementary-notes
+]
+}|
+
+An @tt{implements} declaration may provide @tt{supplementary-notes}, but it
+does not have to. A bare name inside a record interface still means a required
+record field. The @tt{require} line identifies this as a workflow-part interface.

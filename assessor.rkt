@@ -376,9 +376,12 @@
        (if issue (list issue) '()))))
   (define missing
     (filter (lambda (part) (not (hash-has-key? provided part)))
-            (map condition-model-target conditions)))
+            (for/list ([condition (in-list conditions)]
+                       #:when (eq? (condition-model-kind condition) 'provided-part))
+              (condition-model-target condition))))
   (define checks
-    (for/list ([condition (in-list conditions)])
+    (for/list ([condition (in-list conditions)]
+               #:when (eq? (condition-model-kind condition) 'provided-part))
       (define part (condition-model-target condition))
       (define provision (hash-ref provided part #f))
       (condition-check (condition-model-id condition)

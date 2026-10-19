@@ -536,18 +536,27 @@
   (define version
     (let ([declared (findf (lambda (form) (eq? (node-kind form) 'version)) forms)])
       (and declared (node-value declared))))
+  (define workflow-parts?
+    (for/or ([form (in-list forms)]) (eq? (node-kind form) 'require)))
   (define conditions
     (for/list ([form (in-list forms)]
                #:when (memq (node-kind form) '(require interface-field)))
-      (if (eq? (node-kind form) 'require)
-          (condition-model (element-id id 'require (node-at form))
-                           'provided-part (node-value form) id 'method
-                           'provide-declaration (origin (node-at form)))
-          (condition-model (element-id id 'field (node-at form))
-                           'required-field (node-value form) id 'record
-                           (and (pair? (node-children form))
-                                (node->datum (car (node-children form))))
-                           (origin (node-at form))))))
+      (case (node-kind form)
+        [(require)
+         (condition-model (element-id id 'require (node-at form))
+                          'provided-part
+                          (node-value form) id 'method
+                          'provide-declaration (origin (node-at form)))]
+        [(interface-field)
+         (condition-model (element-id id 'field (node-at form))
+                          (if workflow-parts? 'optional-part 'required-field)
+                          (node-value form) id
+                          (if workflow-parts? 'method 'record)
+                          (if workflow-parts?
+                              'provide-declaration
+                              (and (pair? (node-children form))
+                                   (node->datum (car (node-children form)))))
+                          (origin (node-at form)))])))
   (define condition-ids
     (for/hasheq ([condition (in-list conditions)])
       (values (condition-model-target condition)
