@@ -1,3 +1,3 @@
 #lang sciencelogo
 
-interface "Timing" [duration unit = "seconds"]
+interface "Timing" [must [duration unit = "seconds"]]

@@ -114,13 +114,14 @@ The reader resolves and validates the library before running the investigation.
 
 @section{Share a record interface}
 
-A library can also define a record interface, for example in @tt{library.rkt}:
+A library can also define a data interface, with required fields and defaults
+grouped inside @tt{must [...]}; see @secref["interfaces"]. In @tt{library.rkt}:
 
 @verbatim|{
 #lang sciencelogo
 
 library "timing" [
-  interface "Timing" [duration unit = "seconds"]
+  interface "Timing" [must [duration unit = "seconds"]]
 ]
 }|
 
@@ -128,7 +129,7 @@ After committing and tagging that repository, a workflow can import and use it:
 
 @verbatim|{
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
-interface "Timed-place" [extends timing.Timing place]
+interface "Timed-place" [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]
 must trial implement timing.Timing
 }|

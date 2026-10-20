@@ -9,6 +9,10 @@ for each form's full rule. Most forms run. Paired stages and their location
 calls are read and checked as a written method but are not executed. Design
 sketches in the @hyperlink[(source-file-url "spec/README.md")]{specification
 index} are marked separately and should not be treated as accepted syntax.
+Within an interface, @tt{must [...]} groups required entries and their
+defaults. @tt{name [...]} gives a part its own nested entries. Bare entries
+without defaults are optional; see
+@secref["interfaces"].
 
 @section{How to read the forms}
 

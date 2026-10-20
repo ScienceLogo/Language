@@ -163,17 +163,15 @@
     (when (or (string=? (car parts) "")
               (member "" (drop-right parts 1)))
       (read-error source found "empty part in dotted path"))
-    (define imported-interface?
+    (define imported-interface-position
       (and (not input?)
            (>= (length parts) 2)
            (member (car parts) import-aliases)
-           (regexp-match? #px"^[A-Z]"
-                          (last (filter (lambda (part) (not (string=? part "")))
-                                        parts)))))
+           (for/first ([part (in-list (cdr parts))] [position (in-naturals 1)]
+                       #:when (regexp-match? #px"^[A-Z]" part))
+             position)))
     (define root-count
-      (if imported-interface?
-          (length (filter (lambda (part) (not (string=? part ""))) parts))
-          1))
+      (if imported-interface-position (add1 imported-interface-position) 1))
     (define root
       (node (if input? 'parameter 'result)
             (string->symbol (string-join (take parts root-count) "."))
@@ -608,10 +606,6 @@
        (expect 'open "[ after the interface name")
        (define declaration (node 'interface name (parse-interface-body) command))
        (validate-interface declaration source)
-       (when (for/or ([part (in-list (node-children declaration))])
-               (eq? (node-kind part) 'require))
-         (read-error source command
-                     "inline interfaces describe records; put workflow-part interfaces in a separate file"))
        declaration]
       ["performer"
        (unless (and definitions-allowed? (not in-procedure?)
@@ -817,39 +811,63 @@
           (node 'path-update-command #f (list target) command)]
          [else
           (read-error source command "expected = or += after assignment target")])]))
-  (define (parse-interface-body)
+  (define (parse-interface-entry command required?)
+    (define name (token-value command))
+    (when (or (member name reserved)
+              (regexp-match? #px"^[+-]?[0-9]" name))
+      (read-error source command "expected an interface field name"))
+    (cond
+      [(eq? (token-kind (current)) 'open)
+       (advance!)
+       (node (if required? 'required-interface-group 'interface-group)
+             (string->symbol name) (parse-interface-body #t) command)]
+      [else
+       (define default
+         (and (eq? (token-kind (current)) 'word)
+              (string=? (token-value (current)) "=")
+              (begin (advance!) (parse-value))))
+       (node (if (or required? default) 'required-interface-field 'interface-field)
+             (string->symbol name) (if default (list default) '()) command)]))
+  (define (parse-required-entries)
+    (expect 'open "[ after must in an interface")
+    (let loop ([backward '()])
+      (case (token-kind (current))
+        [(close)
+         (when (null? backward)
+           (read-error source (current) "must [...] needs at least one entry"))
+         (advance!)
+         (reverse backward)]
+        [(eof) (read-error source (current) "expected ] before end of file")]
+        [else
+         (define command (expect 'word "a required interface field"))
+         (loop (cons (parse-interface-entry command #t) backward))])))
+  (define (parse-interface-body [nested? #f])
     (let loop ([backward '()])
       (define found (current))
       (case (token-kind found)
         [(close) (advance!) (reverse backward)]
         [(eof) (read-error source found "expected ] before end of file")]
         [else
-         (define command (expect 'word "an interface field, extends, version, require, or affects"))
-         (define form
+         (define command (expect 'word "an interface field, extends, version, must, or affects"))
+         (define forms
            (match (token-value command)
              ["extends"
-              (node 'extends (named-word "a parent interface name") '() command)]
+              (when nested? (read-error source command "extends belongs in the interface declaration"))
+              (list (node 'extends (named-word "a parent interface name") '() command))]
              ["version"
-              (node 'version (token-value (expect 'string "a quoted interface version"))
-                    '() command)]
+              (when nested? (read-error source command "version belongs in the interface declaration"))
+              (list (node 'version (token-value (expect 'string "a quoted interface version"))
+                          '() command))]
              ["require"
-              (node 'require (named-word "a required part name") '() command)]
+              (read-error source command "use must [...] for required interface entries")]
+             ["must" (parse-required-entries)]
              ["affects"
-              (node 'affects
-                    (list (named-word "a source part name")
-                          (named-word "an affected part name"))
-                    '() command)]
-             [field-name
-              (when (or (member field-name reserved)
-                        (regexp-match? #px"^[+-]?[0-9]" field-name))
-                (read-error source command "expected an interface field name"))
-              (define default
-                (and (eq? (token-kind (current)) 'word)
-                     (string=? (token-value (current)) "=")
-                     (begin (advance!) (parse-value))))
-              (node 'interface-field (string->symbol field-name)
-                    (if default (list default) '()) command)]))
-         (loop (cons form backward))])))
+              (list (node 'affects
+                          (list (named-word "a source part name")
+                                (named-word "an affected part name"))
+                          '() command))]
+             [_ (list (parse-interface-entry command #f))]))
+         (loop (append (reverse forms) backward))])))
   (define (parse-to-eof definitions-allowed? includes-allowed?)
     (let loop ([backward '()])
       (case (token-kind (current))
@@ -908,10 +926,6 @@
             (read-error source start
                         "an inline interface needs a name usable as a value"))
           (validate-interface declaration source)
-          (when (for/or ([part (in-list forms)])
-                  (eq? (node-kind part) 'require))
-            (read-error source start
-                        "inline interfaces describe records; put workflow-part interfaces in a separate file"))
           (cons declaration (parse-to-eof #t #f)))
         forms))
   (unless (eq? (token-kind (current)) 'eof)
@@ -1138,7 +1152,9 @@
                   [children (map qualify-form (node-children form))])]
     [(extends)
      (struct-copy node form [value (qualified (node-value form))])]
-    [(interface-field)
+    [(interface-group required-interface-group)
+     (struct-copy node form [children (map qualify-form (node-children form))])]
+    [(interface-field required-interface-field)
      (struct-copy node form
                   [children (map qualify-value (node-children form))])]
     [(stage)
@@ -1287,9 +1303,16 @@
       [else calls])))
 
 (define (check-direct-calls forms source)
-  (define (check-private-name name at)
+  (define local-interfaces
+    (for/hasheq ([form (in-list forms)] #:when (eq? (node-kind form) 'interface))
+      (values (string->symbol (node-value form)) form)))
+  (define (check-private-name name at [interface-reference? #f])
     (when (and (symbol? name)
-               (regexp-match? #rx"[.].*[.]" (symbol->string name)))
+               (regexp-match? #rx"[.].*[.]" (symbol->string name))
+               (not (and interface-reference?
+                         (or (interface-reference-root local-interfaces name)
+                             (let ([parts (string-split (symbol->string name) ".")])
+                               (regexp-match? #px"^[A-Z]" (second parts)))))))
       (read-error source at
                   "a library dependency is private; import it directly to use it")))
   (for ([call (in-list (calls-in forms))])
@@ -1301,7 +1324,7 @@
       (check-private-name (node-value form) (node-at form)))
     (case (node-kind form)
       [(must-implement)
-       (check-private-name (cadr (node-value form)) (node-at form))]
+       (check-private-name (cadr (node-value form)) (node-at form) #t)]
       [else
        (define value (node-value form))
        (cond [(node? value) (check-form value)]
@@ -1390,47 +1413,38 @@
   (define required (make-hasheq))
   (define fields (make-hasheq))
   (define parents (make-hasheq))
-  (for ([form (in-list (node-children interface))]
-        #:when (eq? (node-kind form) 'require))
-    (define part (node-value form))
-    (when (hash-has-key? required part)
-      (read-error source (node-at form) (format "duplicate required part ~a" part)))
-    (hash-set! required part #t))
-  (for ([form (in-list (node-children interface))]
-        #:when (eq? (node-kind form) 'interface-field))
-    (define name (node-value form))
-    (when (hash-has-key? required name)
-      (read-error source (node-at form) (format "duplicate workflow part ~a" name)))
-    (when (hash-has-key? fields name)
-      (read-error source (node-at form) (format "duplicate interface field ~a" name)))
-    (when (and (positive? (hash-count required))
-               (pair? (node-children form)))
-      (read-error source (node-at form)
-                  "an optional workflow part cannot have a default value"))
-    (hash-set! fields name #t))
+  (define effects '())
+  (define (qualified prefix name)
+    (string->symbol (string-append prefix (symbol->string name))))
+  (define (walk forms [prefix ""])
+    (for ([form (in-list forms)])
+      (case (node-kind form)
+        [(interface-field required-interface-field interface-group required-interface-group)
+         (define name (qualified prefix (node-value form)))
+         (when (hash-has-key? fields name)
+           (read-error source (node-at form) (format "duplicate interface field ~a" name)))
+         (when (memq (node-kind form) '(required-interface-field required-interface-group))
+           (hash-set! required name #t))
+         (hash-set! fields name #t)
+         (when (memq (node-kind form) '(interface-group required-interface-group))
+           (walk (node-children form) (string-append (symbol->string name) ".")))]
+        [(affects) (set! effects (cons (cons prefix form) effects))])))
+  (walk (node-children interface))
   (for ([form (in-list (node-children interface))]
         #:when (eq? (node-kind form) 'extends))
     (define parent (node-value form))
     (when (hash-has-key? parents parent)
       (read-error source (node-at form) (format "duplicate parent interface ~a" parent)))
     (hash-set! parents parent #t))
-  (when (or (and (positive? (hash-count parents))
-                 (positive? (hash-count required)))
-            (and (zero? (hash-count required))
-                 (or (positive? (hash-count fields))
-                     (positive? (hash-count parents)))
-                 (for/or ([form (in-list (node-children interface))])
-                   (eq? (node-kind form) 'affects))))
-    (read-error source (node-at interface)
-                "record fields and workflow parts cannot share one interface"))
   (when (and (zero? (hash-count required)) (zero? (hash-count fields))
              (zero? (hash-count parents)))
     (read-error source (node-at interface)
                 "an interface needs a field, parent, or required part"))
-  (for ([form (in-list (node-children interface))]
-        #:when (eq? (node-kind form) 'affects))
+  (for ([effect (in-list effects)])
+    (define prefix (car effect))
+    (define form (cdr effect))
     (for ([part (in-list (node-value form))])
-      (unless (hash-has-key? required part)
+      (unless (hash-has-key? required (qualified prefix part))
         (read-error source (node-at form)
                     (format "impact references unknown part ~a" part))))))
 
@@ -1446,11 +1460,12 @@
     (when (hash-has-key? interfaces name)
       (read-error source (node-at form) (format "duplicate interface ~a" name)))
     (hash-set! interfaces name form))
-  (resolve-record-interfaces
+  (define resolved-interfaces
+    (resolve-record-interfaces
    (for/hasheq ([(name form) (in-hash interfaces)])
      (values name (map node->datum (node-children form))))
    (lambda (name message)
-     (read-error source (node-at (hash-ref interfaces name)) message)))
+     (read-error source (node-at (hash-ref interfaces name)) message))))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'to))
     (define name (procedure-name form))
@@ -1820,7 +1835,7 @@
                        (format "unknown record ~a in must implement" name)))
          (define reference (cadr (node-value form)))
          (when (and (symbol? reference)
-                    (not (hash-has-key? interfaces reference)))
+                    (not (resolve-interface-reference resolved-interfaces reference)))
            (read-error source (node-at form)
                        (format "unknown interface ~a in must implement" reference)))
          visible]
@@ -2006,11 +2021,16 @@
     [(implements)
      (list 'implements (node-value form) (map node->datum (node-children form)))]
     [(provide affects) (cons (node-kind form) (node-value form))]
-    [(version require extends) (list (node-kind form) (node-value form))]
-    [(interface-field)
+    [(version extends) (list (node-kind form) (node-value form))]
+    [(interface-field required-interface-field)
      (list 'interface-field (node-value form)
            (and (pair? (node-children form))
-                (node->datum (car (node-children form)))))]
+                (node->datum (car (node-children form))))
+           (eq? (node-kind form) 'required-interface-field) #f)]
+    [(interface-group required-interface-group)
+     (list 'interface-field (node-value form) #f
+           (eq? (node-kind form) 'required-interface-group)
+           (map node->datum (node-children form)))]
     [(must-call) (list 'must-call (node-value form))]
     [(must-implement) (cons 'must-implement (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]

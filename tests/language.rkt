@@ -91,7 +91,8 @@
           (display
            (string-append
             "#lang sciencelogo\n"
-            "interface \"Timing\" [duration unit = \"seconds\"]\n"
+            "interface \"Timing\" [must [duration unit = \"seconds\"] notes "
+            "documentation [must [uncertainty unit = \"seconds\"]]]\n"
             "to echo :name [output :name]\n"
             "to make-trial :duration [\n"
             "  trial = Timing.[duration = :duration]\n"
@@ -184,7 +185,7 @@
                      (string-append
                       "#lang sciencelogo\n"
                       "library \"base\" [\n"
-                      "  interface \"Timing\" [duration unit = \"seconds\"]\n"
+                      "  interface \"Timing\" [must [duration unit = \"seconds\"] notes]\n"
                       "  to message :name [stage \"Review\" output :name]\n"
                       "]\n"))
       (commit-and-tag b "v1.0.0")
@@ -194,7 +195,7 @@
           (display
            (string-append
             "#lang sciencelogo\n"
-            "interface \"TimedPlace\" [extends b.Timing place]\n"
+            "interface \"TimedPlace\" [extends b.Timing must [place]]\n"
             "to welcome :name [\n"
             "  stage \"Review\"\n"
             "  do b.message :name as greeting\n"
@@ -272,11 +273,11 @@
      (write-source "shared/plan.rkt"
                    "#lang sciencelogo\nto plan [output \"ready\"]\n")
      (write-source "shared/timing.rkt"
-                   "#lang sciencelogo\ninterface \"Timing\" [duration]\n")
+                   "#lang sciencelogo\ninterface \"Timing\" [must [duration]]\n")
      (write-source "methods/method.rkt"
                    (string-append
                     "#lang sciencelogo\n"
-                    "interface \"Timing\" [duration unit = \"seconds\"]\n"
+                    "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
                     "stage \"Prepare\"\n"
                     "include \"../shared/plan.rkt\"\n"
                     "included-trial = [duration = 2]\n"
@@ -316,9 +317,9 @@
    (output-of
     (string-append
      "#lang sciencelogo\nworkflow \"Combined timing\"\n"
-     "interface \"TimedTrial\" [extends Timing extends Site duration unit = \"minutes\"]\n"
-     "interface \"Timing\" [duration unit = \"seconds\"]\n"
-     "interface \"Site\" [place]\n"
+     "interface \"TimedTrial\" [extends Timing extends Site must [duration unit = \"minutes\"]]\n"
+     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
+     "interface \"Site\" [must [place]]\n"
      "trial = TimedTrial.[duration = 2 place = \"lab\"]\n"
      "print trial.unit\nprint trial.place\n"))
    "minutes\nlab\n")
@@ -326,9 +327,9 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "interface \"Combined\" [extends First extends Second shared = \"resolved\"]\n"
-     "interface \"First\" [shared = \"first\" a]\n"
-     "interface \"Second\" [shared = \"second\" b]\n"
+     "interface \"Combined\" [extends First extends Second must [shared = \"resolved\"]]\n"
+     "interface \"First\" [must [shared = \"first\" a]]\n"
+     "interface \"Second\" [must [shared = \"second\" b]]\n"
      "record = Combined.[a = 1 b = 2]\n"
      "print record.shared\n"))
    "resolved\n")
@@ -337,8 +338,8 @@
     (string-append
      "#lang sciencelogo\n"
      "interface \"Combined\" [extends First extends Second]\n"
-     "interface \"First\" [unit = \"seconds\"]\n"
-     "interface \"Second\" [unit = \"seconds\"]\n"
+     "interface \"First\" [must [unit = \"seconds\"]]\n"
+     "interface \"Second\" [must [unit = \"seconds\"]]\n"
      "trial = Combined.[]\n"
      "print trial.unit\n"))
    "seconds\n")
@@ -346,9 +347,9 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "interface \"Leaf\" [extends Middle c]\n"
-     "interface \"Middle\" [extends Base b]\n"
-     "interface \"Base\" [a]\n"
+     "interface \"Leaf\" [extends Middle must [c]]\n"
+     "interface \"Middle\" [extends Base must [b]]\n"
+     "interface \"Base\" [must [a]]\n"
      "value = Leaf.[a = 1 b = 2 c = 3]\n"
      "print value.a\n"))
    "1\n")
@@ -359,7 +360,7 @@
       (string-append
        "#lang sciencelogo\n"
        "interface \"Leaf\" [extends Base extends Base]\n"
-       "interface \"Base\" [a]\n"))))
+       "interface \"Base\" [must [a]]\n"))))
   (check-exn
    #rx"standalone interfaces cannot extend"
    (lambda ()
@@ -371,16 +372,16 @@
       (string-append
        "#lang sciencelogo\n"
        "interface \"TimedTrial\" [extends Timing extends Site]\n"
-       "interface \"Timing\" [duration]\n"
-       "interface \"Site\" [place]\n"
+       "interface \"Timing\" [must [duration]]\n"
+       "interface \"Site\" [must [place]]\n"
        "trial = TimedTrial.[duration = 2]\n"))))
   (for ([source (in-list
                  (list
                   (string-append
                    "#lang sciencelogo\n"
                    "interface \"Combined\" [extends First extends Second]\n"
-                   "interface \"First\" [shared = \"first\"]\n"
-                   "interface \"Second\" [shared = \"second\"]\n")
+                   "interface \"First\" [must [shared = \"first\"]]\n"
+                   "interface \"Second\" [must [shared = \"second\"]]\n")
                   (string-append
                    "#lang sciencelogo\n"
                    "interface \"One\" [extends Two]\n"
@@ -403,7 +404,7 @@
     (string-append
      "#lang sciencelogo\n"
      "workflow \"Timing records\"\n"
-     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
      "trial = Timing.[duration = 2]\n"
      "print trial.unit\n"
      "revised = trial.[unit = \"minutes\"]\n"
@@ -415,7 +416,7 @@
   (check-equal?
    (output-of
     (string-append "#lang sciencelogo\n"
-                   "interface \"Timing\" [duration unit = \"seconds\"]\n"
+                   "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
                    "trial = Timing.[duration = 2]\n"
                    "print trial.unit\n"))
    "seconds\n")
@@ -424,13 +425,13 @@
    (lambda ()
      (output-of
       (string-append "#lang sciencelogo\nworkflow \"Timing\"\n"
-                     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+                     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
                      "trial = Timing.[unit = \"minutes\"]\n"))))
   (check-exn
    #rx"duplicate interface field duration"
    (lambda ()
      (output-of
-      "#lang sciencelogo\ninterface \"Timing\" [duration duration]\n")))
+      "#lang sciencelogo\ninterface \"Timing\" [must [duration duration]]\n")))
   (check-equal?
    (output-of
     "#lang sciencelogo\ndo greet\nto greet [print \"Hello\"]\n")
@@ -1080,7 +1081,7 @@
         (string-append
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as hello\n"
-         "interface \"TimedPlace\" [extends hello.Timing place]\n"
+         "interface \"TimedPlace\" [extends hello.Timing must [place]]\n"
          "local = TimedPlace.[duration = 2 place = \"lab\"]\n"
          "must local implement hello.Timing\n"
          "do hello.make-trial 3 as remote\n"
@@ -1089,6 +1090,17 @@
          "print remote.duration\n")
         url))
       "seconds\n3\n")
+     (with-source
+      (format
+       (string-append
+        "#lang sciencelogo\nimport ~s at \"v1.0.0\" as hello\n"
+        "details = hello.Timing.documentation.[uncertainty = unknown]\n"
+        "must details implement hello.Timing.documentation\n"
+        "print details.unit\n") url)
+      (lambda (path)
+        (check-equal? (with-output-to-string (lambda () (dynamic-require path #f)))
+                      "seconds\n")
+        (check-equal? (assessment-findings (assess-file path)) '())))
      (with-source
       (format
        (string-append
@@ -1294,7 +1306,7 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "interface \"Clock\" [clock.time clock.unit = \"seconds\"]\n"
+     "interface \"Clock\" [must [clock.time clock.unit = \"seconds\"]]\n"
      "trial = Clock.[clock.time = \"12:00\"]\n"
      "print trial.clock.unit\n"))
    "seconds\n")
@@ -1306,8 +1318,8 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "interface \"Base-clock\" [clock.time = \"12:00\"]\n"
-     "interface \"Extended-clock\" [extends Base-clock clock.unit = \"seconds\"]\n"
+     "interface \"Base-clock\" [must [clock.time = \"12:00\"]]\n"
+     "interface \"Extended-clock\" [extends Base-clock must [clock.unit = \"seconds\"]]\n"
      "trial = Extended-clock.[]\n"
      "print trial.clock.time\n"
      "print trial.clock.unit\n"))
@@ -1315,7 +1327,7 @@
   (with-source
    (string-append
     "#lang sciencelogo\n"
-    "interface \"Clock\" [clock.time clock.unit = \"seconds\"]\n"
+    "interface \"Clock\" [must [clock.time clock.unit = \"seconds\"]]\n"
     "trial = Clock.[clock.time = \"12:00\"]\n"
     "must trial implement Clock\n")
    (lambda (path)
@@ -1325,7 +1337,7 @@
   (with-source
    (string-append
     "#lang sciencelogo\n"
-    "interface \"Clock-fields\" [time unit]\n"
+    "interface \"Clock-fields\" [must [time unit]]\n"
     "trial = [clock = [time = \"12:00\" unit = \"seconds\"]]\n"
     "must trial.clock implement Clock-fields\n")
    (lambda (path)
@@ -1338,7 +1350,7 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "interface \"Timing\" [duration unit = \"seconds\"]\n"
+     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
      "x = Timing.[duration = 2]\n"
      "earlier = x\n"
      "x += [unit = \"minutes\" note = \"hand timed\"]\n"
@@ -1376,7 +1388,7 @@
   (with-source
    (string-append
     "#lang sciencelogo\n"
-    "interface \"Timing\" [duration unit]\n"
+    "interface \"Timing\" [must [duration unit]]\n"
     "trial = [duration = 2]\n"
     "trial += [unit = \"seconds\"]\n"
     "must trial implement Timing\n")

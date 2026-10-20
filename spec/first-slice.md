@@ -112,30 +112,33 @@ and cycles, and validates the assembled workflow before running it.
 
 ## Declared structural checks
 
+The [interface entry specification](interfaces.md) defines the shared rule:
+required entries and defaults are grouped in `must [...]`; bare entries
+outside, without defaults, are optional.
+
 A separate `#lang sciencelogo` file can declare an interface for parts of a method:
 
 ```text
 interface "Assessment process" [
   version "1"
-  require collect
-  require review
-  require report
+  must [collect review report]
   supplementary-notes
   affects collect review
   affects review report
 ]
 ```
 
-An interface may have one nonempty `version`, or omit it. In a workflow-part
-interface, `require name` declares a required part and a bare name declares
-an optional one. At least one `require` line identifies the interface as a
-workflow-part interface. All part names must be unique. An omitted optional
+An interface may have one nonempty `version`, or omit it. `must [...]`
+declares required entries and a bare name outside, without a default, declares
+an optional one. A defaulted entry is compulsory even outside the group;
+the documentation groups all compulsory entries inside it for clarity.
+All part names must be unique. An omitted optional
 part does not cause a missing-part finding; providing an undeclared part still
 causes an unknown-part finding. Each
 `affects source target` names two required parts; it says that a missing source
 can affect the target. This is a structural dependency, not a measured
-uncertainty calculation. In a record interface without `require`, a bare name
-still declares a required record field.
+uncertainty calculation. Data interfaces use the same compulsory and optional
+entry rules.
 
 An investigation can also state a directly checkable obligation:
 
@@ -236,8 +239,9 @@ scientific measurements.
 
 The assessor's `assess-workflow` accepts that model. `assess-file` reads a file and
 calls it. In addition to the command-line report above, the returned assessment has
-structured condition checks and findings. An interface's `require` line is represented
-as a condition whose current evidence is a matching `provide` declaration. A satisfied
+structured condition checks and findings. A compulsory interface entry is represented
+as a `required-entry` condition whose current evidence, for a workflow-part
+check, is a matching `provide` declaration. A satisfied
 check therefore means that the declaration is present; it does not establish that the
 referenced work exists, happened, or is scientifically sound. An `affects` link reports
 a possible downstream impact as undetermined. The assessor also rejects malformed
@@ -322,15 +326,14 @@ structural obligations that can be checked independently with `must`.
 A record interface may be declared directly in a workflow:
 
 ```text
-interface "Timing" [duration unit = "seconds"]
+interface "Timing" [must [duration unit = "seconds"] notes]
 trial = Timing.[duration = 2]
 must trial implement Timing
 ```
 
-`duration` is required; `unit` defaults to `"seconds"` and can be overridden
-with `trial.unit = "minutes"`. Every field named in the interface must be
-present in the resulting record, but additional fields are allowed. There is
-no separate optional-field category. A record made without the constructor
+`duration` and `unit` are required; `unit` defaults to `"seconds"` and can be
+overridden with `trial.unit = "minutes"`. `notes` is optional and may be
+absent. Additional fields are allowed. A record made without the constructor
 can also satisfy the interface. `unknown` is an explicit value and counts as
 present; omission does not. A standalone interface file can be checked with
 `must trial implement "relative/path.rkt"`. The assessor checks field
@@ -356,11 +359,10 @@ Record interfaces can inherit and combine other record interfaces:
 interface "Timed-observation" [
   extends Timing
   extends Location
-  observation
-  unit = "minutes"
+  must [observation unit = "minutes"]
 ]
-interface "Timing" [duration unit = "seconds"]
-interface "Location" [place]
+interface "Timing" [must [duration unit = "seconds"]]
+interface "Location" [must [place]]
 ```
 
 One `extends` inherits one parent; repeated `extends` combines their fields.
@@ -372,10 +374,10 @@ conflicting inherited declarations. Without an explicit child declaration,
 different inherited requirements or defaults for the same field are a read
 error. Unknown parents, duplicate parents, and extension cycles are errors.
 Constructing from the combined interface applies the resolved defaults and
-requires all resolved bare fields. A `must` check uses those same resolved
-fields. `Combined.[]` can construct an interface when no bare field remains to be
+requires all resolved compulsory fields. A `must` check uses those same resolved
+fields. `Combined.[]` can construct an interface when no required field remains to be
 supplied. Standalone interface files cannot use local `extends` references.
-An interface may declare nested fields such as `clock.time` and defaults such
+An interface may declare nested fields inside `must [...]`, such as `clock.time` and defaults such
 as `clock.unit = "seconds"`. Missing containing fields are created as records;
 an existing containing value must be a record.
 

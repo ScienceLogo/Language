@@ -224,7 +224,7 @@
      (define (selector-key selector container inputs scopes)
        (set! container (plain-value container))
        (cond
-         [(hash? container)
+         [(or (hash? container) (record-interface? container))
           (match selector
             [`(result ,name) name]
             [_ (error 'run-program "record selection needs a field name")])]
@@ -248,10 +248,17 @@
                 (eq? (value-of selector inputs scopes) 'unknown))
            'unknown
            (let ([key (selector-key selector container inputs scopes)])
-             (if (hash? container)
-                 (hash-ref container key
-                           (lambda () (error 'run-program "missing field ~a" key)))
-                 (list-ref container (sub1 key))))))
+             (cond
+               [(record-interface? container)
+                (define name (string->symbol (record-interface-name container)))
+                (or (resolve-interface-reference
+                     (hasheq name container)
+                     (string->symbol (format "~a.~a" name key)))
+                    (error 'run-program "missing nested interface part ~a" key))]
+               [(hash? container)
+                (hash-ref container key
+                          (lambda () (error 'run-program "missing field ~a" key)))]
+               [else (list-ref container (sub1 key))]))))
      (define (replace-one container key value)
        (cond
          [(hash? container) (hash-set container key value)]
@@ -380,17 +387,14 @@
                          (not (hash-has-key? proposition-roots collection)))
                     (proposition-of (singular collection) name)
                     (let ([record (plain-value (value-of receiver inputs scopes))])
-                      (unless (hash? record)
+                      (unless (or (hash? record) (record-interface? record))
                         (error 'run-program "field ~a needs a named-field value" name))
-                      (hash-ref record name
-                                (lambda ()
-                                  (error 'run-program "missing field ~a" name)))))]
+                      (select-one record `(result ,name) inputs scopes)))]
                [_
                 (define record (plain-value (value-of receiver inputs scopes)))
-                (unless (hash? record)
+                (unless (or (hash? record) (record-interface? record))
                   (error 'run-program "field ~a needs a named-field value" name))
-                (hash-ref record name
-                          (lambda () (error 'run-program "missing field ~a" name)))])])]
+                (select-one record `(result ,name) inputs scopes)])])]
          [`(range (,start ,end ,step))
           (numeric-range (value-of start inputs scopes)
                          (value-of end inputs scopes)

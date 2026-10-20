@@ -3,11 +3,13 @@
 ; A separate, versioned interface states what this assessor must provide.
 interface "Assessor-process" [
   version "0.1"
-  require parse
-  require resolve-libraries
-  require check-interfaces
-  require trace-impacts
-  require report
+  must [
+    parse
+    resolve-libraries
+    check-interfaces
+    trace-impacts
+    report
+  ]
 
   affects parse check-interfaces
   affects resolve-libraries check-interfaces

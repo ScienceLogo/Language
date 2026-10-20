@@ -51,7 +51,7 @@ contain:
 #lang sciencelogo
 
 library "timing" [
-  interface "Timing" [duration unit = "seconds"]
+  interface "Timing" [must [duration unit = "seconds"]]
 ]
 ```
 
@@ -59,7 +59,7 @@ After committing and tagging that repository, an investigation can use it:
 
 ```text
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
-interface "Timed-place" [extends timing.Timing place]
+interface "Timed-place" [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]
 must trial implement timing.Timing
 ```

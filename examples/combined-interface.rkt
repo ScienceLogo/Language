@@ -4,11 +4,10 @@ workflow "Describe a pendulum trial"
 interface "Timed-observation" [
   extends Timing
   extends Location
-  observation
-  unit = "minutes"
+  must [observation unit = "minutes"]
 ]
-interface "Timing" [duration unit = "seconds"]
-interface "Location" [place]
+interface "Timing" [must [duration unit = "seconds"]]
+interface "Location" [must [place]]
 
 trial = Timed-observation.[
   duration = 2

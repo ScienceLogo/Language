@@ -3,45 +3,141 @@
 
 @title[#:style (page-style) #:tag "interfaces"]{Records and interfaces}
 
-An interface describes either the fields of a record or the named parts a
-workflow must provide. These uses share a declaration word but have different
-purposes. Fields and workflow parts cannot be mixed in one interface.
-@secref["assessment"] explains the current structural checks on them.
+An interface describes the fields of a structured data object, called a
+record, or the named parts a workflow may provide. Both use @tt{must [...]}
+to identify required entries. A record check treats the entries as fields;
+a workflow implementation declaration treats them as named workflow parts.
+The reader accepts @tt{must [...]} in workflows, libraries, and separate
+interface files. @secref["assessment"] explains the current structural checks.
+
+@section{Required entries, defaults, and optional entries}
+
+Present required entries together inside @tt{must [...]}, including entries
+with defaults:
+
+@verbatim|{
+interface "Timing" [
+  must [duration unit = "seconds"]
+  notes
+]
+}|
+
+@tt{duration} and @tt{unit} must both be present. When constructing a record,
+supply @tt{duration}; the interface supplies @tt{"seconds"} for @tt{unit}
+unless another value is provided. @tt{notes} may be absent.
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Entry") (bold "Meaning"))
+   (list (tt "must [duration unit]") "Both fields are required; neither has a default")
+   (list (tt "must [duration unit = \"seconds\"]")
+         "Both fields are required; unit has an overridable default")
+   (list (tt "notes") "Optional; may be absent")))
+
+@tt{must} applies to every entry inside its brackets, whether they share a
+line or use separate lines. A field with a default is compulsory even if it
+is written outside @tt{must [...]}; grouping it inside makes that meaning
+explicit and is the presentation used in this manual. Only an entry with
+neither @tt{must} nor a default is optional. These rules are shared by data
+interfaces and interfaces describing workflow parts. The
+@hyperlink[(source-file-url "spec/interfaces.md")]{interface specification}
+records the syntax and reader status.
 
 @section{Declaration forms}
 
 @(tabular #:style 'boxed
   (list
    (list (bold "Form") (bold "Purpose"))
-   (list (tt "interface \"Name\" [field field = default ...]")
-         "Declare a record shape and optional defaults")
+   (list (tt "interface \"Name\" [must [required-field defaulted-field = value] optional-field]")
+         "Declare required fields, their defaults, and optional fields")
    (list (tt "extends Parent")
          "Inherit fields from a local or imported record interface")
-   (list (tt "interface \"Name\" [version \"...\" require name optional-name affects source target ...]")
+   (list (tt "interface \"Name\" [version \"...\" must [name ...] optional-name affects source target ...]")
          "Declare required and optional workflow parts in a separate file")))
 
 An @tt{interface} may have one nonempty @tt{version} line or omit it.
-Record interfaces have fields and optional @tt{extends} lines. A bare field
-must be supplied; @tt{field = value} gives a default. Workflow-part
-interfaces use @tt{require name} for a required part. A bare name in the same
-interface is optional. A workflow-part interface needs at least one
-@tt{require} line to distinguish it from a record interface. An @tt{affects
-source target} line links two required parts. @tt{extends} does not apply to a
-workflow-part interface.
+Local and imported interfaces may have @tt{extends} lines. Interfaces
+describing workflow parts use the same required-entry brackets and bare
+optional names. An @tt{affects source target} line links two required entries.
+Separate interface files cannot extend local interfaces.
+
+@section{Nested protocol parts}
+
+A name followed by brackets declares a part containing its own requirements.
+The @hyperlink[(source-file-url "examples/interfaces/pendulum-protocol.rkt")]{pendulum protocol example}
+uses the same @tt{must [...]} rule at each level:
+
+@verbatim|{
+interface "Pendulum-protocol" [
+  version "1"
+  must [
+    measurement
+    documentation [
+      must [uncertainty]
+      notes
+    ]
+  ]
+  additional-measurements
+]
+}|
+
+@tt{measurement} and @tt{documentation} are required. Within
+@tt{documentation}, @tt{uncertainty} is required and @tt{notes} is optional.
+@tt{additional-measurements} is optional at the protocol level. A default
+on an entry makes that entry compulsory within its parent, as with other
+interface entries.
+
+Dots reference the hierarchy: @tt{Pendulum-protocol.documentation.uncertainty}
+identifies the uncertainty part. Names are unique within their parent;
+different parts can use the same child name. The interface version covers
+the full hierarchy.
+
+A declaration providing a parent also declares its required children.
+For example, within an @tt{implements} declaration for this protocol:
+
+@verbatim|{
+provide documentation by "methods/documentation.rkt"
+}|
+
+This also claims @tt{documentation.uncertainty}. The child can instead be
+referenced directly:
+
+@verbatim|{
+provide documentation.uncertainty by "methods/uncertainty.rkt"
+}|
+
+Providing one child does not claim its siblings. Optional nested parts
+remain optional when their parent is provided. When an optional part is
+provided, its own required children apply. These are declarations for
+inspection; the structural check does not inspect the referenced work.
+
+Named blocks also describe nested data fields. A nested part can be used
+with the existing construction and record-check forms:
+
+@verbatim|{
+details = Pendulum-protocol.documentation.[uncertainty = unknown]
+must details implement Pendulum-protocol.documentation
+}|
+
+The reader preserves the dotted names, each entry's requiredness, and parent
+links for tools inspecting the protocol. @tt{version} and @tt{extends}
+belong to the interface declaration; named parts contain entries and their
+@tt{must [...]} groups. An @tt{affects} link inside a part uses names relative
+to that part.
 
 @section{Record interfaces}
 
-A record interface names fields. A bare name requires a supplied field; a
-field with @tt{=} has a default. All fields must be present in the completed
-record. Extra fields are allowed. There is no separate optional-field form.
-The @hyperlink[(source-file-url "examples/record-interface.rkt")]{timing record example}
+A data interface names fields. Required fields, including those with
+defaults, must be present in the completed record. Optional fields may be
+absent, and extra fields are allowed. The
+@hyperlink[(source-file-url "examples/record-interface.rkt")]{timing record example}
 is a runnable workflow:
 
 @verbatim|{
 #lang sciencelogo
 
 workflow "Check timing records"
-interface "Timing" [duration unit = "seconds"]
+interface "Timing" [must [duration unit = "seconds"]]
 trial = Timing.[duration = 2]
 must trial implement Timing
 revised = trial.[unit = "minutes"]
@@ -50,7 +146,8 @@ must revised implement "interfaces/timing.rkt"
 }|
 
 @tt{Timing.[duration = 2]} creates a record with @tt{unit = "seconds"}.
-Construction fails if any bare field remains absent. On the right side of an
+Construction fails if a required field remains absent after applying defaults.
+On the right side of an
 assignment, @tt{trial.[unit = "minutes"]} produces a modified value for
 @tt{revised}; @tt{trial} retains its earlier value. The existing @tt{trial}
 can also be updated:
@@ -86,9 +183,9 @@ against that file; the path
 is relative to the workflow file. The assessor records the source revision
 hash even when the optional @tt{version} is omitted. The standalone form
 checks a record; local declarations supply a name usable in construction.
-Record fields and @tt{require} parts cannot be mixed in one interface.
 @tt{implements ... [provide ...]} remains the form for workflow-part
-interfaces.
+declarations; it checks the same compulsory and optional entries as a record
+check, using provision declarations rather than record fields.
 
 @section{Extend and combine record interfaces}
 
@@ -102,11 +199,10 @@ workflow "Describe a pendulum trial"
 interface "Timed-observation" [
   extends Timing
   extends Location
-  observation
-  unit = "minutes"
+  must [observation unit = "minutes"]
 ]
-interface "Timing" [duration unit = "seconds"]
-interface "Location" [place]
+interface "Timing" [must [duration unit = "seconds"]]
+interface "Location" [must [place]]
 
 trial = Timed-observation.[
   duration = 2
@@ -121,16 +217,19 @@ must trial implement Location
 The parent interfaces may be declared after the interface that extends them.
 @tt{Timed-observation} requires @tt{duration}, @tt{place}, and @tt{observation};
 its own @tt{unit = "minutes"} replaces the @tt{Timing} default. A child may
-also redeclare an inherited default as a bare required field. Identical field
+also replace an inherited default with a required field without a default,
+written inside @tt{must [...]}. Identical field
 declarations from different parents merge. If parents define the same field
 differently, the child must declare that field explicitly to resolve the
 conflict. Unknown parents and extension cycles are reader errors. Construction
 checks all inherited required fields, and @tt{must} can check a resulting
 record against the combined interface or any of its parents by field presence.
-If every field has a default, @tt{Combined.[]} constructs a record
+The same check follows nested groups. Unknown nested contents are reported
+as undetermined; an optional group that is absent remains optional.
+If every required field has a default, @tt{Combined.[]} constructs a record
 using those defaults.
-An interface may also require or default a nested field, such as
-@tt{clock.time} or @tt{clock.unit = "seconds"}. These are paths through a
+An interface may also declare required nested fields, including defaults,
+as @tt{must [clock.time clock.unit = "seconds"]}. These are paths through a
 record, with the same dot meaning used to read and update its values.
 An inherited interface may be declared later in the same workflow, in an
 included workflow file, or imported from a library. Importing a library as
@@ -144,8 +243,8 @@ needs to name the interface.
 @section{Workflow-part interfaces}
 
 A workflow-part interface lives in a separate @tt{#lang sciencelogo} file.
-Its @tt{require} lines name parts that must be provided. Bare names in that
-interface name parts that may be provided. An omitted optional part is not a
+Its @tt{must [...]} group names parts that must be provided. Bare names
+outside that group name parts that may be provided. An omitted optional part is not a
 missing requirement. @tt{affects source target} marks a possible downstream effect
 if a required part is missing. A version line can identify the interface,
 but the assessor does not compare versions.
@@ -159,11 +258,13 @@ parts:
 
 interface "Assessor-process" [
   version "0.1"
-  require parse
-  require resolve-libraries
-  require check-interfaces
-  require trace-impacts
-  require report
+  must [
+    parse
+    resolve-libraries
+    check-interfaces
+    trace-impacts
+    report
+  ]
 
   affects parse check-interfaces
   affects resolve-libraries check-interfaces
@@ -182,11 +283,11 @@ notes:
 @verbatim|{
 interface "Pendulum-recording" [
   version "1"
-  require measurement
+  must [measurement]
   supplementary-notes
 ]
 }|
 
 An @tt{implements} declaration may provide @tt{supplementary-notes}, but it
-does not have to. A bare name inside a record interface still means a required
-record field. The @tt{require} line identifies this as a workflow-part interface.
+does not have to. The same required-entry rule applies when an interface
+describes data fields: a bare name without a default is optional.

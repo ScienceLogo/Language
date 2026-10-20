@@ -3,16 +3,63 @@
 (require racket/list racket/string)
 
 (provide (struct-out record-interface)
+         (struct-out record-field)
          resolve-record-interfaces
+         interface-reference-root
+         resolve-interface-reference
          interface-record
          missing-interface-fields)
 
-;; A field is (cons name default-expression-or-#f). The caller evaluates
-;; defaults in its own value environment before constructing a record.
+;; The caller evaluates defaults in its own value environment.
 (struct record-interface (name fields) #:transparent)
+(struct record-field (name default required? children) #:transparent)
 
 ;; Declarations map interface names to reader datums: (extends Parent) and
-;; (interface-field field default-or-#f). Resolution permits forward references.
+;; (interface-field name default-or-#f required? children-or-#f).
+;; A named group has child declarations; a value field has #f children.
+(define (interface-reference-root declarations reference)
+  (define text (symbol->string reference))
+  (for/first ([name (in-list (sort (hash-keys declarations) >
+                                 #:key (lambda (name) (string-length (symbol->string name)))))]
+              #:when (or (eq? name reference)
+                         (string-prefix? text (string-append (symbol->string name) "."))))
+    name))
+
+(define (resolve-interface-reference interfaces reference)
+  (define root (interface-reference-root interfaces reference))
+  (and root
+       (let walk ([interface (hash-ref interfaces root)]
+                  [remaining (substring (symbol->string reference)
+                                        (string-length (symbol->string root)))])
+         (cond
+           [(string=? remaining "") interface]
+           [else
+            (define text (substring remaining 1))
+            (define group
+              (for/first ([field (in-list (sort (record-interface-fields interface) >
+                                              #:key (lambda (field)
+                                                      (string-length (symbol->string
+                                                                      (record-field-name field))))))]
+                          #:when (and (record-field-children field)
+                                      (or (string=? text (symbol->string (record-field-name field)))
+                                          (string-prefix? text
+                                                          (string-append
+                                                           (symbol->string (record-field-name field)) ".")))))
+                field))
+            (and group
+                 (walk (record-interface
+                        (string-append (record-interface-name interface) "."
+                                       (symbol->string (record-field-name group)))
+                        (record-field-children group))
+                       (substring text (string-length (symbol->string
+                                                        (record-field-name group))))))]))))
+
+(define (declaration-fields parts)
+  (for/list ([part (in-list parts)] #:when (eq? (car part) 'interface-field))
+    (record-field (cadr part) (caddr part) (cadddr part)
+                  (and (list-ref part 4) (declaration-fields (list-ref part 4))))))
+
+;; Resolution permits forward references.
 (define (resolve-record-interfaces declarations
                                    [fail (lambda (_name message)
                                            (error 'resolve-record-interfaces "~a" message))])
@@ -27,24 +74,24 @@
               (lambda ()
                 (hash-set! active name #t)
                 (define parts (hash-ref declarations name))
-                (define own
-                  (for/list ([part (in-list parts)]
-                             #:when (eq? (car part) 'interface-field))
-                    (cons (cadr part) (caddr part))))
-                (define own-names (map car own))
+                (define own (declaration-fields parts))
+                (define own-names (map record-field-name own))
                 (define inherited '())
                 (for ([part (in-list parts)] #:when (eq? (car part) 'extends))
                   (define parent (visit (cadr part) name))
                   (for ([field (in-list (record-interface-fields parent))]
-                        #:unless (memq (car field) own-names))
-                    (define existing (assoc (car field) inherited))
+                        #:unless (memq (record-field-name field) own-names))
+                    (define existing
+                      (findf (lambda (earlier)
+                               (eq? (record-field-name earlier) (record-field-name field)))
+                             inherited))
                     (cond
                       [(not existing)
                        (set! inherited (append inherited (list field)))]
-                      [(not (equal? (cdr existing) (cdr field)))
+                      [(not (equal? existing field))
                        (fail name
                              (format "conflicting inherited field ~a in ~a; declare it explicitly"
-                                     (car field) name))])))
+                                     (record-field-name field) name))])))
                 (define result
                   (record-interface (symbol->string name) (append inherited own)))
                 (hash-remove! active name)
@@ -55,19 +102,31 @@
     (visit name))
   resolved)
 
+(define absent (gensym 'absent))
+(define (field-path field)
+  (map string->symbol (string-split (symbol->string (record-field-name field)) ".")))
+(define (path-value record path)
+  (cond [(null? path) record]
+        [(and (hash? record) (hash-has-key? record (car path)))
+         (path-value (hash-ref record (car path)) (cdr path))]
+        [else absent]))
+
 (define (missing-interface-fields interface record)
   (unless (record-interface? interface)
     (raise-argument-error 'missing-interface-fields "record-interface?" interface))
-  (define (present? value path)
-    (and (hash? value)
-         (hash-has-key? value (car path))
-         (or (null? (cdr path))
-             (present? (hash-ref value (car path)) (cdr path)))))
-  (for/list ([field (in-list (record-interface-fields interface))]
-             #:unless (present? record
-                                (map string->symbol
-                                     (string-split (symbol->string (car field)) "."))))
-    (car field)))
+  (define (walk fields value [prefix ""])
+    (append*
+     (for/list ([field (in-list fields)])
+       (define name (string-append prefix (symbol->string (record-field-name field))))
+       (define found (path-value value (field-path field)))
+       (cond [(eq? found absent)
+              (if (record-field-required? field) (list (string->symbol name)) '())]
+             [(record-field-children field)
+              (if (hash? found)
+                  (walk (record-field-children field) found (string-append name "."))
+                  (list (string->symbol name)))]
+             [else '()]))))
+  (walk (record-interface-fields interface) record))
 
 (define (interface-record interface overrides evaluate-default)
   (unless (record-interface? interface)
@@ -96,15 +155,28 @@
                 (if (and (hash? earlier) (hash? value))
                     (merge-records earlier value)
                     value))))
-  (define defaults
+  (define (defaults-for fields)
     (for/fold ([record (hasheq)])
-              ([field (in-list (record-interface-fields interface))]
-               #:when (cdr field))
-      (put-path record
-                (map string->symbol
-                     (string-split (symbol->string (car field)) "."))
-                (evaluate-default (cdr field)))))
-  (define result (merge-records defaults overrides))
+              ([field (in-list fields)])
+      (cond [(record-field-default field)
+             (put-path record (field-path field)
+                       (evaluate-default (record-field-default field)))]
+            [(and (record-field-children field) (record-field-required? field))
+             (define nested (defaults-for (record-field-children field)))
+             (if (zero? (hash-count nested)) record
+                 (put-path record (field-path field) nested))]
+            [else record])))
+  (define (complete fields values)
+    (define combined (merge-records (defaults-for fields) values))
+    (for/fold ([record combined])
+              ([field (in-list fields)] #:when (record-field-children field))
+      (define found (path-value record (field-path field)))
+      (cond [(eq? found absent) record]
+            [(not (hash? found))
+             (error 'interface-record "nested field ~a needs a record" (record-field-name field))]
+            [else (put-path record (field-path field)
+                            (complete (record-field-children field) found))])))
+  (define result (complete (record-interface-fields interface) overrides))
   (define missing (missing-interface-fields interface result))
   (unless (null? missing)
     (error 'interface-record "~a is missing field~a ~a"

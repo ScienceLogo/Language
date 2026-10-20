@@ -10,7 +10,8 @@ beyond parsing syntax, but they do not show that the work happened or judge
 its scientific adequacy. Protocol conformance, bias analysis, uncertainty
 analysis, and assessment of observed runs are not built-in checks. Their
 applications may use the method information the reader preserves.
-@secref["interfaces"] defines the two kinds of interface used here.
+@secref["interfaces"] defines the shared declaration rules for data fields
+and workflow parts.
 
 @section{Declare a structural check}
 
@@ -62,6 +63,10 @@ with a hash and does not compare versions.
 An interface may also declare a bare name for an optional workflow part.
 The workflow may provide that part, but its absence does not produce a
 missing-part finding. A provision for an undeclared name remains an error.
+Nested parts use dotted paths. Providing a parent claims its required
+children; providing a particular child leaves other children to their own
+requirements. Optional nested parts stay optional. See
+@secref["interfaces"] for the declaration syntax and examples.
 
 The current command for inspecting these declarations is:
 
@@ -137,7 +142,7 @@ has one containment link to its recorded parent.
 
 @tt{assess-workflow} checks this model; @tt{assess-file} reads the file first.
 The returned structural assessment includes condition checks and findings that identify
-their targets. For a @tt{require} part, @tt{satisfied} means a matching
+their targets. For a required workflow part, @tt{satisfied} means a matching
 @tt{provide} declaration exists. A missing part is @tt{violated}. A
 downstream part reached through @tt{affects} is reported as possibly affected,
 with an @tt{undetermined} outcome for that impact. This assessment does not

@@ -4,7 +4,8 @@
          racket/list
          racket/match
          racket/path
-         "private/reader.rkt")
+         "private/reader.rkt"
+         "private/record-interfaces.rkt")
 
 (provide read-workflow-model
          read-interface-model
@@ -513,7 +514,9 @@
                                           (map node->datum earlier)
                                           (and (symbol? reference)
                                                (node->datum
-                                                (hash-ref inline-interfaces reference)))
+                                                (hash-ref inline-interfaces
+                                                          (interface-reference-root
+                                                           inline-interfaces reference))))
                                           (for/list ([declaration (in-hash-values inline-interfaces)])
                                             (node->datum declaration)))
                                     (origin (node-at form)))
@@ -536,35 +539,47 @@
   (define version
     (let ([declared (findf (lambda (form) (eq? (node-kind form) 'version)) forms)])
       (and declared (node-value declared))))
-  (define workflow-parts?
-    (for/or ([form (in-list forms)]) (eq? (node-kind form) 'require)))
-  (define conditions
-    (for/list ([form (in-list forms)]
-               #:when (memq (node-kind form) '(require interface-field)))
+  (define conditions '())
+  (define relations '())
+  (define effects '())
+  (define (qualified prefix name)
+    (string->symbol (string-append prefix (symbol->string name))))
+  (define (walk forms scope [prefix ""])
+    (for ([form (in-list forms)])
       (case (node-kind form)
-        [(require)
-         (condition-model (element-id id 'require (node-at form))
-                          'provided-part
-                          (node-value form) id 'method
-                          'provide-declaration (origin (node-at form)))]
-        [(interface-field)
-         (condition-model (element-id id 'field (node-at form))
-                          (if workflow-parts? 'optional-part 'required-field)
-                          (node-value form) id
-                          (if workflow-parts? 'method 'record)
-                          (if workflow-parts?
-                              'provide-declaration
-                              (and (pair? (node-children form))
-                                   (node->datum (car (node-children form)))))
-                          (origin (node-at form)))])))
+        [(interface-field required-interface-field interface-group required-interface-group)
+         (define name (qualified prefix (node-value form)))
+         (define child-id (element-id id 'field (node-at form)))
+         (define group? (memq (node-kind form) '(interface-group required-interface-group)))
+         (set! conditions
+               (cons (condition-model child-id
+                                      (if (memq (node-kind form)
+                                                '(required-interface-field required-interface-group))
+                                          'required-entry 'optional-entry)
+                                      name scope 'interface
+                                      (if group? 'nested-entries
+                                          (and (pair? (node-children form))
+                                               (node->datum (car (node-children form)))))
+                                      (origin (node-at form)))
+                     conditions))
+         (unless (equal? scope id)
+           (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form)))
+                                 relations)))
+         (when group? (walk (node-children form) child-id (string-append (symbol->string name) ".")))]
+        [(affects) (set! effects (cons (cons prefix form) effects))])))
+  (walk forms id)
+  (set! conditions (reverse conditions))
   (define condition-ids
     (for/hasheq ([condition (in-list conditions)])
       (values (condition-model-target condition)
               (condition-model-id condition))))
-  (define relations
-    (for/list ([form (in-list forms)] #:when (eq? (node-kind form) 'affects))
-      (match-define (list from to) (node-value form))
-      (relation-model 'affects (hash-ref condition-ids from)
-                      (hash-ref condition-ids to) (origin (node-at form)))))
+  (for ([effect (in-list (reverse effects))])
+    (define prefix (car effect))
+    (define form (cdr effect))
+    (match-define (list from to) (node-value form))
+    (set! relations
+          (cons (relation-model 'affects (hash-ref condition-ids (qualified prefix from))
+                                (hash-ref condition-ids (qualified prefix to))
+                                (origin (node-at form))) relations)))
   (interface-model id (node-value tree) version source revision
-                   conditions relations))
+                   conditions (reverse relations)))
