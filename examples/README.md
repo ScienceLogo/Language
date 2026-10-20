@@ -20,6 +20,9 @@ different timing methods.
 The [value-requirement example](value-requirements.rkt) mixes a numeric
 condition, a required entry, and an exact-value requirement in one `must [...]`
 group. Equality comparisons use `==`; assignments and defaults use `=`.
+The [list-requirement example](list-requirements.rkt) uses `for each` inside
+an interface to require a period and its uncertainty description in every
+measurement of a list.
 
 The prose examples are **provisional research and language sketches**, not
 executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)

@@ -201,6 +201,78 @@ preserved conditions and mappings to assess protocol conformity.
 The [conditional interface example](../examples/conditional-interface.rkt)
 constructs records for all three branches and checks their declared fields.
 
+## Requirements for every item in a list
+
+An interface can use the existing `for each name in collection [...]` form
+to describe requirements for every item of a list:
+
+```text
+interface "Timing-series" [
+  must [measurements]
+
+  for each measurement in measurements [
+    must [measurement.period measurement.period.u]
+  ]
+]
+```
+
+This interface requires a `measurements` list. Each item must have a
+`period` field and an attached uncertainty description accessible through
+`period.u`. The presence of a description says nothing about its scientific
+adequacy. This block describes each item; it does not perform measurements
+or run workflow activities.
+
+The loop name denotes the current item and is available only within its
+block. Entry declarations in the block begin with that name, such as
+`measurement.period` or `measurement.unit = "seconds"`. The existing
+required, optional, and default rules apply. A bare required entry checks
+presence; a comparison checks its stated condition. For example:
+
+```text
+for each measurement in measurements [
+  must [measurement.swing-count > 10 measurement.unit == "seconds"]
+]
+```
+
+Expressions may also read entries of the surrounding interface part.
+For instance, `measurement.swing-count > minimum-count` can use a
+`minimum-count` entry declared alongside `measurements`. A scalar list can
+use its item name directly: `for each count in counts [must [count > 10]]`.
+The collection uses the existing value expressions, including dotted
+paths, lists, and ranges. A block can contain nested `for each` blocks and
+the established `if [...] else if [...] else [...]` forms. An enclosing
+condition can also govern a whole list requirement. Enclosing item names
+remain available in nested expressions. A named child part retains the
+ordinary rule that its fields and conditions are relative to that part.
+
+When the block applies, the collection must be present and must be a list.
+An empty list has no items to check and satisfies the per-item requirements;
+the form does not require a nonempty list. An unknown collection or an
+unknown value needed by a condition produces an undetermined check.
+A known violation remains a violation even if another item is unknown.
+Missing item fields are identified with positions starting at 1, for
+example `measurements.[2].period.u`.
+
+Constructing a record from an interface fills applicable defaults in
+the referenced list items, then checks the requirements. Checking an
+existing record does not fill defaults or change it. For example,
+`must [measurement.unit = "seconds"]` supplies each item's overridable
+unit during construction. Default completion writes back through a named
+or dotted collection location; a literal or calculated collection is only
+inspected. Unknown and invalid requirements prevent construction, as with
+other interface requirements.
+
+Inheritance, imports, and includes preserve the whole block. The model
+records its item name, collection expression, enclosing scope, guard, and
+source location. Its body is a nested interface model that retains each
+entry's source location and any further conditions or list requirements.
+The item name does not become a workflow variable or a protocol part at
+the enclosing level. Structural record checks inspect known written lists;
+workflow mappings retain an undetermined list requirement when the mapped
+values are unavailable. Applications can inspect the same declaration.
+The [runnable list example](../examples/list-requirements.rkt) constructs
+and checks the series shown above.
+
 ## Map workflow parts to requirements
 
 Use `implement` directly between a workflow reference and an interface reference:

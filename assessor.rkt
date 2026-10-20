@@ -6,6 +6,7 @@
          racket/string
          "private/call-paths.rkt"
          "private/constant-values.rkt"
+         "private/uncertain-values.rkt"
          "private/record-interfaces.rkt"
          "workflow-model.rkt")
 
@@ -458,10 +459,19 @@
   (define value-checks '())
   (define value-findings '())
   (for ([condition (in-list all-conditions)]
-        #:when (and (eq? (condition-model-kind condition) 'value-requirement)
+        #:when (and (memq (condition-model-kind condition) '(value-requirement collection-requirement))
                     (not (eq? (active? condition) #f))))
-    (define expression (condition-model-evidence condition))
-    (define answer (interface-guard-value expression (hasheq)))
+    (define expression (interface-condition-expression condition))
+    (define answer
+      (if (eq? (condition-model-kind condition) 'collection-requirement)
+          (let ([results (interface-requirement-results
+                          (record-interface "list" '() (list (record-requirement expression #f)))
+                          (for/hasheq ([path (in-list (requirement-references expression))])
+                            (values (car path) 'unknown)))])
+            (cond [(ormap (lambda (check) (eq? (requirement-result-outcome check) 'violated)) results) #f]
+                  [(ormap (lambda (check) (eq? (requirement-result-outcome check) 'undetermined)) results) 'unknown]
+                  [else #t]))
+          (interface-guard-value expression (hasheq))))
     (define outcome (cond [(eq? answer #t) 'satisfied]
                           [(and (eq? answer #f) (eq? (active? condition) #t)) 'violated]
                           [else 'undetermined]))
@@ -484,12 +494,35 @@
 
 (define (shape-put shape path value)
   (define name (car path))
-  (if (null? (cdr path))
-      (hash-set shape name value)
-      (hash-set shape name
-                (shape-put (let ([earlier (hash-ref shape name #f)])
-                             (if (hash? earlier) earlier (hasheq)))
-                           (cdr path) value))))
+  (define earlier
+    (cond [(and (list? shape) (exact-positive-integer? name) (<= name (length shape)))
+           (list-ref shape (sub1 name))]
+          [else (value-field shape name (hasheq))]))
+  (define replacement (if (null? (cdr path)) value (shape-put earlier (cdr path) value)))
+  (cond [(hash? shape) (hash-set shape name replacement)]
+        [(and (list? shape) (exact-positive-integer? name) (<= name (length shape)))
+         (list-set shape (sub1 name) replacement)]
+        [(and (uncertain-value? shape) (eq? name 'u))
+         (uncertain-value (plain-value shape) replacement)]
+        [else 'undetermined]))
+
+(define (shape-expression-path expression)
+  (match expression
+    [`(result ,name) (list name)]
+    [`(field-ref ,name ,receiver)
+     (define parent (shape-expression-path receiver))
+     (and parent (append parent (list name)))]
+    [`(dot-select (,receiver (literal ,index)))
+     (define parent (shape-expression-path receiver))
+     (and parent (exact-positive-integer? index) (append parent (list index)))]
+    [_ #f]))
+
+(define (shape-expression-root expression)
+  (match expression
+    [`(result ,name) name]
+    [`(field-ref ,_ ,receiver) (shape-expression-root receiver)]
+    [`(dot-select (,receiver ,_ ...)) (shape-expression-root receiver)]
+    [_ #f]))
 
 (define (shape-merge base changes)
   (for/fold ([result base]) ([(name value) (in-hash changes)])
@@ -520,11 +553,13 @@
      (for/hasheq ([entry (in-list entries)])
        (values (car entry)
                (nested-record-shape (cadr entry) environment templates)))]
+    [`(list ,parts)
+     (map (lambda (part) (nested-record-shape part environment templates)) parts)]
     [`(result ,name)
      (hash-ref environment name 'undetermined)]
     [`(field-ref ,name ,receiver)
      (define shape (record-shape receiver environment templates))
-     (if (hash? shape) (hash-ref shape name 'undetermined) 'undetermined)]
+     (value-field shape name 'undetermined)]
     [`(dot-update (,source (fields ,entries)))
      (define template (expression-interface source templates))
      (define changes (record-shape `(fields ,entries) environment templates))
@@ -543,8 +578,14 @@
     [_ 'undetermined]))
 
 (define (nested-record-shape expression environment templates)
-  (define shape (record-shape expression environment templates))
-  (if (eq? shape 'not-a-record) (constant-value expression) shape))
+  (match expression
+    [`(list ,parts) (map (lambda (part) (nested-record-shape part environment templates)) parts)]
+    [`(uncertain ,base ,description)
+     (uncertain-value (nested-record-shape base environment templates)
+                      (nested-record-shape description environment templates))]
+    [_
+     (define shape (record-shape expression environment templates))
+     (if (eq? shape 'not-a-record) (constant-value expression) shape)]))
 
 (define (unknown-nested-parts template shape)
   (define (walk fields record [prefix ""])
@@ -561,13 +602,21 @@
              [else '()]))))
   (walk (record-interface-fields template) shape))
 
+(define (interface-condition-expression condition)
+  (define evidence (condition-model-evidence condition))
+  (if (interface-iteration-model? evidence)
+      (list 'interface-for-each (interface-iteration-model-name evidence)
+            (interface-iteration-model-collection evidence)
+            (interface-model-template (interface-iteration-model-body evidence)))
+      evidence))
+
 (define (interface-model-template interface)
   (define conditions (interface-model-conditions interface))
   (define (requirements scope)
     (for/list ([condition (in-list conditions)]
-               #:when (and (eq? (condition-model-kind condition) 'value-requirement)
+               #:when (and (memq (condition-model-kind condition) '(value-requirement collection-requirement))
                            (equal? (condition-model-scope condition) scope)))
-      (record-requirement (condition-model-evidence condition) (condition-model-guard condition))))
+      (record-requirement (interface-condition-expression condition) (condition-model-guard condition))))
   (define (fields scope [prefix ""])
     (for/list ([condition (in-list conditions)]
                #:when (and (memq (condition-model-kind condition) '(required-entry optional-entry))
@@ -638,18 +687,15 @@
           (hash-set! environment name
                      (record-shape expression environment templates))]
          [`(path-assignment ,target ,expression)
-          (define (path value)
-            (match value
-              [`(result ,name) (list name)]
-              [`(field-ref ,field ,receiver)
-               (append (path receiver) (list field))]
-              [_ #f]))
-          (define location (path target))
-          (when (and location (hash? (hash-ref environment (car location) #f)))
-            (hash-set! environment (car location)
-                       (shape-put (hash-ref environment (car location))
-                                  (cdr location)
-                                  (nested-record-shape expression environment templates))))]
+          (define location (shape-expression-path target))
+          (define root (shape-expression-root target))
+          (when root
+            (hash-set! environment root
+                       (if location
+                           (shape-put (hash-ref environment root 'undetermined)
+                                      (cdr location)
+                                      (nested-record-shape expression environment templates))
+                           'undetermined)))]
          [`(path-update-command (dot-update (,receiver (fields ,entries))))
           (match receiver
             [`(result ,name)
@@ -659,7 +705,9 @@
                           (shape-merge earlier
                                        (record-shape `(fields ,entries)
                                                      environment templates))))]
-            [_ (void)])]
+            [_
+             (define root (shape-expression-root receiver))
+             (when root (hash-set! environment root 'undetermined))])]
          [`(call ,_ ,_ ,name)
           (when name (hash-set! environment name 'undetermined))]
          [`(sequence ,_) (for ([name (in-hash-keys environment)])

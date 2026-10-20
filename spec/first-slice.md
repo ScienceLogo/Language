@@ -412,6 +412,14 @@ An interface may declare nested fields inside `must [...]`, such as `clock.time`
 as `clock.unit = "seconds"`. Missing containing fields are created as records;
 an existing containing value must be a record.
 
+An interface may also use `for each item in collection [...]` to describe
+requirements for each list item. The block uses the existing entry,
+comparison, default, and conditional forms, with dotted paths beginning
+with its local item name. Empty lists have no items to check; unknown lists
+remain undetermined. The reader preserves the collection and nested body
+for inspection. See [list requirements](interfaces.md#requirements-for-every-item-in-a-list)
+and the [runnable example](../examples/list-requirements.rkt).
+
 ## Lists, ranges, loops, and conditions
 
 `name = value` creates a local name or updates a visible name previously

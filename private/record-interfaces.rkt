@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/list racket/match racket/string "constant-values.rkt")
+(require racket/list racket/match racket/string "constant-values.rkt" "uncertain-values.rkt")
 
 (provide (struct-out record-interface)
          (struct-out record-field)
@@ -17,6 +17,8 @@
          interface-requirement-results
          requirement-references
          interface-guard-value
+         interface-value
+         iteration-template
          combine-interface-guards
          interface-branch-guards)
 
@@ -42,6 +44,7 @@
           [(pair? expression)
            (match expression
              [`(literal ,_) (void)]
+             [`(interface-for-each ,_ ,collection ,_) (walk collection)]
              [`(fields ,entries) (for ([entry (in-list entries)]) (walk (cadr entry)))]
              [`(dot-select (,receiver ,selectors ...))
               (walk receiver)
@@ -162,6 +165,7 @@
    (for/list ([part (in-list parts)])
      (case (car part)
        [(interface-requirement) (list (record-requirement (cadr part) guard))]
+       [(interface-for-each) (list (record-requirement part guard))]
        [(interface-if)
         (define branches (cadr part))
         (append*
@@ -217,24 +221,74 @@
   resolved)
 
 (define absent (gensym 'absent))
+(define unknown-path (gensym 'unknown-path))
 (define (field-path field)
   (map string->symbol (string-split (symbol->string (record-field-name field)) ".")))
 (define (path-value record path)
   (cond [(null? path) record]
-        [(and (hash? record) (hash-has-key? record (car path)))
-         (path-value (hash-ref record (car path)) (cdr path))]
-        [else absent]))
+        [(memq record '(unknown undetermined)) unknown-path]
+        [else
+         (define child (value-field record (car path) absent))
+         (if (eq? child absent) absent (path-value child (cdr path)))]))
 
-(define (interface-guard-value expression record)
+;; Unlike a Boolean test, a collection may contain known and unknown items.
+(define (interface-value expression record)
   (define (known value)
     (cond [(memq value '(undetermined not-a-record)) 'unknown]
+          [(uncertain-value? value)
+           (uncertain-value (known (plain-value value)) (known (uncertain-value-uncertainty value)))]
           [(hash? value) (for/hasheq ([(name part) (in-hash value)]) (values name (known part)))]
           [(list? value) (map known value)]
           [else value]))
-  (define value
-    (if expression
-        (constant-value expression (lambda (name) (known (hash-ref record name 'unknown))))
-        #t))
+  (define (evaluate expression)
+    (match expression
+      [`(list ,parts) (map evaluate parts)]
+      [`(fields ,entries)
+       (for/hasheq ([entry (in-list entries)]) (values (car entry) (evaluate (cadr entry))))]
+      [`(uncertain ,base ,description) (uncertain-value (evaluate base) (evaluate description))]
+      [`(range (,start ,end ,step))
+       (define a (evaluate start))
+       (define b (evaluate end))
+       (define increment (evaluate step))
+       (if (and (real? a) (exact? a) (real? b) (exact? b)
+                (real? increment) (exact? increment) (not (zero? increment))
+                (or (= a b) (and (< a b) (positive? increment))
+                    (and (> a b) (negative? increment))))
+           (for/list ([value (in-range a (+ b increment) increment)]
+                      #:when (if (positive? increment) (<= value b) (>= value b))) value)
+           no-constant)]
+      [_ (constant-value expression (lambda (name) (known (hash-ref record name 'unknown))))]))
+  (evaluate expression))
+
+(define (iteration-template body)
+  (if (record-interface? body) body
+      (record-interface "list item" (declaration-fields body) (declaration-requirements body))))
+
+(define (expression-location expression record)
+  (match expression
+    [`(result ,name) (list name)]
+    [`(field-ref ,name ,receiver)
+     (define parent (expression-location receiver record))
+     (and parent (append parent (list name)))]
+    [`(dot-select (,receiver ,selector))
+     (define parent (expression-location receiver record))
+     (define container (plain-value (interface-value receiver record)))
+     (define key (match selector
+                   [`(result ,name) (if (hash? container) name (interface-value selector record))]
+                   [_ (interface-value selector record)]))
+     (and parent (or (and (hash? container) (symbol? key))
+                     (and (list? container) (exact-positive-integer? key)
+                          (<= key (length container))))
+          (append parent (list key)))]
+    [_ #f]))
+
+(define (and-status first second)
+  (cond [(or (eq? first #f) (eq? second #f)) #f]
+        [(and (eq? first #t) (eq? second #t)) #t]
+        [else 'unknown]))
+
+(define (interface-guard-value expression record)
+  (define value (if expression (interface-value expression record) #t))
   (if (boolean? value) value 'unknown))
 
 (define (interface-field-gaps interface record [evaluate-guard interface-guard-value])
@@ -256,11 +310,16 @@
              (set! missing (cons (string->symbol name) missing))
              (set! pending (cons (string->symbol name) pending))))
        (unless (eq? status #f)
-         (cond [(eq? found absent) (when (record-field-required? field) (gap))]
+         (cond [(eq? found unknown-path)
+                (when (or (record-field-required? field) (record-field-children field))
+                  (set! pending (cons (string->symbol name) pending)))]
+               [(eq? found absent) (when (record-field-required? field) (gap))]
                [(record-field-children field)
-                (if (hash? found)
-                    (walk (record-field-children field) found (string-append name ".") status)
-                    (gap))]))))
+                (cond [(memq found '(unknown undetermined))
+                       (set! pending (cons (string->symbol name) pending))]
+                      [(hash? found)
+                       (walk (record-field-children field) found (string-append name ".") status)]
+                      [else (gap)])]))))
   (walk (record-interface-fields interface) record)
   (values (reverse missing) (reverse pending)))
 
@@ -274,35 +333,85 @@
 
 (define (interface-requirement-results interface record [evaluate interface-guard-value])
   (define results '())
-  (define (and-status first second)
-    (cond [(or (eq? first #f) (eq? second #f)) #f]
-          [(and (eq? first #t) (eq? second #t)) #t]
-          [else 'unknown]))
+  (define locations (make-parameter (hasheq)))
+  (define (locate prefix path)
+    (if (and (pair? path) (hash-has-key? (locations) (car path)))
+        (append (hash-ref (locations) (car path)) (cdr path))
+        (append prefix path)))
+  (define (path-label path)
+    (string->symbol
+     (string-join (map (lambda (part) (if (number? part) (format "[~a]" part)
+                                        (symbol->string part))) path) ".")))
+  (define (add prefix expression outcome [missing '()])
+    (set! results (cons (requirement-result prefix expression outcome missing) results)))
+  (define (item-location expression value prefix index)
+    (define references (requirement-references expression))
+    (define location (expression-location expression value))
+    (append (locate prefix (or location (and (= (length references) 1) (car references)) '(items)))
+            (list index)))
+  (define (relocate name binder location)
+    (define text (symbol->string name))
+    (define root (symbol->string binder))
+    (define shown
+      (string-join (map (lambda (part) (if (number? part) (format "[~a]" part)
+                                         (symbol->string part))) location) "."))
+    (string->symbol (if (or (string=? text root) (string-prefix? text (string-append root ".")))
+                       (string-append shown (substring text (string-length root))) text)))
   (define (walk fields requirements value [prefix '()] [outer #t])
     (for ([requirement (in-list requirements)])
       (define guard (record-requirement-guard requirement))
       (define active (and-status outer (if guard (evaluate guard value) #t)))
       (unless (eq? active #f)
         (define expression (record-requirement-expression requirement))
-        (define missing
-          (for/list ([path (in-list (requirement-references expression))]
-                     #:when (eq? (path-value value (if (memq 'u path) (take path 1) path)) absent))
-            (string->symbol (string-join (map symbol->string (append prefix path)) "."))))
-        (define outcome
-          (cond [(pair? missing) (if (eq? active #t) 'violated 'undetermined)]
-                [else
-                 (define answer (evaluate expression value))
-                 (cond [(eq? answer #t) 'satisfied]
-                       [(and (eq? answer #f) (eq? active #t)) 'violated]
-                       [else 'undetermined])]))
-        (set! results (cons (requirement-result prefix expression outcome missing) results))))
+        (cond
+          [(and (pair? expression) (eq? (car expression) 'interface-for-each))
+           (match-define `(interface-for-each ,binder ,collection ,body) expression)
+           (define items (plain-value (interface-value collection value)))
+           (define template (iteration-template body))
+           (define missing-collection
+             (for/list ([path (in-list (requirement-references collection))]
+                        #:when (eq? (path-value value path) absent))
+               (path-label (locate prefix path))))
+           (cond
+             [(pair? missing-collection)
+              (add prefix expression (if (eq? active #t) 'violated 'undetermined) missing-collection)]
+             [(unresolved? items) (add prefix expression 'undetermined)]
+             [(not (list? items))
+              (add prefix expression (if (eq? active #t) 'violated 'undetermined))]
+             [else
+              (when (null? items) (add prefix expression 'satisfied))
+              (for ([item (in-list items)] [index (in-naturals 1)])
+                (define local (hash-set value binder item))
+                (define location (item-location collection value prefix index))
+                (define missing (missing-interface-fields template local evaluate))
+                (define pending (undetermined-interface-fields template local evaluate))
+                (unless (null? missing)
+                  (add location expression (if (eq? active #t) 'violated 'undetermined)
+                       (map (lambda (name) (relocate name binder location)) missing)))
+                (unless (null? pending) (add location expression 'undetermined))
+                (parameterize ([locations (hash-set (locations) binder location)])
+                  (walk (record-interface-fields template) (record-interface-requirements template)
+                        local location active)))])]
+          [else
+           (define missing
+             (for/list ([path (in-list (requirement-references expression))]
+                        #:when (eq? (path-value value path) absent))
+               (path-label (locate prefix path))))
+           (define outcome
+             (cond [(pair? missing) (if (eq? active #t) 'violated 'undetermined)]
+                   [else
+                    (define answer (evaluate expression value))
+                    (cond [(eq? answer #t) 'satisfied]
+                          [(and (eq? answer #f) (eq? active #t)) 'violated]
+                          [else 'undetermined])]))
+           (add prefix expression outcome missing)])))
     (for ([field (in-list fields)] #:when (record-field-children field))
       (define found (path-value value (field-path field)))
       (define guard (record-field-guard field))
       (define active (and-status outer (if guard (evaluate guard value) #t)))
       (when (and (hash? found) (not (eq? active #f)))
         (walk (record-field-children field) (record-field-requirements field) found
-              (append prefix (field-path field)) active))))
+              (locate prefix (field-path field)) active))))
   (walk (record-interface-fields interface) (record-interface-requirements interface) record)
   (reverse results))
 
@@ -350,21 +459,66 @@
              (if (zero? (hash-count nested)) record
                  (put-path record (field-path field) nested))]
             [else record])))
-  (define (complete fields values)
+  (define (complete fields requirements values)
     (define combined
       (let loop ([current values])
         (define next (merge-records (defaults-for fields current) current))
         (if (equal? next current) current (loop next))))
-    (for/fold ([record combined])
-              ([field (in-list fields)]
-               #:when (and (record-field-children field) (active? field combined)))
-      (define found (path-value record (field-path field)))
-      (cond [(eq? found absent) record]
-            [(not (hash? found))
-             (error 'interface-record "nested field ~a needs a record" (record-field-name field))]
-            [else (put-path record (field-path field)
-                            (complete (record-field-children field) found))])))
-  (complete (record-interface-fields interface) overrides))
+    (define nested
+      (for/fold ([record combined])
+                ([field (in-list fields)]
+                 #:when (and (record-field-children field) (active? field combined)))
+        (define found (path-value record (field-path field)))
+        (cond [(eq? found absent) record]
+              [(not (hash? found))
+               (error 'interface-record "nested field ~a needs a record" (record-field-name field))]
+              [else (put-path record (field-path field)
+                              (complete (record-field-children field)
+                                        (record-field-requirements field) found))])))
+    (for/fold ([record nested]) ([requirement (in-list requirements)])
+      (define expression (record-requirement-expression requirement))
+      (define guard (record-requirement-guard requirement))
+      (cond
+        [(and (pair? expression) (eq? (car expression) 'interface-for-each)
+              (or (not guard) (eq? (evaluate-guard guard record) #t)))
+         (match-define `(interface-for-each ,binder ,collection ,body) expression)
+         (define original (interface-value collection record))
+         (define items (plain-value original))
+         (define template (iteration-template body))
+         (define (replace value path replacement)
+           (if (null? path) replacement
+               (let* ([name (car path)]
+                      [plain (plain-value value)]
+                      [child (if (list? plain) (list-ref plain (sub1 name))
+                                 (hash-ref plain name))]
+                      [updated (replace child (cdr path) replacement)]
+                      [result (if (list? plain) (list-set plain (sub1 name) updated)
+                                  (hash-set plain name updated))])
+                 (if (uncertain-value? value)
+                     (uncertain-value result (uncertain-value-uncertainty value)) result))))
+         (define path (expression-location collection record))
+         (if (and path (list? items))
+             (let ([completed-items
+              (for/list ([item (in-list items)])
+                (define local (hash-set record binder item))
+                (define completed
+                  (complete-interface-record
+                   template local
+                   (lambda (default)
+                     (define answer (interface-value default local))
+                     (if (eq? answer no-constant) (evaluate-default default) answer))
+                   evaluate-guard))
+                (hash-ref completed binder item))])
+               (replace record path
+                        (if (uncertain-value? original)
+                            (uncertain-value completed-items (uncertain-value-uncertainty original))
+                            completed-items)))
+             record)]
+        [else record])))
+  (let loop ([current overrides])
+    (define next (complete (record-interface-fields interface)
+                           (record-interface-requirements interface) current))
+    (if (equal? next current) current (loop next))))
 
 (define (interface-record interface overrides evaluate-default
                           [evaluate-guard interface-guard-value])
@@ -386,11 +540,18 @@
            (record-interface-name interface)
            (string-join (map symbol->string pending) ", ")))
   (for ([check (in-list requirements)])
+    (define location
+      (if (null? (requirement-result-scope check)) ""
+          (string-append " at "
+                         (string-join
+                          (map (lambda (part) (if (number? part) (format "[~a]" part)
+                                                 (symbol->string part)))
+                               (requirement-result-scope check)) "."))))
     (case (requirement-result-outcome check)
       [(violated)
-       (error 'interface-record "~a does not satisfy value requirement ~s"
-              (record-interface-name interface) (requirement-result-expression check))]
+       (error 'interface-record "~a does not satisfy value requirement ~s~a"
+              (record-interface-name interface) (requirement-result-expression check) location)]
       [(undetermined)
-       (error 'interface-record "~a has an undetermined value requirement ~s"
-              (record-interface-name interface) (requirement-result-expression check))]))
+       (error 'interface-record "~a has an undetermined value requirement ~s~a"
+              (record-interface-name interface) (requirement-result-expression check) location)]))
   result)

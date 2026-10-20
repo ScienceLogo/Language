@@ -148,10 +148,19 @@ as field presence. A false requirement is violated; an unresolved requirement
 is undetermined. Construction fills defaults with @tt{=}; an equality
 requirement written with @tt{==} supplies no default.
 
+An interface can use @tt{for each} to apply requirements to every item of
+a written list. The structural record check examines the known items and
+identifies missing fields by their positions, such as
+@tt{measurements.[2].period.u}. Empty lists have no items to check;
+unknown collections or needed values leave checks undetermined.
+@secref["interface-list-requirements"] explains the declaration form.
+
 For workflow mappings, the model retains the expressions and their guards.
 The current mapping checker resolves literal expressions; requirements
 depending on mapped workflow values remain undetermined. Other applications
 can use the recorded values and mappings to assess them.
+List requirements retain their local item name, collection expression,
+guard, and a nested interface model of the body, including source locations.
 
 @section{Method information available to other tools}
 

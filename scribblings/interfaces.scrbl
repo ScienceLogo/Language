@@ -248,6 +248,68 @@ resolves literal conditions; conditions depending on mapped workflow values
 remain undetermined when required mappings are absent. Other applications
 can inspect those values and conditions to assess conformity.
 
+@section[#:tag "interface-list-requirements"]{Requirements for every item in a list}
+
+Use @tt{for each} inside an interface to describe every item in a list:
+
+@verbatim|{
+interface "Timing-series" [
+  must [measurements]
+
+  for each measurement in measurements [
+    must [measurement.period measurement.period.u]
+  ]
+]
+}|
+
+The interface requires a @tt{measurements} list. Each item must have a
+@tt{period} field and an attached uncertainty description accessible through
+@tt{period.u}. These are the requirements of this example protocol.
+The block describes the items; it does not perform measurements.
+The @hyperlink[(source-file-url "examples/list-requirements.rkt")]{runnable example}
+constructs and checks a series with two measurements.
+
+The name @tt{measurement} refers to one item and is local to the block.
+Use its dotted paths for entries and the existing expressions for conditions:
+
+@verbatim|{
+for each measurement in measurements [
+  must [measurement.swing-count > 10 measurement.unit == "seconds"]
+]
+}|
+
+Entry declarations begin with the item name. They use the same required,
+optional, and default rules as other interface entries.
+Conditions may also read entries declared in the surrounding interface
+part. @tt{if}, @tt{else if}, @tt{else}, and further @tt{for each} blocks
+can appear inside the block. Nested loops can refer to their enclosing
+item names. Scalar lists can use the item name directly, as in
+@tt{for each count in counts [must [count > 10]]}.
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Written collection") (bold "Check"))
+   (list "Known list" "Checks every item; any known violation makes the requirement violated")
+   (list (tt "[]") "Satisfied: there are no items to check")
+   (list (tt "unknown") "Undetermined")
+   (list "Missing collection or a known value that is not a list" "Violated when the block applies")))
+
+A missing item field identifies its position, such as
+@tt{measurements.[2].period.u}. An unknown value can leave a condition
+undetermined. A bare field requirement checks presence only.
+The existence of @tt{period.u} does not establish the adequacy of the
+uncertainty description.
+
+Construction fills applicable defaults in referenced list items. For
+example, @tt{must [measurement.unit = "seconds"]} supplies each item's unit
+unless overridden. Checking an existing record leaves it unchanged.
+The @hyperlink[(source-file-url "spec/interfaces.md")]{interface specification}
+describes collection locations and default completion.
+Inheritance and library imports preserve the whole declaration.
+The workflow model retains the collection, local name, conditions, nesting,
+and source locations for applications to inspect. A workflow mapping alone
+does not establish the values of its list items.
+
 @section{Record interfaces}
 
 A data interface names fields. Required fields, including those with

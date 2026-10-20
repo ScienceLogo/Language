@@ -1,11 +1,9 @@
 #lang racket/base
 
 (require racket/list racket/match racket/string
-         "private/record-interfaces.rkt")
+         "private/record-interfaces.rkt" "private/uncertain-values.rkt")
 
 (provide (all-from-out racket/base) run-program)
-
-(struct uncertain-value (value uncertainty) #:transparent)
 
 ;; The reader validates the complete method before producing this representation.
 (define (run-program program)
@@ -117,8 +115,6 @@
          [`(dot-select (,receiver ,_ ...)) (resource-root receiver)]
          [_ #f]))
      (define no-result (gensym 'no-result))
-     (define (plain-value value)
-       (if (uncertain-value? value) (uncertain-value-value value) value))
      (define (normalize-uncertainty value)
        (unless (hash? value)
          (error 'run-program "u needs named fields"))
@@ -297,18 +293,7 @@
             original
             (for/hasheq ([entry (in-list entries)])
               (values (car entry) (value-of (cadr entry) inputs scopes)))
-            (lambda (default) (value-of default inputs scopes))
-            (lambda (condition record)
-              (define local (make-hasheq (hash->list record)))
-              (define (bind-missing expression)
-                (match expression
-                  [`(result ,name)
-                   (unless (hash-has-key? local name) (hash-set! local name 'unknown))]
-                  [(? list? parts) (for-each bind-missing parts)]
-                  [_ (void)]))
-              (bind-missing condition)
-              (boolean-value
-               (value-of condition (make-hasheq) (list local)))))
+            (lambda (default) (value-of default inputs scopes)))
            (for/fold ([current original]) ([entry (in-list entries)])
          (match-define `(,raw-key ,expression) entry)
          (define key

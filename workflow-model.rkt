@@ -26,6 +26,7 @@
          (struct-out provision-model)
          (struct-out mapping-model)
          (struct-out interface-model)
+         (struct-out interface-iteration-model)
          (struct-out condition-model))
 
 ;; These records describe a method. They do not report that any activity occurred.
@@ -49,6 +50,7 @@
 (struct mapping-model (id kind subject interface part parent source) #:transparent)
 (struct interface-model (id name version source revision conditions relations)
   #:transparent)
+(struct interface-iteration-model (name collection body) #:transparent)
 (struct condition-model (id kind target scope checkpoint evidence source guard)
   #:transparent)
 
@@ -141,7 +143,7 @@
                                     (map (lambda (branch)
                                            (struct-copy node branch [children (inherit (node-children branch))]))
                                          (node-children entry))]))]
-               [(eq? (node-kind entry) 'interface-requirement)
+               [(memq (node-kind entry) '(interface-requirement interface-for-each))
                 (define key (list (token-source (node-at entry)) (token-position (node-at entry))))
                 (if (hash-has-key? inherited-requirements key) '()
                     (begin (hash-set! inherited-requirements key #t) (list entry)))]
@@ -709,8 +711,9 @@
            (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form)))
                                  relations)))
          (when group? (walk (node-children form) child-id (string-append (symbol->string name) ".")))]
-        [(interface-requirement)
-         (define expression (node->datum (node-value form)))
+        [(interface-requirement interface-for-each)
+         (define iteration? (eq? (node-kind form) 'interface-for-each))
+         (define expression (if iteration? (node->datum form) (node->datum (node-value form))))
          (for ([path (in-list (requirement-references expression))])
            (define name (qualified prefix (string->symbol (string-join (map symbol->string path) "."))))
            (unless (hash-has-key? declared name)
@@ -722,9 +725,21 @@
                                           (origin (node-at form)) guard) conditions))
              (unless (equal? scope id)
                (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form))) relations)))))
+         (define condition-id
+           (element-id id (if iteration? 'collection-requirement 'value-requirement) (node-at form)))
+         (define evidence
+           (if iteration?
+               (interface-iteration-model
+                (car (node-value form)) (node->datum (cdr (node-value form)))
+                (interface-tree-model
+                 (node 'interface (symbol->string (car (node-value form)))
+                       (node-children form) (node-at form))
+                 source revision (string-append condition-id "/body")))
+               expression))
          (set! conditions
-               (cons (condition-model (element-id id 'value-requirement (node-at form))
-                                      'value-requirement scope scope 'interface expression
+               (cons (condition-model condition-id
+                                      (if iteration? 'collection-requirement 'value-requirement)
+                                      scope scope 'interface evidence
                                       (origin (node-at form)) guard) conditions))]
         [(interface-if)
          (define branches (node-children form))

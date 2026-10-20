@@ -1,5 +1,5 @@
 #lang racket/base
-(require racket/list racket/match)
+(require racket/list racket/match "uncertain-values.rkt")
 (provide constant-value no-constant unresolved? contains-unresolved?)
 
 (define no-constant (gensym 'no-constant))
@@ -9,6 +9,7 @@
 
 (define (contains-unresolved? value)
   (cond
+    [(uncertain-value? value) (contains-unresolved? (plain-value value))]
     [(unresolved? value) #t]
     [(list? value) (ormap contains-unresolved? value)]
     [(hash? value)
@@ -21,6 +22,8 @@
     (match expression
       [`(result ,name) (lookup name)]
       [`(literal ,value) value]
+      [`(uncertain ,base ,description)
+       (uncertain-value (evaluate base) (evaluate description))]
       [`(list ,parts)
        (define values (map evaluate parts))
        (if (ormap contains-unresolved? values) no-constant values)]
@@ -75,10 +78,9 @@
           (if entry (evaluate (second entry)) no-constant)]
          [_
           (define record (evaluate receiver))
-          (if (and (hash? record) (hash-has-key? record name))
-              (hash-ref record name) no-constant)])]
+          (value-field record name no-constant)])]
       [`(unary ,operator (,part))
-       (define value (evaluate part))
+       (define value (plain-value (evaluate part)))
        (cond
          [(unresolved? value) no-constant]
          [(eq? operator 'not)
@@ -87,8 +89,8 @@
           (if (and (real? value) (exact? value)) (- value) no-constant)]
          [else no-constant])]
       [`(binary ,operator (,left ,right))
-       (define a (evaluate left))
-       (define b (evaluate right))
+       (define a (plain-value (evaluate left)))
+       (define b (plain-value (evaluate right)))
        (case operator
          [(and)
           (cond [(eq? a #f) #f]
@@ -115,8 +117,8 @@
                 [(/) (/ a b)]
                 [else no-constant]))])]
       [`(compare ,operator (,left ,right))
-       (define a (evaluate left))
-       (define b (evaluate right))
+       (define a (plain-value (evaluate left)))
+       (define b (plain-value (evaluate right)))
        (cond
          [(or (contains-unresolved? a) (contains-unresolved? b)) no-constant]
          [(eq? operator '==) (equal? a b)]

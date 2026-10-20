@@ -87,6 +87,10 @@ pendulum.
   defaults and presence requirements, including all referenced entry paths.
   Equality comparisons use `==`; assignment and default expressions retain
   their distinct `=` meaning.
+  For `for each` inside an interface, preserve its collection expression,
+  local item name, enclosing scope, guard, and the body with its nested
+  requirements and source locations. The body describes each item; it is
+  not an executed workflow activity or a set of enclosing workflow names.
 
 Inputs, results, and other values appear through the commands and references
 that use them. ScienceLogo does not impose a generic `Item` type or a catalogue

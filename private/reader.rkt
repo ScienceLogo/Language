@@ -891,6 +891,16 @@
               (read-error source command "use must [...] for required interface entries")]
              ["must" (parse-required-entries)]
              ["if" (list (parse-interface-if command))]
+             ["for"
+              (expect-word "each")
+              (define name (named-word "a loop variable"))
+              (when (regexp-match? #rx"[.]" (symbol->string name))
+                (read-error source command "a loop name cannot contain a dot"))
+              (expect-word "in")
+              (define collection (parse-value))
+              (expect 'open "[ after the collection")
+              (list (node 'interface-for-each (cons name collection)
+                          (parse-interface-body #t) command))]
              ["affects"
               (list (node 'affects
                           (list (named-word "a source part name")
@@ -1199,7 +1209,7 @@
                   [children (map qualify-form (node-children form))])]
     [(extends)
      (struct-copy node form [value (qualified (node-value form))])]
-    [(interface-group required-interface-group interface-if interface-branch)
+    [(interface-group required-interface-group interface-if interface-branch interface-for-each)
      (struct-copy node form [children (map qualify-form (node-children form))])]
     [(interface-field required-interface-field)
      (struct-copy node form
@@ -1508,6 +1518,10 @@
          (set! requirements (cons form requirements))
          (for ([path (in-list (requirement-references (node->datum (node-value form))))])
            (hash-set! required (qualified prefix (car path)) #t))]
+        [(interface-for-each)
+         (set! requirements (cons form requirements))
+         (when (pair? (node-children form))
+           (validate-interface (node 'interface "list item" (node-children form) (node-at form)) source))]
         [(affects) (set! effects (cons (cons prefix form) effects))])))
   (walk (node-children interface))
   (for ([form (in-list (node-children interface))]
@@ -1529,15 +1543,18 @@
                     (format "impact references unknown part ~a" part))))))
 
 (define (validate-interface-guards declaration template source)
-  (define (check fields requirements)
+  (define (check fields requirements [outer-names '()] [binder #f])
     (define names
       (append
        (map (lambda (field)
               (string->symbol (car (string-split (symbol->string (record-field-name field)) "."))))
             fields)
-       (append* (map (lambda (requirement)
-                       (map car (requirement-references (record-requirement-expression requirement))))
-                     requirements))))
+       outer-names
+       (if binder (list binder) '())
+       (if binder '()
+           (append* (map (lambda (requirement)
+                           (map car (requirement-references (record-requirement-expression requirement))))
+                         requirements)))))
     (define (expression value)
       (when (pair? value)
         (case (car value)
@@ -1558,11 +1575,23 @@
              (expression selector))]
           [else (for ([part (in-list value)]) (expression part))])))
     (for ([field (in-list fields)])
+      (when (and binder
+                 (not (eq? binder (string->symbol
+                                   (car (string-split (symbol->string (record-field-name field)) "."))))))
+        (read-error source (node-at declaration)
+                    (format "entries inside for each must refer to its item ~a" binder)))
       (expression (record-field-guard field))
+      (when binder (expression (record-field-default field)))
       (when (record-field-children field)
         (check (record-field-children field) (record-field-requirements field))))
     (for ([requirement (in-list requirements)])
-      (expression (record-requirement-expression requirement))
+      (define value (record-requirement-expression requirement))
+      (match value
+        [`(interface-for-each ,name ,collection ,body)
+         (expression collection)
+         (define local (iteration-template body))
+         (check (record-interface-fields local) (record-interface-requirements local) names name)]
+        [_ (expression value)])
       (expression (record-requirement-guard requirement))))
   (check (record-interface-fields template) (record-interface-requirements template)))
 
@@ -2170,6 +2199,10 @@
            (map node->datum (node-children form)))]
     [(interface-requirement)
      (list 'interface-requirement (node->datum (node-value form)))]
+    [(interface-for-each)
+     (list 'interface-for-each (car (node-value form))
+           (node->datum (cdr (node-value form)))
+           (map node->datum (node-children form)))]
     [(must-call) (list 'must-call (node-value form))]
     [(implement)
      (list 'implement (node->datum (car (node-children form))) (node-value form))]

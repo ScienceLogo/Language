@@ -158,7 +158,7 @@ procedures, and record interfaces; it has no top-level executable commands.
          (tt "resource name [ ... ], name.field = value, value = name.field")
          "Data flow represented; no external I/O")
    (list (secref "interfaces")
-         (tt "interface, version, extends, must [...], if, else if, else, affects")
+         (tt "interface, version, extends, must [...], if, else if, else, for each, affects")
          "Declarations checked for structure")
    (list (secref "libraries")
          (tt "library, import, include")

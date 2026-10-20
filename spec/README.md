@@ -14,7 +14,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | Document | Role and current status |
 | --- | --- |
 | [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
-| [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, compulsory defaults, optional entries, nested protocol parts, and shared structural checks. |
+| [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, defaults, optional entries, nested protocol parts, conditional and per-item requirements, and shared structural checks. |
 | [Libraries](libraries.md) | Accepted layout, import, and include rules. |
 | [Paired stages and state locations](stage-state.md) | Accepted reader syntax; checked as a written method but not executed. |
 | [Propositions](propositions.md) | Named hypotheses, assumptions, conclusions, and nested relationships. |
