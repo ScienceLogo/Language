@@ -449,7 +449,7 @@
    (output-of
     (string-append
      "#lang sciencelogo\n"
-     "count = 1 do echo (count = 1) as matches print matches\n"
+     "count = 1 do echo (count == 1) as matches print matches\n"
      "to echo :flag [output :flag]\n"))
    "true\n")
 
@@ -504,7 +504,7 @@
      "values = [1 2 true \"ready\"]\n"
      "repeat 2 [print values]\n"
      "if 1 > 2 [print \"wrong\"] "
-     "else if 2 = 2 [print \"matched\"] "
+     "else if 2 == 2 [print \"matched\"] "
      "else [print \"wrong\"]\n"
      "continue = true\n"
      "while continue [print \"once\" continue = false]\n"
@@ -544,7 +544,7 @@
      "print true xor true\n"
      "print true xor false\n"
      "print not true or false\n"
-     "print not 1 = 2\n"
+     "print not 1 == 2\n"
      "print true and not false\n"
      "print false and unknown\n"
      "print true or unknown\n"
@@ -560,7 +560,7 @@
     (string-append
      "#lang sciencelogo\n"
      "attempts = 0\n"
-     "while attempts < 3 and not (attempts = 2) ["
+     "while attempts < 3 and not (attempts == 2) ["
      "attempts = attempts + 1 print attempts]\n"
      "do add 1 + 2 (3 * 4) as total\n"
      "print total\n"
@@ -579,13 +579,13 @@
      "print trial\n"
      "do echo trial as copy\n"
      "print copy.temperature\n"
-     "if trial = [prompt = \"tell me the Peru.capital\" "
+     "if trial == [prompt = \"tell me the Peru.capital\" "
      "temperature = 0.8] [print \"same fields\"]\n"
      "nested = [measurement = [unit = \"C\"]]\n"
      "print nested.measurement.unit\n"
      "x = 1 y = 2 print [x y]\n"
      "print [[1 2] [3 4]]\n"
-     "print [(1 = 1)]\n"
+     "print [(1 == 1)]\n"
      "to echo :item [output :item]\n"))
    (string-append
     "0.8\n1\ntell me the Peru.capital\n"
@@ -649,7 +649,7 @@
    #rx"condition is undetermined"
    (lambda ()
      (output-of
-      "#lang sciencelogo\nif [value = unknown] = [value = unknown] [print \"same\"]\n")))
+      "#lang sciencelogo\nif [value = unknown] == [value = unknown] [print \"same\"]\n")))
 
   (check-equal?
    (output-of
@@ -711,7 +711,7 @@
   (check-exn
    #rx"condition is undetermined"
    (lambda () (output-of
-               "#lang sciencelogo\nif unknown = false [print \"yes\"] else [print \"no\"]\n")))
+               "#lang sciencelogo\nif unknown == false [print \"yes\"] else [print \"no\"]\n")))
 
   (check-exn
    #rx"range step must not be zero"

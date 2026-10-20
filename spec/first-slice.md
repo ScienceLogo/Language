@@ -314,7 +314,7 @@ named fields or lacks `temperature`. Field order does not affect equality.
 The brackets still denote an ordinary list when they do not begin with
 `name = value`: `[x y]` contains two named values, and `[[1 2] [3 4]]`
 contains two rows. Parenthesize a comparison meant to be a list item, as in
-`[(x = y)]`. The language supplies this generic structure; libraries can
+`[(x == y)]`. The language supplies this generic structure; libraries can
 define what particular fields mean.
 
 Dot paths read nested content throughout expressions: `trial.clock.time`
@@ -355,6 +355,23 @@ presence from direct assignments and dotted updates. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and
 standalone interfaces may omit `version`; assessments retain the source
 revision hash.
+
+`must [...]` can also contain value requirements, such as
+`must [swing-count > 10 swing-height unit == "seconds"]`. The referenced
+entries must be present and the expressions must hold. A bare entry such
+as `swing-height` requires presence only. Equality requirements use `==`
+and supply no default; `unit = "seconds"` remains an overridable default.
+The [value-requirement specification](interfaces.md#requirements-on-values)
+defines mixed groups, nesting, and unknown values.
+
+An interface or named part may use the existing `if [...] else if [...] else
+[...]` forms to make entries conditional. Conditions refer to entries of
+that part; branch entries retain the same compulsory, default, and optional
+rules. The reader preserves the guards for mapped protocol requirements.
+Record construction applies active defaults and requirements, and the
+structural check reports unresolved requirements as undetermined. See
+[conditional requirements](interfaces.md#conditional-requirements) for the
+full syntax and a runnable example.
 
 `trial += [unit = "minutes" note = "hand timed"]` updates the existing
 `unit` field and adds `note`. The right side of a record update is written
@@ -418,9 +435,10 @@ dotted update,
 `name += increment` or `name.field += increment` adds the numeric expression.
 On an existing list, `name += value` appends one item. These meanings depend
 on the current value on the left; a scalar is never converted into a list.
-In an `if` condition, `=` compares values. A comparison passed directly to a
-procedure must be parenthesized, as in `do check (count = 10)`, because an
-unparenthesized `count = 10` after a call starts a new assignment.
+Equality comparisons use `==` throughout expressions, including `if`, `while`,
+`until`, and interface requirements. A comparison can be passed directly to a
+procedure, as in `do check count == 10`. Parentheses group expressions.
+`count = 10` after a call starts a new assignment.
 
 The range is an ordered sequence of exact numbers. It includes the end only
 when a whole number of steps lands on it. Its bounds and step can also be
@@ -466,7 +484,7 @@ arguments. For example, `do add 1 + 2 (3 * 4) as total` supplies two inputs.
 
 `if condition [ ... ] else if another-condition [ ... ] else [ ... ]` runs the
 first branch whose condition is true, or the optional `else` branch. Conditions
-can combine Boolean values and comparisons with `=`, `!=`, `<`, `<=`, `>`, or
+can combine Boolean values and comparisons with `==`, `!=`, `<`, `<=`, `>`, or
 `>=`. Ordered comparisons require numbers. `not` reverses a Boolean value,
 `and` needs both sides true, `or` needs either side true, and `xor` needs
 exactly one side true. Precedence from strongest to weakest is parentheses,

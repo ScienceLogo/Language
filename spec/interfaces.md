@@ -51,6 +51,63 @@ interface "Pendulum-recording" [
 `measurement` is required; `supplementary-notes` is optional. `must` replaces
 `require` as the requirement marker in interface declarations.
 
+## Requirements on values
+
+`must [...]` can mix required entries and conditions on their values:
+
+```text
+interface "Timing-trial" [
+  must [swing-count > 10 swing-height unit == "seconds"]
+]
+```
+
+This requires `swing-count` to be present and greater than 10,
+`swing-height` to be present, and `unit` to be present and equal to
+`"seconds"`. A bare entry requires presence only; its value may be `unknown`.
+A value condition can itself be undetermined when a referenced value is
+`unknown`.
+
+Conditions use `==`, `!=`, `<`, `<=`, `>`, and `>=`, with the existing
+arithmetic and Boolean operators. For example:
+
+```text
+must [swing-count > 10 and swing-count < 100 swing-height]
+```
+
+The first expression is one condition; the following bare `swing-height`
+is another required entry. Whitespace separates entries; parentheses can
+group expressions. Names in a condition identify entries in the surrounding
+interface part. Each referenced entry must be present when that requirement
+applies. Existing declarations and defaults are reused, so a value condition
+does not require a repeated field declaration. Dotted paths access nested
+entries. These references are available through the existing interface
+mapping syntax, including entries introduced by a value requirement.
+
+`=` and `==` have distinct meanings throughout the compact language:
+
+| Form | Meaning |
+| --- | --- |
+| `must [unit = "seconds"]` | Supplies an overridable default. |
+| `must [unit == "seconds"]` | Requires the supplied value to equal `"seconds"`; supplies no default. |
+
+Use these as separate forms in documentation. The same equality operator is
+used in `if`, `while`, `until`, and other expressions. Assignments and record
+entries continue to use `=`.
+
+Value requirements can appear in conditional branches and nested parts.
+Inheritance preserves them alongside fields and defaults. Constructing a
+record checks applicable requirements after filling defaults. A false
+condition fails construction; an unresolved value requirement is reported
+as undetermined. Checking an existing record leaves its values unchanged.
+
+The reader preserves each requirement's expression, enclosing part, guard,
+and source location. The structural record check evaluates requirements
+whose values can be established from the written record. The workflow-mapping
+check retains requirements on mapped values as undetermined when it cannot
+resolve those values. Applications can inspect the same expressions and
+data mappings. The [runnable example](../examples/value-requirements.rkt)
+uses the mixed form above.
+
 ## Nested parts
 
 A name followed by brackets describes child entries. The declaration rule
@@ -81,6 +138,68 @@ Nested names use dots, including
 their parent. Distinct parents may reuse a child name; declarations that
 produce the same complete path are duplicates. The root interface version
 identifies the whole hierarchy.
+
+## Conditional requirements
+
+Use the existing `if [...] else if [...] else [...]` syntax inside an
+interface or one of its named parts:
+
+```text
+interface "Timing-protocol" [
+  version "1"
+  must [method]
+
+  if method == "automatic" [
+    must [instrument unit = "seconds"]
+  ] else if method == "video" [
+    must [frame-rate]
+  ] else [
+    must [observer]
+  ]
+]
+```
+
+`method` is always required. Automatic timing requires `instrument` and
+`unit`; its unit defaults to `"seconds"`. Video timing requires `frame-rate`.
+The final branch requires `observer` for other timing methods. The branches
+use the existing comparison and Boolean expressions. They follow the same
+order as ordinary conditionals: an `else if` or `else` branch applies only
+when preceding conditions are false. Both `else if` and `else` are optional.
+
+Names in a condition refer to entries in the surrounding interface part.
+Inside `measurement [...]`, for example, `method` identifies
+`measurement.method`. Dotted paths access nested fields with their usual
+meaning. The entries may be declared later or inherited from a parent
+interface. Conditions cannot refer to procedure inputs or unrelated workflow
+variables. A workflow supplies its own values through the existing mappings,
+such as `information.timing-method implement Timing-protocol.method`.
+
+The existing entry rules apply within each branch: `must [...]` marks
+compulsory entries, a defaulted entry is compulsory, and a bare entry without
+a default is optional. A default applies only when its branch applies.
+An inactive branch does not prohibit supplying its entries as additional
+fields or mappings. Names remain unique throughout each named part,
+including its conditional branches. Branches contain interface entries and
+can contain further conditionals; `version` and `extends` remain at the
+interface declaration level. An `affects` link written inside a branch
+retains that branch's condition.
+
+Construction applies active defaults and checks active required fields.
+If an omitted required field depends on an unknown condition, construction
+reports an undetermined conditional requirement. An ordinary record can
+still describe unknown values and be mapped to the interface for inspection.
+The structural record check reports such unresolved requirements as
+`undetermined`, rather than treating the condition as false.
+
+The reader and workflow model retain the condition, requiredness, hierarchy,
+and source location. Inherited and imported interfaces preserve their
+conditions. The structural workflow-mapping check resolves literal
+conditions; conditions depending on mapped workflow values remain
+undetermined when required mappings are absent. Applications can use the
+preserved conditions and mappings to assess protocol conformity.
+
+The [conditional interface example](../examples/conditional-interface.rkt)
+constructs records for all three branches and checks their declared fields.
 
 ## Map workflow parts to requirements
 
@@ -138,8 +257,10 @@ link within a named group uses paths relative to that group.
 ## Reading and checking
 
 Required groups may share a line with other entries or span lines. Each
-group must contain at least one entry. Entries are unique across all groups
-and the rest of their parent body. A group contains names, defaults, and named blocks;
+group must contain at least one entry or value condition. Field declarations
+are unique across all groups and the rest of their parent body; conditions
+can refer to those fields repeatedly. A group contains names, defaults,
+value conditions, and named blocks;
 declarations such as `version` and `extends` stay outside it.
 
 The reader preserves each entry's name, requiredness, default if any, and

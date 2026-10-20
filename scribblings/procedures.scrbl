@@ -64,10 +64,10 @@ interface it supplies a field default. @tt{name += [field = value]} updates
 or adds record fields; @tt{name.field += number} adds to an existing numeric
 field. When the left side is a list, @tt{+=} appends one item. These updates
 require an existing value on the left. In a condition such as
-@tt{if count = 10 [ ... ]},
-@tt{=} compares values. Parenthesize a comparison passed directly to a
-procedure, as in @tt{do check (count = 10)}, so the reader can distinguish it
-from a following assignment.
+@tt{if count == 10 [ ... ]},
+@tt{==} compares values. A comparison can be passed directly to a procedure,
+as in @tt{do check count == 10}. Parentheses remain available to group an
+expression.
 
 @verbatim|{
 attempts = 0

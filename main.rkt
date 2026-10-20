@@ -297,7 +297,18 @@
             original
             (for/hasheq ([entry (in-list entries)])
               (values (car entry) (value-of (cadr entry) inputs scopes)))
-            (lambda (default) (value-of default inputs scopes)))
+            (lambda (default) (value-of default inputs scopes))
+            (lambda (condition record)
+              (define local (make-hasheq (hash->list record)))
+              (define (bind-missing expression)
+                (match expression
+                  [`(result ,name)
+                   (unless (hash-has-key? local name) (hash-set! local name 'unknown))]
+                  [(? list? parts) (for-each bind-missing parts)]
+                  [_ (void)]))
+              (bind-missing condition)
+              (boolean-value
+               (value-of condition (make-hasheq) (list local)))))
            (for/fold ([current original]) ([entry (in-list entries)])
          (match-define `(,raw-key ,expression) entry)
          (define key
@@ -447,7 +458,7 @@
           (define b (plain-value (value-of right inputs scopes)))
           (cond
             [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]
-            [(eq? operator '=) (equal? a b)]
+            [(eq? operator '==) (equal? a b)]
             [(eq? operator '!=) (not (equal? a b))]
             [else
              (unless (and (real? a) (real? b))

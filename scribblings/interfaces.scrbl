@@ -43,6 +43,49 @@ interfaces and interfaces describing workflow parts. The
 @hyperlink[(source-file-url "spec/interfaces.md")]{interface specification}
 records the syntax and reader status.
 
+@section{Requirements on values}
+
+A @tt{must [...]} group can mix conditions and required entries:
+
+@verbatim|{
+interface "Timing-trial" [
+  must [swing-count > 10 swing-height unit == "seconds"]
+]
+}|
+
+This requires @tt{swing-count} to be greater than @tt{10},
+@tt{swing-height} to be present, and @tt{unit} to equal @tt{"seconds"}.
+The entries referenced by a condition must be present. A bare entry requires
+presence only, so @tt{swing-height = unknown} can satisfy its presence
+requirement. An unknown value in a comparison can leave the comparison
+undetermined.
+
+Use the existing arithmetic, comparison, and Boolean expressions:
+
+@verbatim|{
+must [swing-count > 10 and swing-count < 100 swing-height]
+}|
+
+The first expression is one condition; @tt{swing-height} is the next entry.
+Names refer to entries of the surrounding interface part. Existing entries
+and defaults are reused; conditions do not require duplicate declarations.
+Dotted paths access nested values. Conditions can be nested under @tt{if},
+and inheritance preserves them.
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Form") (bold "Meaning"))
+   (list (tt "must [unit = \"seconds\"]") "Supplies an overridable default")
+   (list (tt "must [unit == \"seconds\"]") "Requires that exact value; supplies no default")))
+
+@tt{==} is the equality comparison throughout the language. Assignments,
+record entries, and defaults use @tt{=}. Construction fills applicable
+defaults, then checks applicable requirements. A false requirement fails;
+an unresolved value requirement is reported as undetermined. The
+@hyperlink[(source-file-url "examples/value-requirements.rkt")]{runnable value-requirement example}
+constructs and checks a timing trial. @secref["assessment"] describes the
+current structural checker.
+
 @section{Declaration forms}
 
 @(tabular #:style 'boxed
@@ -134,6 +177,76 @@ links for tools inspecting the protocol. @tt{version} and @tt{extends}
 belong to the interface declaration; named parts contain entries and their
 @tt{must [...]} groups. An @tt{affects} link inside a part uses names relative
 to that part.
+
+@section{Conditional requirements}
+
+Interfaces use the same @tt{if}, @tt{else if}, and @tt{else} forms as
+ordinary statements. The
+@hyperlink[(source-file-url "examples/conditional-interface.rkt")]{conditional interface example}
+declares different requirements for three timing methods:
+
+@verbatim|{
+interface "Timing-protocol" [
+  version "1"
+  must [method]
+
+  if method == "automatic" [
+    must [instrument unit = "seconds"]
+  ] else if method == "video" [
+    must [frame-rate]
+  ] else [
+    must [observer]
+  ]
+]
+}|
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Timing method") (bold "Required entries"))
+   (list (tt "\"automatic\"") "method, instrument, and unit (default: seconds)")
+   (list (tt "\"video\"") "method and frame-rate")
+   (list "Any other known value" "method and observer")))
+
+Each condition uses the existing comparisons and Boolean operators.
+@tt{else if} and @tt{else} apply when all earlier conditions are false;
+either can be omitted. There is no separate @tt{elseif} form.
+Within a named part, names refer to that part's entries. Dotted paths keep
+their usual meaning. Conditions may refer to entries declared later or
+inherited from another interface.
+
+The normal entry rules apply inside each branch. Defaults apply only in an
+active branch. Optional entries stay outside @tt{must [...]}, without a
+default. Entries in an inactive branch may still be supplied as additional
+fields. Entry names remain unique in their surrounding named part,
+including across conditional branches. Further conditionals can be nested;
+@tt{version} and @tt{extends} stay at interface level.
+
+Construct records with the existing syntax:
+
+@verbatim|{
+automatic = Timing-protocol.[method = "automatic" instrument = "timer-1"]
+video = Timing-protocol.[method = "video" frame-rate = 25]
+manual = Timing-protocol.[method = "manual" observer = "researcher"]
+}|
+
+@tt{automatic.unit} is @tt{"seconds"}. The other records receive no unit
+default from the inactive branch. Construction checks the requirements of
+the applicable branch. If an omitted required field depends on an unknown
+condition, construction reports an undetermined conditional requirement.
+Plain records can retain unknown values for inspection; the structural
+check reports unresolved requirements as @tt{undetermined}.
+
+For a workflow, the existing @tt{implement} form connects a value to the
+interface entry used by a condition:
+
+@verbatim|{
+information.timing-method implement Timing-protocol.method
+}|
+
+The reader preserves the condition and mappings. The current mapping checker
+resolves literal conditions; conditions depending on mapped workflow values
+remain undetermined when required mappings are absent. Other applications
+can inspect those values and conditions to assess conformity.
 
 @section{Record interfaces}
 

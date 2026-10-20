@@ -4,6 +4,7 @@
          racket/list
          racket/match
          racket/path
+         racket/string
          "private/reader.rkt"
          "private/record-interfaces.rkt")
 
@@ -19,6 +20,7 @@
          (struct-out activity-model)
          (struct-out item-model)
          (struct-out relation-model)
+         (struct-out guarded-relation-model)
          (struct-out import-model)
          (struct-out implementation-model)
          (struct-out provision-model)
@@ -39,6 +41,7 @@
 (struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
 (struct relation-model (kind from to source) #:transparent)
+(struct guarded-relation-model relation-model (guard scope) #:transparent)
 (struct import-model (id url requested-revision commit alias library-name source)
   #:transparent)
 (struct implementation-model (id path alias provisions source interface) #:transparent)
@@ -46,7 +49,7 @@
 (struct mapping-model (id kind subject interface part parent source) #:transparent)
 (struct interface-model (id name version source revision conditions relations)
   #:transparent)
-(struct condition-model (id kind target scope checkpoint evidence source)
+(struct condition-model (id kind target scope checkpoint evidence source guard)
   #:transparent)
 
 (define (origin at)
@@ -113,21 +116,43 @@
       (lambda ()
         (define declaration (hash-ref inline-interfaces name))
         (define children (node-children declaration))
-        (define own (filter interface-entry? children))
+        (define (entries forms)
+          (append*
+           (for/list ([form (in-list forms)])
+             (cond [(interface-entry? form) (list form)]
+                   [(eq? (node-kind form) 'interface-if)
+                    (append* (map (lambda (branch) (entries (node-children branch)))
+                                  (node-children form)))]
+                   [else '()]))))
+        (define own (entries children))
         (define seen (map node-value own))
+        (define inherited-requirements (make-hash))
         (define inherited '())
-        (define effects '())
+        (define (inherit forms)
+          (append*
+           (for/list ([entry (in-list forms)])
+             (cond
+               [(and (interface-entry? entry) (not (memq (node-value entry) seen)))
+                (set! seen (cons (node-value entry) seen))
+                (list entry)]
+               [(eq? (node-kind entry) 'interface-if)
+                (list (struct-copy node entry
+                                   [children
+                                    (map (lambda (branch)
+                                           (struct-copy node branch [children (inherit (node-children branch))]))
+                                         (node-children entry))]))]
+               [(eq? (node-kind entry) 'interface-requirement)
+                (define key (list (token-source (node-at entry)) (token-position (node-at entry))))
+                (if (hash-has-key? inherited-requirements key) '()
+                    (begin (hash-set! inherited-requirements key #t) (list entry)))]
+               [(eq? (node-kind entry) 'affects)
+                (list entry)]
+               [else '()]))))
         (for ([extension (in-list children)] #:when (eq? (node-kind extension) 'extends))
           (define parent (interface-tree-for (node-value extension)))
-          (for ([entry (in-list (node-children parent))])
-            (cond
-              [(and (interface-entry? entry) (not (memq (node-value entry) seen)))
-               (set! seen (cons (node-value entry) seen))
-               (set! inherited (append inherited (list entry)))]
-              [(eq? (node-kind entry) 'affects)
-               (set! effects (append effects (list entry)))])))
+          (set! inherited (append inherited (inherit (node-children parent)))))
         (struct-copy node declaration
-                     [children (append inherited effects
+                     [children (append inherited
                                        (filter (lambda (child) (not (eq? (node-kind child) 'extends)))
                                                children))]))))
   (define (interface-model-for name)
@@ -528,7 +553,7 @@
                                                 (node->datum (hash-ref inline-interfaces interface-root)))
                                            (for/list ([declaration (in-hash-values inline-interfaces)])
                                              (node->datum declaration)))
-                                     (origin (node-at form))) conditions)))))
+                                     (origin (node-at form)) #f) conditions)))))
   (for ([definition (in-list definitions)])
     (define id (hash-ref procedure-ids (car (node-value definition))))
     (define input-map (make-hasheq))
@@ -594,14 +619,14 @@
                                     'required-call
                                     (hash-ref procedure-ids (node-value form))
                                     root 'method 'method-paths
-                                    (origin (node-at form)))
+                                    (origin (node-at form)) #f)
                    conditions))]
       [(must-stage-order)
        (set! conditions
              (cons (condition-model (element-id root 'must-stage-order (node-at form))
                                     'stage-order (node-value form)
                                     root 'method 'stage-headers
-                                    (origin (node-at form)))
+                                    (origin (node-at form)) #f)
                    conditions))]))
   (build-block forms root (make-hasheq) (list (make-hasheq)))
   (set! mappings
@@ -651,7 +676,18 @@
   (define effects '())
   (define (qualified prefix name)
     (string->symbol (string-append prefix (symbol->string name))))
-  (define (walk forms scope [prefix ""])
+  (define declared (make-hasheq))
+  (define (collect forms [prefix ""])
+    (for ([form (in-list forms)])
+      (case (node-kind form)
+        [(interface-field required-interface-field interface-group required-interface-group)
+         (define name (qualified prefix (node-value form)))
+         (hash-set! declared name #t)
+         (when (memq (node-kind form) '(interface-group required-interface-group))
+           (collect (node-children form) (string-append (symbol->string name) ".")))]
+        [(interface-if) (for ([branch (in-list (node-children form))]) (collect (node-children branch) prefix))])))
+  (collect forms)
+  (define (walk forms scope [prefix ""] [guard #f])
     (for ([form (in-list forms)])
       (case (node-kind form)
         [(interface-field required-interface-field interface-group required-interface-group)
@@ -667,13 +703,38 @@
                                       (if group? 'nested-entries
                                           (and (pair? (node-children form))
                                                (node->datum (car (node-children form)))))
-                                      (origin (node-at form)))
+                                      (origin (node-at form)) guard)
                      conditions))
          (unless (equal? scope id)
            (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form)))
                                  relations)))
          (when group? (walk (node-children form) child-id (string-append (symbol->string name) ".")))]
-        [(affects) (set! effects (cons (cons prefix form) effects))])))
+        [(interface-requirement)
+         (define expression (node->datum (node-value form)))
+         (for ([path (in-list (requirement-references expression))])
+           (define name (qualified prefix (string->symbol (string-join (map symbol->string path) "."))))
+           (unless (hash-has-key? declared name)
+             (hash-set! declared name #t)
+             (define child-id (element-id id 'required-value (node-at form) name))
+             (set! conditions
+                   (cons (condition-model child-id
+                                          'required-entry name scope 'interface #f
+                                          (origin (node-at form)) guard) conditions))
+             (unless (equal? scope id)
+               (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form))) relations)))))
+         (set! conditions
+               (cons (condition-model (element-id id 'value-requirement (node-at form))
+                                      'value-requirement scope scope 'interface expression
+                                      (origin (node-at form)) guard) conditions))]
+        [(interface-if)
+         (define branches (node-children form))
+         (define guards
+           (interface-branch-guards
+            (map (lambda (branch) (and (node-value branch) (node->datum (node-value branch)))) branches)))
+         (for ([branch (in-list branches)] [branch-guard (in-list guards)])
+           (walk (node-children branch) scope prefix
+                 (combine-interface-guards guard branch-guard)))]
+        [(affects) (set! effects (cons (list prefix form guard scope) effects))])))
   (walk forms id)
   (set! conditions (reverse conditions))
   (define condition-ids
@@ -682,11 +743,19 @@
               (condition-model-id condition))))
   (for ([effect (in-list (reverse effects))])
     (define prefix (car effect))
-    (define form (cdr effect))
+    (define form (cadr effect))
+    (define guard (caddr effect))
+    (define scope (cadddr effect))
     (match-define (list from to) (node-value form))
     (set! relations
-          (cons (relation-model 'affects (hash-ref condition-ids (qualified prefix from))
-                                (hash-ref condition-ids (qualified prefix to))
-                                (origin (node-at form))) relations)))
+          (cons (if guard
+                    (guarded-relation-model
+                     'affects (hash-ref condition-ids (qualified prefix from))
+                     (hash-ref condition-ids (qualified prefix to))
+                     (origin (node-at form)) guard scope)
+                    (relation-model 'affects (hash-ref condition-ids (qualified prefix from))
+                                    (hash-ref condition-ids (qualified prefix to))
+                                    (origin (node-at form))))
+                relations)))
   (interface-model id (node-value tree) version source revision
                    conditions (reverse relations)))

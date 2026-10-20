@@ -14,6 +14,12 @@ the implemented structural interface check and its missing-part impact report.
 The [protocol mapping example](protocol-mapping.rkt) uses direct `implement`
 references to connect a pendulum stage and its uncertainty description to
 nested protocol requirements.
+The [conditional interface example](conditional-interface.rkt) uses the
+existing `if`, `else if`, and `else` forms to require different fields for
+different timing methods.
+The [value-requirement example](value-requirements.rkt) mixes a numeric
+condition, a required entry, and an exact-value requirement in one `must [...]`
+group. Equality comparisons use `==`; assignments and defaults use `=`.
 
 The prose examples are **provisional research and language sketches**, not
 executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)

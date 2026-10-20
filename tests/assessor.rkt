@@ -125,7 +125,7 @@
   (for ([body (in-list
                '("if true [do target]"
                  "if 1 < 2 [do target]"
-                 "if 1 + 2 = 3 and not false [do target]"
+                 "if 1 + 2 == 3 and not false [do target]"
                  "if true xor false [do target]"
                  "if true or unknown [do target]"
                  "if [ready = true note = \"planned\"].ready [do target]"
@@ -149,7 +149,7 @@
                '("if unknown [do target]"
                  "if unknown xor true [do target]"
                  "if [ready = unknown].ready [do target]"
-                 "if [value = unknown] = [value = unknown] [do target]"
+                 "if [value = unknown] == [value = unknown] [do target]"
                  "if [unknown true].[1] [do target]"
                  "if unknown [do target] else [do target]"
                  "condition = true if condition [do target]"

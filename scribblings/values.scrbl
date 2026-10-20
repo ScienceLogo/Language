@@ -29,7 +29,7 @@ it is present even though its scientific value is unknown.
 
 @tt{[1 2 3]} is an ordered list. Lists can contain other values and lists;
 @tt{[[1 2] [3 4]]} is a list of rows. To put a comparison in a list, group
-it with parentheses: @tt{[(x = y)]}.
+it with parentheses: @tt{[(x == y)]}.
 
 @tt{sequence.[position]} reads one list element. Positions start at @tt{1},
 and the position must be an exact positive integer within the list.
@@ -111,9 +111,12 @@ zero; the one-based rule applies only to list positions.
 
 Arithmetic uses @tt{+}, @tt{-}, @tt{*}, and @tt{/} on exact numbers. Division
 by zero is an error. A quotient without a finite decimal form is displayed
-as a fraction. Comparisons use @tt{=}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>}, and
+as a fraction. Comparisons use @tt{==}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>}, and
 @tt{>=}; ordered comparisons need numbers. Combine comparisons with
 @tt{and} or @tt{or} rather than chaining them.
+@tt{=} supplies values in assignments, record entries, and interface defaults;
+it is not an equality comparison. For example, @tt{ready = count == 20}
+assigns the result of a comparison to @tt{ready}.
 
 @tt{not}, @tt{and}, @tt{or}, and @tt{xor} operate on Boolean values.
 @tt{false and unknown} is @tt{false}; @tt{true or unknown} is @tt{true}.
@@ -130,7 +133,7 @@ From strongest to weakest, the reader groups operations in this order:
    (list "3" (tt "unary -"))
    (list "4" (tt "* /"))
    (list "5" (tt "+ -"))
-   (list "6" (tt "= != < <= > >="))
+   (list "6" (tt "== != < <= > >="))
    (list "7" (tt "not"))
    (list "8" (tt "and"))
    (list "9" (tt "xor"))

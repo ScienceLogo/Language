@@ -78,6 +78,15 @@ pendulum.
   scope, and the point at which it is relevant. The representation records
   what is required, without recording it as satisfied. An assessor's finding
   belongs to a separate assessment record.
+  For conditional interface entries, preserve the governing expression and
+  the surrounding named part whose entries it references. Preserve the
+  branch order: a later `else if` or `else` requires earlier conditions to
+  be false. Effective guards may express this explicitly with `not` and
+  `and`, while retaining each entry's source location and parent scope.
+  Preserve value requirements inside `must [...]` separately from field
+  defaults and presence requirements, including all referenced entry paths.
+  Equality comparisons use `==`; assignment and default expressions retain
+  their distinct `=` meaning.
 
 Inputs, results, and other values appear through the commands and references
 that use them. ScienceLogo does not impose a generic `Item` type or a catalogue

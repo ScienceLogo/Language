@@ -22,8 +22,8 @@ you supply. Square brackets shown in a form are literal ScienceLogo
 brackets. Quoted text is a text value. Commands may share a line or use
 separate lines.
 
-At command position, @tt{name = value} assigns a value. In a condition,
-@tt{=} compares values. Within a record or dotted update, it supplies a field
+At command position, @tt{name = value} assigns a value. Equality comparisons
+use @tt{==}. Within a record or dotted update, @tt{=} supplies a field
 value; within an interface, it supplies a default. At command position,
 @tt{name += [field = value]} updates or adds record fields, while
 @tt{name.field += number} adds to an existing numeric field. On a list,
@@ -158,7 +158,7 @@ procedures, and record interfaces; it has no top-level executable commands.
          (tt "resource name [ ... ], name.field = value, value = name.field")
          "Data flow represented; no external I/O")
    (list (secref "interfaces")
-         (tt "interface, version, extends, must [...], affects")
+         (tt "interface, version, extends, must [...], if, else if, else, affects")
          "Declarations checked for structure")
    (list (secref "libraries")
          (tt "library, import, include")

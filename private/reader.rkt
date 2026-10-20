@@ -95,7 +95,7 @@
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
-                       "unknown" "=" "+=" "!=" "<" "<=" ">" ">="
+                       "unknown" "=" "==" "+=" "!=" "<" "<=" ">" ">="
                        "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement"
                        "extends" "hypotheses" "assumptions" "conclusions" "u")))
   (define (current) (vector-ref tokens index))
@@ -121,7 +121,7 @@
                    (char=? (string-ref text 0) #\:)))
       (read-error source found (format "expected ~a" description)))
     (string->symbol text))
-  (define comparisons '("=" "!=" "<" "<=" ">" ">="))
+  (define comparisons '("==" "!=" "<" "<=" ">" ">="))
   (define import-aliases '())
   (define (valid-inline-interface-name? name)
     (and (not (string=? name ""))
@@ -844,8 +844,32 @@
          (reverse backward)]
         [(eof) (read-error source (current) "expected ] before end of file")]
         [else
-         (define command (expect 'word "a required interface field"))
-         (loop (cons (parse-interface-entry command #t) backward))])))
+         (define start index)
+         (define command (current))
+         (define expression (parse-value))
+         (if (memq (node-kind expression) '(compare binary unary literal))
+             (loop (cons (node 'interface-requirement expression '() command) backward))
+             (begin
+               (set! index start)
+               (loop (cons (parse-interface-entry (expect 'word "a required interface entry") #t)
+                           backward))))])))
+  (define (parse-interface-if command)
+    (define (branch condition at)
+      (expect 'open "[ after interface condition or else")
+      (node 'interface-branch condition (parse-interface-body #t) at))
+    (define first (branch (parse-value) command))
+    (define more
+      (let loop ()
+        (if (and (eq? (token-kind (current)) 'word)
+                 (string=? (token-value (current)) "else"))
+            (let ([at (advance!)])
+              (if (and (eq? (token-kind (current)) 'word)
+                       (string=? (token-value (current)) "if"))
+                  (begin (advance!)
+                         (cons (branch (parse-value) at) (loop)))
+                  (list (branch #f at))))
+            '())))
+    (node 'interface-if #f (cons first more) command))
   (define (parse-interface-body [nested? #f])
     (let loop ([backward '()])
       (define found (current))
@@ -866,6 +890,7 @@
              ["require"
               (read-error source command "use must [...] for required interface entries")]
              ["must" (parse-required-entries)]
+             ["if" (list (parse-interface-if command))]
              ["affects"
               (list (node 'affects
                           (list (named-word "a source part name")
@@ -962,6 +987,12 @@
            #:when (eq? (node-kind form) 'extends))
        (read-error source (node-at form)
                    "standalone interfaces cannot extend a local interface"))
+     (define name (string->symbol (node-value result)))
+     (validate-interface-guards
+      result
+      (hash-ref (resolve-record-interfaces
+                 (hasheq name (map node->datum (node-children result)))) name)
+      source)
      result]
     [(and (eq? (node-kind result) 'library) (not expand-local?)) result]
     [(eq? (node-kind result) 'library)
@@ -1168,7 +1199,7 @@
                   [children (map qualify-form (node-children form))])]
     [(extends)
      (struct-copy node form [value (qualified (node-value form))])]
-    [(interface-group required-interface-group)
+    [(interface-group required-interface-group interface-if interface-branch)
      (struct-copy node form [children (map qualify-form (node-children form))])]
     [(interface-field required-interface-field)
      (struct-copy node form
@@ -1453,6 +1484,7 @@
     (read-error source (node-at (car versions)) "interface version cannot be empty"))
   (define required (make-hasheq))
   (define fields (make-hasheq))
+  (define requirements '())
   (define parents (make-hasheq))
   (define effects '())
   (define (qualified prefix name)
@@ -1469,6 +1501,13 @@
          (hash-set! fields name #t)
          (when (memq (node-kind form) '(interface-group required-interface-group))
            (walk (node-children form) (string-append (symbol->string name) ".")))]
+        [(interface-if)
+         (for ([branch (in-list (node-children form))])
+           (walk (node-children branch) prefix))]
+        [(interface-requirement)
+         (set! requirements (cons form requirements))
+         (for ([path (in-list (requirement-references (node->datum (node-value form))))])
+           (hash-set! required (qualified prefix (car path)) #t))]
         [(affects) (set! effects (cons (cons prefix form) effects))])))
   (walk (node-children interface))
   (for ([form (in-list (node-children interface))]
@@ -1478,7 +1517,7 @@
       (read-error source (node-at form) (format "duplicate parent interface ~a" parent)))
     (hash-set! parents parent #t))
   (when (and (zero? (hash-count required)) (zero? (hash-count fields))
-             (zero? (hash-count parents)))
+             (zero? (hash-count parents)) (null? requirements))
     (read-error source (node-at interface)
                 "an interface needs a field, parent, or required part"))
   (for ([effect (in-list effects)])
@@ -1488,6 +1527,44 @@
       (unless (hash-has-key? required (qualified prefix part))
         (read-error source (node-at form)
                     (format "impact references unknown part ~a" part))))))
+
+(define (validate-interface-guards declaration template source)
+  (define (check fields requirements)
+    (define names
+      (append
+       (map (lambda (field)
+              (string->symbol (car (string-split (symbol->string (record-field-name field)) "."))))
+            fields)
+       (append* (map (lambda (requirement)
+                       (map car (requirement-references (record-requirement-expression requirement))))
+                     requirements))))
+    (define (expression value)
+      (when (pair? value)
+        (case (car value)
+          [(literal) (void)]
+          [(parameter)
+           (read-error source (node-at declaration)
+                       "interface conditions refer to interface entries, not procedure inputs")]
+          [(result)
+           (unless (memq (cadr value) names)
+             (read-error source (node-at declaration)
+                         (format "unknown interface entry ~a in condition" (cadr value))))]
+          [(field-ref) (expression (caddr value))]
+          [(fields) (for ([entry (in-list (cadr value))]) (expression (cadr entry)))]
+          [(dot-select)
+           (expression (caadr value))
+           (for ([selector (in-list (cdadr value))]
+                 #:unless (eq? (car selector) 'result))
+             (expression selector))]
+          [else (for ([part (in-list value)]) (expression part))])))
+    (for ([field (in-list fields)])
+      (expression (record-field-guard field))
+      (when (record-field-children field)
+        (check (record-field-children field) (record-field-requirements field))))
+    (for ([requirement (in-list requirements)])
+      (expression (record-requirement-expression requirement))
+      (expression (record-requirement-guard requirement))))
+  (check (record-interface-fields template) (record-interface-requirements template)))
 
 (define (validate-program program source)
   (define definitions (make-hasheq))
@@ -1507,6 +1584,8 @@
      (values name (map node->datum (node-children form))))
    (lambda (name message)
      (read-error source (node-at (hash-ref interfaces name)) message))))
+  (for ([(name declaration) (in-hash interfaces)])
+    (validate-interface-guards declaration (hash-ref resolved-interfaces name) source))
   (for ([form (in-list (node-children program))]
         #:when (eq? (node-kind form) 'to))
     (define name (procedure-name form))
@@ -2083,6 +2162,14 @@
      (list 'interface-field (node-value form) #f
            (eq? (node-kind form) 'required-interface-group)
            (map node->datum (node-children form)))]
+    [(interface-if)
+     (list 'interface-if (map node->datum (node-children form)))]
+    [(interface-branch)
+     (list 'interface-branch
+           (and (node-value form) (node->datum (node-value form)))
+           (map node->datum (node-children form)))]
+    [(interface-requirement)
+     (list 'interface-requirement (node->datum (node-value form)))]
     [(must-call) (list 'must-call (node-value form))]
     [(implement)
      (list 'implement (node->datum (car (node-children form))) (node-value form))]

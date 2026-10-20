@@ -5,7 +5,7 @@
 
 ScienceLogo lets an author declare a few requirements on a written method.
 The current assessor checks their @emph{structure}: required calls and stage
-order, supplied workflow parts, and record field presence. These checks go
+order, supplied workflow parts, and record field presence and value requirements. These checks go
 beyond parsing syntax, but they do not show that the work happened or judge
 its scientific adequacy. Protocol conformance, bias analysis, uncertainty
 analysis, and assessment of observed runs are not built-in checks. Their
@@ -140,6 +140,18 @@ The path form, @tt{trial implement "interfaces/timing.rkt"}, loads a
 separate record interface file relative to the workflow file. See
 @secref["interfaces"] for construction, inheritance, defaults, and the
 limits of this check when a record's shape is undetermined.
+
+An interface may also state value requirements such as
+@tt{must [swing-count > 10 unit == "seconds"]}. For values available in a
+written record, the structural checker evaluates these expressions as well
+as field presence. A false requirement is violated; an unresolved requirement
+is undetermined. Construction fills defaults with @tt{=}; an equality
+requirement written with @tt{==} supplies no default.
+
+For workflow mappings, the model retains the expressions and their guards.
+The current mapping checker resolves literal expressions; requirements
+depending on mapped workflow values remain undetermined. Other applications
+can use the recorded values and mappings to assess them.
 
 @section{Method information available to other tools}
 

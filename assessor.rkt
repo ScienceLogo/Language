@@ -5,6 +5,7 @@
          racket/path
          racket/string
          "private/call-paths.rkt"
+         "private/constant-values.rkt"
          "private/record-interfaces.rkt"
          "workflow-model.rkt")
 
@@ -337,7 +338,10 @@
 (define (assess-workflow-parts declaration interface-path interface)
   (define alias (implementation-model-alias declaration))
   (define provisions (implementation-model-provisions declaration))
-  (define conditions (interface-model-conditions interface))
+  (define all-conditions (interface-model-conditions interface))
+  (define conditions
+    (filter (lambda (condition) (memq (condition-model-kind condition) '(required-entry optional-entry)))
+            all-conditions))
   (define condition-by-part
     (for/hasheq ([condition (in-list conditions)])
       (values (condition-model-target condition) condition)))
@@ -350,7 +354,10 @@
   (define edges (make-hasheq))
   (define edge-sources (make-hash))
   (for ([relation (in-list (interface-model-relations interface))]
-        #:when (eq? (relation-model-kind relation) 'affects))
+        #:when (and (eq? (relation-model-kind relation) 'affects)
+                    (or (not (guarded-relation-model? relation))
+                        (not (eq? (interface-guard-value (guarded-relation-model-guard relation)
+                                                       (hasheq)) #f)))))
     (define from (hash-ref part-by-id (relation-model-from relation)))
     (define to (hash-ref part-by-id (relation-model-to relation)))
     (hash-update! edges from (lambda (targets) (append targets (list to))) '())
@@ -394,15 +401,22 @@
           [else '()]))
   (define (active? condition)
     (define parent (hash-ref condition-by-id (condition-model-scope condition) #f))
-    (or (not parent)
-        (and (active? parent) (pair? (presence-provisions parent)))))
+    (define own (interface-guard-value (condition-model-guard condition) (hasheq)))
+    (define inherited
+      (cond [(not parent) #t]
+            [(null? (presence-provisions parent)) #f]
+            [else (active? parent)]))
+    (cond [(or (eq? own #f) (eq? inherited #f)) #f]
+          [(and (eq? own #t) (eq? inherited #t)) #t]
+          [else 'unknown]))
   (define required-conditions
     (filter (lambda (condition)
               (and (eq? (condition-model-kind condition) 'required-entry)
-                   (active? condition))) conditions))
+                   (not (eq? (active? condition) #f)))) conditions))
   (define missing
     (for/list ([condition (in-list required-conditions)]
-               #:when (null? (presence-provisions condition)))
+               #:when (and (eq? (active? condition) #t)
+                           (null? (presence-provisions condition))))
       (condition-model-target condition)))
   (define checks
     (for/list ([condition (in-list required-conditions)])
@@ -410,9 +424,13 @@
       (define provisions (presence-provisions condition))
       (condition-check (condition-model-id condition)
                        (format "~a/part:~a" (implementation-model-id declaration) part)
-                       (if (pair? provisions) 'satisfied 'violated)
+                       (cond [(pair? provisions) 'satisfied]
+                             [(eq? (active? condition) 'unknown) 'undetermined]
+                             [else 'violated])
                        (map provision-model-id provisions)
-                       (if (pair? provisions) #f 'missing-provision))))
+                       (cond [(pair? provisions) #f]
+                             [(eq? (active? condition) 'unknown) 'unknown-condition]
+                             [else 'missing-provision]))))
   (define missing-findings
     (for/list ([part (in-list missing)])
       (finding 'missing-part alias part (list part)
@@ -430,12 +448,39 @@
                   (for/list ([from (in-list chain)]
                              [to (in-list (cdr chain))])
                     (hash-ref edge-sources (cons from to))))))))
+  (define pending-findings
+    (for/list ([condition (in-list required-conditions)]
+               #:when (and (eq? (active? condition) 'unknown)
+                           (null? (presence-provisions condition))))
+      (finding 'unknown-condition alias (condition-model-target condition) '()
+               (condition-model-id condition) (implementation-model-id declaration)
+               'undetermined (list (condition-model-guard condition)))))
+  (define value-checks '())
+  (define value-findings '())
+  (for ([condition (in-list all-conditions)]
+        #:when (and (eq? (condition-model-kind condition) 'value-requirement)
+                    (not (eq? (active? condition) #f))))
+    (define expression (condition-model-evidence condition))
+    (define answer (interface-guard-value expression (hasheq)))
+    (define outcome (cond [(eq? answer #t) 'satisfied]
+                          [(and (eq? answer #f) (eq? (active? condition) #t)) 'violated]
+                          [else 'undetermined]))
+    (define target (implementation-model-id declaration))
+    (set! value-checks
+          (cons (condition-check (condition-model-id condition) target outcome
+                                 (list expression) (and (not (eq? outcome 'satisfied)) 'value-requirement))
+                value-checks))
+    (unless (eq? outcome 'satisfied)
+      (set! value-findings
+            (cons (finding 'value-requirement alias expression '()
+                           (condition-model-id condition) target outcome
+                           (list (condition-model-source condition))) value-findings))))
   (values (assessed-interface alias (interface-model-name interface)
                               (interface-model-version interface)
                               interface-path (interface-model-id interface)
                               (interface-model-revision interface))
-          (append provision-findings missing-findings impact-findings)
-          checks))
+          (append provision-findings missing-findings pending-findings impact-findings (reverse value-findings))
+          (append checks (reverse value-checks))))
 
 (define (shape-put shape path value)
   (define name (car path))
@@ -482,26 +527,12 @@
      (if (hash? shape) (hash-ref shape name 'undetermined) 'undetermined)]
     [`(dot-update (,source (fields ,entries)))
      (define template (expression-interface source templates))
-     (define (default-shape fields)
-       (for/fold ([shape (hasheq)]) ([field (in-list fields)])
-         (define nested
-           (and (record-field-children field) (record-field-required? field)
-                (default-shape (record-field-children field))))
-         (define default (record-field-default field))
-         (if (or default (and nested (positive? (hash-count nested))))
-             (shape-put shape
-                        (map string->symbol (string-split (symbol->string (record-field-name field)) "."))
-                        (if nested nested
-                            (let ([value (record-shape default environment templates)])
-                              (if (hash? value) value #t))))
-             shape)))
-     (define base
-       (if template (default-shape (record-interface-fields template))
-           (record-shape source environment templates)))
-     (if (hash? base)
-         (shape-merge base
-                      (record-shape `(fields ,entries) environment templates))
-         base)]
+     (define changes (record-shape `(fields ,entries) environment templates))
+     (if template
+         (complete-interface-record
+          template changes (lambda (expression) (nested-record-shape expression environment templates)))
+         (let ([base (record-shape source environment templates)])
+           (if (hash? base) (shape-merge base changes) base)))]
     [`(augment ,_ (,source ,changes))
      (define base (record-shape source environment templates))
      (define added (record-shape changes environment templates))
@@ -513,12 +544,14 @@
 
 (define (nested-record-shape expression environment templates)
   (define shape (record-shape expression environment templates))
-  (if (eq? shape 'not-a-record) #t shape))
+  (if (eq? shape 'not-a-record) (constant-value expression) shape))
 
 (define (unknown-nested-parts template shape)
   (define (walk fields record [prefix ""])
     (append*
-     (for/list ([field (in-list fields)] #:when (record-field-children field))
+     (for/list ([field (in-list fields)]
+                #:when (and (record-field-children field)
+                            (not (eq? (interface-guard-value (record-field-guard field) record) #f))))
        (define name (string-append prefix (symbol->string (record-field-name field))))
        (define found
          (for/fold ([value record]) ([part (in-list (string-split (symbol->string (record-field-name field)) "."))])
@@ -530,16 +563,25 @@
 
 (define (interface-model-template interface)
   (define conditions (interface-model-conditions interface))
+  (define (requirements scope)
+    (for/list ([condition (in-list conditions)]
+               #:when (and (eq? (condition-model-kind condition) 'value-requirement)
+                           (equal? (condition-model-scope condition) scope)))
+      (record-requirement (condition-model-evidence condition) (condition-model-guard condition))))
   (define (fields scope [prefix ""])
     (for/list ([condition (in-list conditions)]
-               #:when (equal? (condition-model-scope condition) scope))
+               #:when (and (memq (condition-model-kind condition) '(required-entry optional-entry))
+                           (equal? (condition-model-scope condition) scope)))
       (define name (symbol->string (condition-model-target condition)))
       (define group? (eq? (condition-model-evidence condition) 'nested-entries))
       (record-field (string->symbol (substring name (string-length prefix)))
                     (and (not group?) (condition-model-evidence condition))
                     (eq? (condition-model-kind condition) 'required-entry)
-                    (and group? (fields (condition-model-id condition) (string-append name "."))))))
-  (record-interface (interface-model-name interface) (fields (interface-model-id interface))))
+                    (and group? (fields (condition-model-id condition) (string-append name ".")))
+                    (condition-model-guard condition)
+                    (requirements (condition-model-id condition)))))
+  (record-interface (interface-model-name interface) (fields (interface-model-id interface))
+                    (requirements (interface-model-id interface))))
 
 (define (assess-record-condition condition method)
   (match-define (list reference earlier local declarations)
@@ -644,21 +686,36 @@
              'undetermined)))
      (define template (or local-template (interface-model-template interface)))
      (define unknown-parts (if (hash? shape) (unknown-nested-parts template shape) '()))
+     (define requirements
+       (if (hash? shape) (interface-requirement-results template shape) '()))
+     (define failed-values
+       (filter (lambda (check) (eq? (requirement-result-outcome check) 'violated)) requirements))
+     (define unknown-values
+       (filter (lambda (check) (eq? (requirement-result-outcome check) 'undetermined)) requirements))
      (define missing
        (and (hash? shape)
             (filter (lambda (part) (not (memq part unknown-parts)))
-                    (missing-interface-fields template shape))))
+                    (remove-duplicates
+                     (append (missing-interface-fields template shape)
+                             (append* (map requirement-result-missing failed-values)))))))
+     (define pending
+       (if (hash? shape) (undetermined-interface-fields template shape) '()))
      (define-values (outcome gap)
        (cond [(eq? shape 'undetermined) (values 'undetermined 'unknown-record)]
-             [(eq? shape 'not-a-record) (values 'violated 'not-a-record)]
+             [(not (hash? shape)) (values 'violated 'not-a-record)]
              [(pair? missing) (values 'violated 'missing-field)]
+             [(pair? failed-values) (values 'violated 'invalid-value)]
              [(pair? unknown-parts) (values 'undetermined 'unknown-record)]
+             [(pair? pending) (values 'undetermined 'unknown-condition)]
+             [(pair? unknown-values) (values 'undetermined 'unknown-value)]
              [else (values 'satisfied #f)]))
      (define evidence
        (list (interface-model-id interface) (interface-model-revision interface)))
      (values assessed
              (if gap
-                 (list (finding gap reference (if (pair? missing) missing target)
+                 (list (finding gap reference (cond [(pair? missing) missing]
+                                                   [(pair? pending) pending]
+                                                   [else target])
                                 '() condition-id target outcome evidence))
                  '())
              (list (condition-check condition-id target outcome evidence gap)))]))
