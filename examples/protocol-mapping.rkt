@@ -1,7 +1,14 @@
 #lang sciencelogo
 
 workflow "Document a pendulum measurement"
-include "interfaces/pendulum-protocol.rkt"
+interface "Pendulum-protocol" [
+  version "1"
+  must [
+    measurement
+    documentation [must [uncertainty] notes]
+  ]
+  additional-measurements
+]
 
 performer researcher [kind = "human"]
 

@@ -120,7 +120,7 @@ inspect the mapped work and data to assess scientific conformity.
 Interfaces use the established import and include rules. For an imported
 library alias `prot`, a reference is `prot.Pendulum-protocol.documentation`.
 `include "relative/path.rkt"` makes local interface declarations available.
-The [runnable mapping example](../examples/protocol-mapping.rkt) includes the
+The [runnable mapping example](../examples/protocol-mapping.rkt) declares the
 pendulum protocol and maps a stage and its uncertainty description.
 
 A nested group is also a data shape. The existing forms can construct it

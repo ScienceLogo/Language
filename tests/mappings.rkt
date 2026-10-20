@@ -128,6 +128,18 @@
   ;; The documented example is itself checked in CI by raco test .
   (check-equal? (assessment-findings (assess-file example)) '())
 
+  ;; Source packages contain no Git metadata. Their runnable examples must
+  ;; compile and remain inspectable after installation from an archive.
+  (define standalone (make-temporary-file "sciencelogo-packaged-example-~a" 'directory))
+  (dynamic-wind
+    void
+    (lambda ()
+      (define file (build-path standalone "protocol-mapping.rkt"))
+      (copy-file example file)
+      (check-equal? (with-output-to-string (lambda () (dynamic-require file #f))) "")
+      (check-equal? (assessment-findings (assess-file file)) '()))
+    (lambda () (delete-directory/files standalone)))
+
   ;; Use the established pinned Git import, including mappings inside a library.
   (define directory (make-temporary-file "sciencelogo-mapping-library-~a" 'directory))
   (dynamic-wind

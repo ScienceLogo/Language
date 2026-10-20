@@ -57,7 +57,11 @@ part, and the uncertainty description addresses its nested documentation require
 #lang sciencelogo
 
 workflow "Document a pendulum measurement"
-include "interfaces/pendulum-protocol.rkt"
+interface "Pendulum-protocol" [
+  version "1"
+  must [measurement documentation [must [uncertainty] notes]]
+  additional-measurements
+]
 performer researcher [kind = "human"]
 
 "Timing" implement Pendulum-protocol.measurement
@@ -71,10 +75,11 @@ end stage with state [
 ]
 }|
 
-The existing @tt{include} rule loads the local interface. A library interface
-uses its existing import alias, such as @tt{prot.Pendulum-protocol.measurement}.
-No additional import form is needed. The interface's version and source
-revision identify the protocol being referenced.
+This example declares its interface in the same file, so it also runs from
+an installed package. In a workflow repository, the existing @tt{include}
+rule can load a local interface. A library interface uses its existing import
+alias, such as @tt{prot.Pendulum-protocol.measurement}. The interface's version
+and source revision identify the protocol being referenced.
 
 A mapping to a parent claims its required descendants. A mapping to one child
 identifies that child and its parent as present; it does not claim siblings.
