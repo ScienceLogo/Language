@@ -61,11 +61,11 @@ After committing and tagging that repository, an investigation can use it:
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
 interface "Timed-place" [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]
-must trial implement timing.Timing
+trial implement timing.Timing
 ```
 
 An imported interface is named `alias.Interface` in construction, `extends`,
-and `must ... implement`. The assessor checks field presence. The importing
+and `... implement`. The assessor checks field presence. The importing
 workflow can define its own interface that extends an imported one.
 
 A larger library may move the procedure or interface to another file. Its root entry then has

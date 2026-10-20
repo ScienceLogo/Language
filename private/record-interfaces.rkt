@@ -7,6 +7,7 @@
          resolve-record-interfaces
          interface-reference-root
          resolve-interface-reference
+         resolve-interface-target
          interface-record
          missing-interface-fields)
 
@@ -53,6 +54,21 @@
                         (record-field-children group))
                        (substring text (string-length (symbol->string
                                                         (record-field-name group))))))]))))
+
+(define (resolve-interface-target interfaces reference)
+  (or (resolve-interface-reference interfaces reference)
+      (let ([root (interface-reference-root interfaces reference)])
+        (and root
+             (let walk ([fields (record-interface-fields (hash-ref interfaces root))]
+                        [path (substring (symbol->string reference)
+                                         (add1 (string-length (symbol->string root))))])
+               (for/or ([field (in-list fields)])
+                 (define name (symbol->string (record-field-name field)))
+                 (cond [(string=? name path) field]
+                       [(and (record-field-children field)
+                             (string-prefix? path (string-append name ".")))
+                        (walk (record-field-children field) (substring path (add1 (string-length name))))]
+                       [else #f])))))))
 
 (define (declaration-fields parts)
   (for/list ([part (in-list parts)] #:when (eq? (car part) 'interface-field))

@@ -11,6 +11,9 @@ result to its caller. The [pendulum method](pendulum-method.rkt) uses that synta
 print a timing plan; it does not perform a measurement.
 The [assessor self-description](meta-assessor/README.md) is also runnable. It shows
 the implemented structural interface check and its missing-part impact report.
+The [protocol mapping example](protocol-mapping.rkt) uses direct `implement`
+references to connect a pendulum stage and its uncertainty description to
+nested protocol requirements.
 
 The prose examples are **provisional research and language sketches**, not
 executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)

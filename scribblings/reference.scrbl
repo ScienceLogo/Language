@@ -158,14 +158,14 @@ procedures, and record interfaces; it has no top-level executable commands.
          (tt "resource name [ ... ], name.field = value, value = name.field")
          "Data flow represented; no external I/O")
    (list (secref "interfaces")
-         (tt "interface, version, extends, require, affects")
+         (tt "interface, version, extends, must [...], affects")
          "Declarations checked for structure")
    (list (secref "libraries")
          (tt "library, import, include")
          "Files and revisions resolved by reader")
    (list (secref "assessment")
-         (tt "implements, provide, must do, must stages in order, must record implement")
-         "Requirements on the written method")))
+         (tt "subject implement Interface.part, must do, must stages in order")
+         "Interface mappings and requirements on the written method")))
 
 @section{Comments and whitespace}
 

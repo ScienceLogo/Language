@@ -110,12 +110,12 @@
    nested-record
    (string-append nested-record
                   "trial = [documentation = [uncertainty = unknown unit = \"seconds\"]]\n"
-                  "must trial implement Protocol\n"
-                  "must trial implement \"interface.rkt\"\n"
-                  "must trial.documentation implement Protocol.documentation\n"
+                  "trial implement Protocol\n"
+                  "trial implement \"interface.rkt\"\n"
+                  "trial.documentation implement Protocol.documentation\n"
                   "trial.appendix = [method = \"manual\"]\n"
-                  "must trial implement Protocol\n"
-                  "must trial implement \"interface.rkt\"\n")
+                  "trial implement Protocol\n"
+                  "trial implement \"interface.rkt\"\n")
    (lambda (_interface workflow)
      (define result (assess-file workflow))
      (check-equal? (map condition-check-outcome (assessment-checks result))
@@ -127,11 +127,11 @@
    (string-append nested-record
                   "details = [uncertainty = unknown unit = \"seconds\"]\n"
                   "trial = [documentation = details]\n"
-                  "must trial implement Protocol\n"
+                  "trial implement Protocol\n"
                   "missing-details = unknown\n"
                   "trial.documentation = missing-details\n"
-                  "must trial implement Protocol\n"
-                  "must trial implement \"interface.rkt\"\n")
+                  "trial implement Protocol\n"
+                  "trial implement \"interface.rkt\"\n")
    (lambda (_interface workflow)
      (check-equal? (map condition-check-outcome (assessment-checks (assess-file workflow)))
                    '(satisfied undetermined undetermined))))
@@ -196,11 +196,11 @@
      (string-append
       declaration
       "trial = [duration = unknown]\n"
-      "must trial implement Timing\n"
-      "must trial implement \"interface.rkt\"\n"
+      "trial implement Timing\n"
+      "trial implement \"interface.rkt\"\n"
       "trial.unit = \"minutes\"\n"
-      "must trial implement Timing\n"
-      "must trial implement \"interface.rkt\"\n")
+      "trial implement Timing\n"
+      "trial implement \"interface.rkt\"\n")
      (lambda (_interface workflow)
        (define result (assess-file workflow))
        (check-equal? (map condition-check-outcome (assessment-checks result))

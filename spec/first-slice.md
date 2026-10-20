@@ -87,7 +87,7 @@ commands. Included library files hold top-level `to`, record `interface`, and
 nested; paths are relative to the containing file and cannot escape the repository.
 `at` names a tag or full commit ID on `main`, not a branch. Imported procedures use
 `alias.procedure` in calls. Imported record interfaces use `alias.Interface` in
-construction, `extends`, and `must ... implement` checks. Imported stage names
+construction, `extends`, and `... implement` checks. Imported stage names
 carry the library alias in the
 method model, so separate libraries may reuse a stage label. Git must be available;
 the reader fetches and validates the library before any commands run. See
@@ -119,7 +119,7 @@ outside, without defaults, are optional.
 A separate `#lang sciencelogo` file can declare an interface for parts of a method:
 
 ```text
-interface "Assessment process" [
+interface "Assessment-process" [
   version "1"
   must [collect review report]
   supplementary-notes
@@ -187,33 +187,47 @@ out-of-order named stage produces a finding. A stage inside a procedure or `do [
 block does not match a top-level requirement. This checks the written method's
 structure, not whether the stages ran or their work was adequate.
 
-An investigation can map those parts to implementation references:
+An investigation maps its stages to those parts with direct `implement`
+references. It uses the existing `include` rule for a local interface:
 
 ```text
 workflow "How will we review the data?"
-implements "requirements/review.rkt" as review-process [
-  provide collect by "methods/collection.md"
-  provide review by "methods/review.md"
-  provide report by "methods/report.md"
-]
+include "requirements/review.rkt"
+"Collect" implement Assessment-process.collect
+"Review" implement Assessment-process.review
+"Report" implement Assessment-process.report
+stage "Collect"
+stage "Review"
+stage "Report"
 ```
 
-The path after `implements` is relative to the investigation file. A `provide`
-reference is nonempty text naming where to inspect an implementation; the assessor
-does not open or verify that reference. `implements` is a declaration and does not
-run the named work. The assessor checks whether the interface file exists, reports
-missing, unknown, or duplicate provisions, and follows `affects` links from missing
-parts to downstream parts. It also reports duplicate interface aliases. An issue
-causes the command to exit with status 1:
+The quoted name identifies a stage. A procedure uses its unquoted name, and
+a value uses its name or dotted path. For example, inside a state stage,
+`information.period.u implement Pendulum-protocol.documentation.uncertainty`
+identifies the data addressing that nested requirement. Imported interfaces
+use the existing library alias, as in `prot.Pendulum-protocol.measurement`.
+These forms use no `must` prefix and do not run work or change values.
+
+A mapping to a parent covers its required descendants; optional entries
+remain optional. A mapping to one child does not claim its siblings. Many
+workflow parts may map to one requirement, and one part may map to several.
+The reader checks references. The model preserves the subjects, target paths,
+interface version and source revision, and declaration locations. The assessor
+checks required mapping presence and follows declared `affects` links from
+missing parts. It does not establish scientific conformity. An issue causes
+the command to exit with status 1:
 
 ```text
 racket -l sciencelogo/assessor -- path/to/investigation.rkt
 ```
 
-The [self-description example](../examples/meta-assessor/README.md) is a complete
-interface and investigation pair, with an incomplete method for testing impact
-reports. Interface versions are displayed in assessments; this slice does not
-compare versions or judge scientific adequacy.
+The [pendulum mapping example](../examples/protocol-mapping.rkt) maps a stage
+and its uncertainty description to a local versioned protocol. The older
+file-reference form, `implements "path.rkt" as alias [provide part by "reference"]`,
+remains supported for references written as text; the
+[self-description example](../examples/meta-assessor/README.md) exercises it.
+Interface versions are displayed in assessments; this slice does not compare
+versions or judge scientific adequacy.
 
 ## Inspect the specified method
 
@@ -241,7 +255,7 @@ The assessor's `assess-workflow` accepts that model. `assess-file` reads a file 
 calls it. In addition to the command-line report above, the returned assessment has
 structured condition checks and findings. A compulsory interface entry is represented
 as a `required-entry` condition whose current evidence, for a workflow-part
-check, is a matching `provide` declaration. A satisfied
+check, is a matching mapping declaration. A satisfied
 check therefore means that the declaration is present; it does not establish that the
 referenced work exists, happened, or is scientifically sound. An `affects` link reports
 a possible downstream impact as undetermined. The assessor also rejects malformed
@@ -321,14 +335,14 @@ john.[height = 193]
 A plain `another = john` assigns the same value. Quoted text such as `"male"`
 is literal; an unquoted name refers to a value defined earlier. A record
 interface may supply defaults when constructing a new record. It also states
-structural obligations that can be checked independently with `must`.
+structural obligations that can be checked independently with `implement`.
 
 A record interface may be declared directly in a workflow:
 
 ```text
 interface "Timing" [must [duration unit = "seconds"] notes]
 trial = Timing.[duration = 2]
-must trial implement Timing
+trial implement Timing
 ```
 
 `duration` and `unit` are required; `unit` defaults to `"seconds"` and can be
@@ -336,7 +350,7 @@ overridden with `trial.unit = "minutes"`. `notes` is optional and may be
 absent. Additional fields are allowed. A record made without the constructor
 can also satisfy the interface. `unknown` is an explicit value and counts as
 present; omission does not. A standalone interface file can be checked with
-`must trial implement "relative/path.rkt"`. The assessor checks field
+`trial implement "relative/path.rkt"`. The assessor checks field
 presence from direct assignments and dotted updates. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and
 standalone interfaces may omit `version`; assessments retain the source
@@ -374,7 +388,7 @@ conflicting inherited declarations. Without an explicit child declaration,
 different inherited requirements or defaults for the same field are a read
 error. Unknown parents, duplicate parents, and extension cycles are errors.
 Constructing from the combined interface applies the resolved defaults and
-requires all resolved compulsory fields. A `must` check uses those same resolved
+requires all resolved compulsory fields. An `implement` check uses those same resolved
 fields. `Combined.[]` can construct an interface when no required field remains to be
 supplied. Standalone interface files cannot use local `extends` references.
 An interface may declare nested fields inside `must [...]`, such as `clock.time` and defaults such

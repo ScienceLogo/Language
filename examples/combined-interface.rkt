@@ -14,7 +14,7 @@ trial = Timed-observation.[
   place = "lab"
   observation = "ten swings"
 ]
-must trial implement Timed-observation
-must trial implement Timing
-must trial implement Location
+trial implement Timed-observation
+trial implement Timing
+trial implement Location
 print trial.unit

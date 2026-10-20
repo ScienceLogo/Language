@@ -92,31 +92,41 @@ identifies the uncertainty part. Names are unique within their parent;
 different parts can use the same child name. The interface version covers
 the full hierarchy.
 
-A declaration providing a parent also declares its required children.
-For example, within an @tt{implements} declaration for this protocol:
+A mapping to a parent also claims its required children. For example,
+@tt{"Report"} identifies a stage declared in the workflow:
 
 @verbatim|{
-provide documentation by "methods/documentation.rkt"
+"Report" implement Pendulum-protocol.documentation
 }|
 
 This also claims @tt{documentation.uncertainty}. The child can instead be
 referenced directly:
 
 @verbatim|{
-provide documentation.uncertainty by "methods/uncertainty.rkt"
+information.period.u implement Pendulum-protocol.documentation.uncertainty
 }|
 
-Providing one child does not claim its siblings. Optional nested parts
-remain optional when their parent is provided. When an optional part is
-provided, its own required children apply. These are declarations for
-inspection; the structural check does not inspect the referenced work.
+The second line belongs inside a state stage where @tt{information.period.u}
+is available. It maps that uncertainty description to the specific requirement.
+Mapping one child does not claim its siblings. Optional nested parts
+remain optional when their parent is mapped. When an optional part is
+mapped, its own required children apply. These declarations identify work
+and data for inspection; they do not establish scientific conformity.
+
+Use @tt{implement} directly, without a @tt{must} prefix. A quoted stage title,
+a procedure name, or a value path can appear on its left. On its right,
+use the interface name and dotted path, including the existing library alias
+when imported, such as @tt{prot.Pendulum-protocol.documentation}. A stage or
+procedure may reference the whole interface. Several workflow parts can
+map to one requirement, and one part can map to several requirements.
+See @secref["assessment"] for a complete example and the checks available.
 
 Named blocks also describe nested data fields. A nested part can be used
 with the existing construction and record-check forms:
 
 @verbatim|{
 details = Pendulum-protocol.documentation.[uncertainty = unknown]
-must details implement Pendulum-protocol.documentation
+details implement Pendulum-protocol.documentation
 }|
 
 The reader preserves the dotted names, each entry's requiredness, and parent
@@ -139,10 +149,10 @@ is a runnable workflow:
 workflow "Check timing records"
 interface "Timing" [must [duration unit = "seconds"]]
 trial = Timing.[duration = 2]
-must trial implement Timing
+trial implement Timing
 revised = trial.[unit = "minutes"]
-must revised implement Timing
-must revised implement "interfaces/timing.rkt"
+revised implement Timing
+revised implement "interfaces/timing.rkt"
 }|
 
 @tt{Timing.[duration = 2]} creates a record with @tt{unit = "seconds"}.
@@ -165,12 +175,12 @@ constructed from @tt{Timing}:
 
 @verbatim|{
 direct = [duration = unknown unit = "seconds"]
-must direct implement Timing
+direct implement Timing
 }|
 
 @tt{unknown} is an explicit field value and satisfies field presence. It does
 not mean the field is absent or that its scientific value has been established.
-The @tt{must} check is declarative: it examines the written record shape and
+The @tt{implement} check is declarative: it examines the written record shape and
 does not run the workflow. A direct record assignment or a dotted update has
 a known shape. A record returned by a procedure, or one possibly changed by
 a conditional or loop, is reported as undetermined. The check itself is
@@ -178,14 +188,15 @@ described in @secref["assessment"].
 
 The same interface can be a separate
 @hyperlink[(source-file-url "examples/interfaces/timing.rkt")]{@tt{#lang sciencelogo} file}.
-In this example, @tt{must revised implement "interfaces/timing.rkt"} checks
+In this example, @tt{revised implement "interfaces/timing.rkt"} checks
 against that file; the path
 is relative to the workflow file. The assessor records the source revision
 hash even when the optional @tt{version} is omitted. The standalone form
 checks a record; local declarations supply a name usable in construction.
-@tt{implements ... [provide ...]} remains the form for workflow-part
-declarations; it checks the same compulsory and optional entries as a record
-check, using provision declarations rather than record fields.
+A stage or procedure reference uses the same @tt{implement} word to map
+workflow parts. A value mapped to an interface or nested group is checked
+for required fields; a value mapped to an individual requirement identifies
+the data addressing that requirement.
 
 @section{Extend and combine record interfaces}
 
@@ -209,9 +220,9 @@ trial = Timed-observation.[
   place = "lab"
   observation = "ten swings"
 ]
-must trial implement Timed-observation
-must trial implement Timing
-must trial implement Location
+trial implement Timed-observation
+trial implement Timing
+trial implement Location
 }|
 
 The parent interfaces may be declared after the interface that extends them.
@@ -222,7 +233,7 @@ written inside @tt{must [...]}. Identical field
 declarations from different parents merge. If parents define the same field
 differently, the child must declare that field explicitly to resolve the
 conflict. Unknown parents and extension cycles are reader errors. Construction
-checks all inherited required fields, and @tt{must} can check a resulting
+checks all inherited required fields, and @tt{implement} can check a resulting
 record against the combined interface or any of its parents by field presence.
 The same check follows nested groups. Unknown nested contents are reported
 as undetermined; an optional group that is absent remains optional.
@@ -235,14 +246,15 @@ An inherited interface may be declared later in the same workflow, in an
 included workflow file, or imported from a library. Importing a library as
 @tt{timing} makes its @tt{Timing} record interface available as
 @tt{timing.Timing}; write @tt{extends timing.Timing} in a local interface and
-@tt{must trial implement timing.Timing} to check a record against it. A library
+@tt{trial implement timing.Timing} to check a record against it. A library
 can itself extend an interface imported from another library. Its dependency
 alias remains internal, so a workflow imports that dependency directly if it
 needs to name the interface.
 
 @section{Workflow-part interfaces}
 
-A workflow-part interface lives in a separate @tt{#lang sciencelogo} file.
+A workflow-part interface uses the same declaration in a workflow, library,
+or separate @tt{#lang sciencelogo} file.
 Its @tt{must [...]} group names parts that must be provided. Bare names
 outside that group name parts that may be provided. An omitted optional part is not a
 missing requirement. @tt{affects source target} marks a possible downstream effect
@@ -288,6 +300,6 @@ interface "Pendulum-recording" [
 ]
 }|
 
-An @tt{implements} declaration may provide @tt{supplementary-notes}, but it
+A workflow may map a part to @tt{supplementary-notes}, but it
 does not have to. The same required-entry rule applies when an interface
 describes data fields: a bare name without a default is optional.

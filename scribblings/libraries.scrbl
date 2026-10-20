@@ -131,7 +131,7 @@ After committing and tagging that repository, a workflow can import and use it:
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
 interface "Timed-place" [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]
-must trial implement timing.Timing
+trial implement timing.Timing
 }|
 
 The alias qualifies the interface name just as it qualifies a procedure name.

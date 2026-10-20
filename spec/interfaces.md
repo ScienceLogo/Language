@@ -82,18 +82,50 @@ their parent. Distinct parents may reuse a child name; declarations that
 produce the same complete path are duplicates. The root interface version
 identifies the whole hierarchy.
 
-Within an implementation declaration for this interface,
-`provide documentation by "reference"` claims the parent and its required
-descendants. Optional descendants remain optional. A more specific provision,
-such as `provide documentation.uncertainty by "reference"`, claims that child
-and identifies its parent as present; it does not claim other children.
-Parent and child provisions may coexist to give more specific references.
-The structural check evaluates the presence of these declarations, without
-verifying the referenced work or scientific conformity.
+## Map workflow parts to requirements
+
+Use `implement` directly between a workflow reference and an interface reference:
+
+```text
+"Timing" implement Pendulum-protocol.measurement
+"Report" implement Pendulum-protocol.documentation
+```
+
+The quoted names identify declared stages, including stages defined later in
+the file. A procedure uses its unquoted name. A value uses its existing name
+or dotted path; inside a state stage, for example:
+
+```text
+information.period.u implement Pendulum-protocol.documentation.uncertainty
+```
+
+There is no `must` prefix. `must [...]` declares what an interface requires;
+`implement` records which workflow part addresses that requirement. A mapping
+does not call the procedure, change a value, or establish scientific conformity.
+
+A mapping to `Pendulum-protocol.documentation` claims that parent and its
+required descendants. Optional descendants remain optional. A mapping to
+`Pendulum-protocol.documentation.uncertainty` identifies that child and its
+parent as present, without claiming siblings. Parent and child mappings may
+coexist. Several stages or values may map to the same requirement, and one
+stage or value may map to several requirements. A stage or procedure can
+reference the whole interface to claim all its required parts.
+
+The reader rejects unknown stage, procedure, value, and requirement references.
+The model preserves each mapping's source location, declaration scope,
+subject, target hierarchy, and interface version and source revision. The
+structural check evaluates declaration presence; external applications can
+inspect the mapped work and data to assess scientific conformity.
+
+Interfaces use the established import and include rules. For an imported
+library alias `prot`, a reference is `prot.Pendulum-protocol.documentation`.
+`include "relative/path.rkt"` makes local interface declarations available.
+The [runnable mapping example](../examples/protocol-mapping.rkt) includes the
+pendulum protocol and maps a stage and its uncertainty description.
 
 A nested group is also a data shape. The existing forms can construct it
 with `Pendulum-protocol.documentation.[uncertainty = unknown]` and check a
-record with `must record-name implement Pendulum-protocol.documentation`.
+record with `record-name implement Pendulum-protocol.documentation`.
 This also works for imported interfaces, using
 `alias.Interface.part`. Constructing from a full interface applies nested
 defaults in required groups and in optional groups that have been supplied.
@@ -114,7 +146,7 @@ The reader preserves each entry's name, requiredness, default if any, and
 source location. Named parts retain their hierarchy through child scopes
 and `contains` relations; conditions use complete dotted paths. It does not infer a different kind of interface from the
 presence of a requirement marker. A record check tests required field
-presence; a workflow implementation declaration tests required provisions.
+presence; a stage or procedure mapping tests required mapping declarations.
 Optional entries may be supplied in either use without becoming compulsory.
 Constructing a record applies defaults; checking an existing record does
 not insert missing fields.

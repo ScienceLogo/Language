@@ -64,7 +64,11 @@ pendulum.
   procedure call, performer reference, imported name, variable read, assignment,
   data read or write, and interface
   reference. Preserve nested proposition relationships and updates without
-  inferring that a conclusion is sound. For a
+  inferring that a conclusion is sound. Preserve each direct `implement`
+  mapping: whether its subject is a stage, procedure, or value; its resolved
+  subject reference and declaration scope; the target interface's identity,
+  version, source revision, and nested requirement path. Keep multiple mappings
+  to or from the same part. For a
   paired-stage call, preserve each named input location and
   its return location and effective performer, whether named on the call or
   inherited from its stage. Preserve containment, required order, result production and use,

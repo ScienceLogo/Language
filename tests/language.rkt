@@ -281,14 +281,14 @@
                     "stage \"Prepare\"\n"
                     "include \"../shared/plan.rkt\"\n"
                     "included-trial = [duration = 2]\n"
-                    "must included-trial implement \"../shared/timing.rkt\"\n"))
+                    "included-trial implement \"../shared/timing.rkt\"\n"))
      (define entry
        (write-source "entry.rkt"
                      (string-append
                       "#lang sciencelogo\nworkflow \"Split workflow\"\n"
                       "include \"methods/method.rkt\"\n"
                       "trial = Timing.[duration = 2]\n"
-                      "must trial implement Timing\n"
+                      "trial implement Timing\n"
                       "do plan as message\nprint message\n")))
      (check-equal? (with-output-to-string (lambda () (dynamic-require entry #f)))
                    "ready\n")
@@ -1083,9 +1083,9 @@
          "import ~s at \"v1.0.0\" as hello\n"
          "interface \"TimedPlace\" [extends hello.Timing must [place]]\n"
          "local = TimedPlace.[duration = 2 place = \"lab\"]\n"
-         "must local implement hello.Timing\n"
+         "local implement hello.Timing\n"
          "do hello.make-trial 3 as remote\n"
-         "must remote implement hello.Timing\n"
+         "remote implement hello.Timing\n"
          "print local.unit\n"
          "print remote.duration\n")
         url))
@@ -1095,7 +1095,7 @@
        (string-append
         "#lang sciencelogo\nimport ~s at \"v1.0.0\" as hello\n"
         "details = hello.Timing.documentation.[uncertainty = unknown]\n"
-        "must details implement hello.Timing.documentation\n"
+        "details implement hello.Timing.documentation\n"
         "print details.unit\n") url)
       (lambda (path)
         (check-equal? (with-output-to-string (lambda () (dynamic-require path #f)))
@@ -1107,7 +1107,7 @@
         "#lang sciencelogo\n"
         "import ~s at \"v1.0.0\" as hello\n"
         "trial = [unit = \"seconds\"]\n"
-        "must trial implement hello.Timing\n")
+        "trial implement hello.Timing\n")
        url)
       (lambda (path)
         (check-equal?
@@ -1176,7 +1176,7 @@
          "#lang sciencelogo\n"
          "import ~s at \"v1.0.0\" as a\n"
          "trial = a.TimedPlace.[duration = 3 place = \"field\"]\n"
-         "must trial implement a.TimedPlace\n"
+         "trial implement a.TimedPlace\n"
          "do a.make-trial as other\n"
          "print trial.unit\n"
          "print other.place\n")
@@ -1329,7 +1329,7 @@
     "#lang sciencelogo\n"
     "interface \"Clock\" [must [clock.time clock.unit = \"seconds\"]]\n"
     "trial = Clock.[clock.time = \"12:00\"]\n"
-    "must trial implement Clock\n")
+    "trial implement Clock\n")
    (lambda (path)
      (check-equal?
       (map condition-check-outcome (assessment-checks (assess-file path)))
@@ -1339,7 +1339,7 @@
     "#lang sciencelogo\n"
     "interface \"Clock-fields\" [must [time unit]]\n"
     "trial = [clock = [time = \"12:00\" unit = \"seconds\"]]\n"
-    "must trial.clock implement Clock-fields\n")
+    "trial.clock implement Clock-fields\n")
    (lambda (path)
      (check-equal?
       (map condition-check-outcome (assessment-checks (assess-file path)))
@@ -1391,7 +1391,7 @@
     "interface \"Timing\" [must [duration unit]]\n"
     "trial = [duration = 2]\n"
     "trial += [unit = \"seconds\"]\n"
-    "must trial implement Timing\n")
+    "trial implement Timing\n")
    (lambda (path)
      (check-equal?
       (map condition-check-outcome (assessment-checks (assess-file path)))

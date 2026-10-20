@@ -22,6 +22,7 @@
          (struct-out import-model)
          (struct-out implementation-model)
          (struct-out provision-model)
+         (struct-out mapping-model)
          (struct-out interface-model)
          (struct-out condition-model))
 
@@ -29,7 +30,7 @@
 (struct source-ref (source line column position) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
                            relations imports implementations conditions performers resources
-                           propositions) #:transparent)
+                           propositions mappings) #:transparent)
 (struct stage-model (id name parent source entry exit performer) #:transparent)
 (struct performer-model (id name fields source) #:transparent)
 (struct resource-model (id name fields source) #:transparent)
@@ -40,8 +41,9 @@
 (struct relation-model (kind from to source) #:transparent)
 (struct import-model (id url requested-revision commit alias library-name source)
   #:transparent)
-(struct implementation-model (id path alias provisions source) #:transparent)
+(struct implementation-model (id path alias provisions source interface) #:transparent)
 (struct provision-model (id part locator source) #:transparent)
+(struct mapping-model (id kind subject interface part parent source) #:transparent)
 (struct interface-model (id name version source revision conditions relations)
   #:transparent)
 (struct condition-model (id kind target scope checkpoint evidence source)
@@ -95,6 +97,50 @@
     (for/hasheq ([form (in-list forms)]
                  #:when (eq? (node-kind form) 'interface))
       (values (string->symbol (node-value form)) form)))
+  (define templates
+    (resolve-record-interfaces
+     (for/hasheq ([(name form) (in-hash inline-interfaces)])
+       (values name (map node->datum (node-children form))))))
+  (define interface-models (make-hasheq))
+  (define mappings '())
+  (define protocol-roots (make-hasheq))
+  (define interface-trees (make-hasheq))
+  (define (interface-entry? form)
+    (memq (node-kind form)
+          '(interface-field required-interface-field interface-group required-interface-group)))
+  (define (interface-tree-for name)
+    (hash-ref! interface-trees name
+      (lambda ()
+        (define declaration (hash-ref inline-interfaces name))
+        (define children (node-children declaration))
+        (define own (filter interface-entry? children))
+        (define seen (map node-value own))
+        (define inherited '())
+        (define effects '())
+        (for ([extension (in-list children)] #:when (eq? (node-kind extension) 'extends))
+          (define parent (interface-tree-for (node-value extension)))
+          (for ([entry (in-list (node-children parent))])
+            (cond
+              [(and (interface-entry? entry) (not (memq (node-value entry) seen)))
+               (set! seen (cons (node-value entry) seen))
+               (set! inherited (append inherited (list entry)))]
+              [(eq? (node-kind entry) 'affects)
+               (set! effects (append effects (list entry)))])))
+        (struct-copy node declaration
+                     [children (append inherited effects
+                                       (filter (lambda (child) (not (eq? (node-kind child) 'extends)))
+                                               children))]))))
+  (define (interface-model-for name)
+    (hash-ref! interface-models name
+               (lambda ()
+                 (define declaration (interface-tree-for name))
+                 (define file (format "~a" (token-source (node-at declaration))))
+                 (define revision
+                   (sha1 (open-input-string
+                          (format "~s" (list (and (file-exists? file) (source-revision file))
+                                              (node->datum declaration))))))
+                 (interface-tree-model declaration file revision
+                                       (format "~a@~a/interface:~a" file revision name)))))
   (define procedure-ids
     (for/hasheq ([definition (in-list definitions)])
       (values (car (node-value definition))
@@ -301,6 +347,8 @@
                         [in-state-stage #t])
            (build-block (node-children form) id inputs scopes))
          (set! current-stage #f)]
+        [(eq? kind 'implement)
+         (add-mapping form (or current-stage parent) inputs scopes body)]
         [(memq kind '(call state-call sequence repeat repeat-until for-each while if
                            assignment path-assignment path-update-command print output))
          (define section (or current-stage parent))
@@ -428,6 +476,59 @@
            [(print output)
             (add-use id (node-value form) inputs scopes)])]
         [else (void)])))
+  (define (add-mapping form section inputs scopes body)
+    (define reference (node-value form))
+    (define subject (car (node-children form)))
+    (define kind
+      (cond [(eq? (node-kind subject) 'stage-reference) 'stage]
+            [(and (eq? (node-kind subject) 'result)
+                  (hash-has-key? procedure-ids (node-value subject))
+                  (not (hash-has-key? inputs (node-value subject)))
+                  (not (for/or ([scope (in-list scopes)])
+                         (hash-has-key? scope (node-value subject))))) 'procedure]
+            [else 'value]))
+    (define interface-root
+      (and (symbol? reference) (interface-reference-root inline-interfaces reference)))
+    (define interface (and interface-root (interface-model-for interface-root)))
+    (define part
+      (and interface-root (not (eq? interface-root reference))
+           (string->symbol (substring (symbol->string reference)
+                                     (add1 (string-length (symbol->string interface-root)))))))
+    (define record-mapping?
+      (and (eq? kind 'value)
+           (or (string? reference) (resolve-interface-reference templates reference))))
+    (define id (element-id root 'implement (node-at form) section))
+    (define mapping
+      (mapping-model id kind
+                     (case kind
+                       [(stage) (node-value subject)]
+                       [(procedure) (hash-ref procedure-ids (node-value subject))]
+                       [else (node->datum subject)])
+                     (or interface reference) part section (origin (node-at form))))
+    (set! mappings (cons mapping mappings))
+    (add-relation 'contains section id (node-at form))
+    (when (and interface (not record-mapping?)) (hash-set! protocol-roots interface-root #t))
+    (when record-mapping?
+      (define (subject-name value)
+        (case (node-kind value)
+          [(result parameter) (symbol->string (node-value value))]
+          [(field-ref) (define base (subject-name (car (node-children value))))
+                       (and base (string-append base "." (symbol->string (node-value value))))]
+          [else #f]))
+      (define name (subject-name subject))
+      (when name
+        (set! conditions
+              (cons (condition-model (element-id root 'record-implementation (node-at form) section)
+                                     'record-implementation (string->symbol name)
+                                     root 'method
+                                     (list reference
+                                           (map node->datum
+                                                (takef body (lambda (candidate) (not (eq? candidate form)))))
+                                           (and interface-root
+                                                (node->datum (hash-ref inline-interfaces interface-root)))
+                                           (for/list ([declaration (in-hash-values inline-interfaces)])
+                                             (node->datum declaration)))
+                                     (origin (node-at form))) conditions)))))
   (for ([definition (in-list definitions)])
     (define id (hash-ref procedure-ids (car (node-value definition))))
     (define input-map (make-hasheq))
@@ -484,7 +585,7 @@
                             part locator (origin (node-at provided)))))
        (set! implementations
              (cons (implementation-model id interface-path alias provisions
-                                         (origin (node-at form)))
+                                         (origin (node-at form)) #f)
                    implementations))
        (add-relation 'claims-implementation root id (node-at form))]
       [(must-call)
@@ -501,32 +602,35 @@
                                     'stage-order (node-value form)
                                     root 'method 'stage-headers
                                     (origin (node-at form)))
-                   conditions))]
-      [(must-implement)
-       (define reference (cadr (node-value form)))
-       (define earlier
-         (takef forms (lambda (candidate) (not (eq? candidate form)))))
-       (set! conditions
-             (cons (condition-model (element-id root 'must-implement (node-at form))
-                                    'record-implementation (car (node-value form))
-                                    root 'method
-                                    (list reference
-                                          (map node->datum earlier)
-                                          (and (symbol? reference)
-                                               (node->datum
-                                                (hash-ref inline-interfaces
-                                                          (interface-reference-root
-                                                           inline-interfaces reference))))
-                                          (for/list ([declaration (in-hash-values inline-interfaces)])
-                                            (node->datum declaration)))
-                                    (origin (node-at form)))
                    conditions))]))
   (build-block forms root (make-hasheq) (list (make-hasheq)))
+  (set! mappings
+        (for/list ([mapping (in-list (reverse mappings))])
+          (if (eq? (mapping-model-kind mapping) 'stage)
+              (struct-copy mapping-model mapping
+                           [subject (stage-model-id
+                                     (findf (lambda (stage)
+                                              (equal? (stage-model-name stage) (mapping-model-subject mapping)))
+                                            stages))])
+              mapping)))
+  (for ([name (in-list (sort (hash-keys protocol-roots) symbol<?))])
+    (define interface (interface-model-for name))
+    (define selected (filter (lambda (mapping) (equal? (mapping-model-interface mapping) interface)) mappings))
+    (define id (format "~a/protocol:~a" root name))
+    (set! implementations
+          (cons (implementation-model
+                 id #f name
+                 (for/list ([mapping (in-list selected)])
+                   (provision-model (string-append (mapping-model-id mapping) "/provision")
+                                    (mapping-model-part mapping) mapping (mapping-model-source mapping)))
+                 (mapping-model-source (car selected)) interface) implementations))
+    (set! relations (cons (relation-model 'claims-implementation root id
+                                          (mapping-model-source (car selected))) relations)))
   (workflow-model root (node-value tree) source revision
                   (reverse procedures) (reverse stages) (reverse activities) (reverse items)
                   (reverse relations) (reverse imports)
                   (reverse implementations) (reverse conditions) performers resources
-                  propositions))
+                  propositions mappings))
 
 (define (read-interface-model path)
   (define source (path->string (path->complete-path path)))
@@ -534,7 +638,10 @@
   (unless (eq? (node-kind tree) 'interface)
     (error 'read-interface-model "~a is not a ScienceLogo interface" source))
   (define revision (source-revision source))
-  (define id (format "~a@~a" source revision))
+  (interface-tree-model tree source revision))
+
+(define (interface-tree-model tree source revision [identity #f])
+  (define id (or identity (format "~a@~a" source revision)))
   (define forms (node-children tree))
   (define version
     (let ([declared (findf (lambda (form) (eq? (node-kind form) 'version)) forms)])

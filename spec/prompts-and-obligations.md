@@ -2,7 +2,7 @@
 
 **Status:** design proposal for broader obligations and AI requests. The
 current reader and structural assessor already support the narrower
-`must do`, `must stages in order`, and `must record-name implement` forms
+`must do`, `must stages in order`, and `record-name implement` forms
 described in the [accepted subset](first-slice.md); the other sketches here
 are not accepted syntax. This develops the [semantic core](core.md) using the
 [knowledge-synthesis example](../examples/knowledge-synthesis.md).

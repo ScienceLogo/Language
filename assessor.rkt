@@ -72,6 +72,8 @@
     (register (activity-model-id activity) 'activity activity))
   (for ([item (in-list (workflow-model-items method))])
     (register (item-model-id item) 'item item))
+  (for ([mapping (in-list (workflow-model-mappings method))])
+    (register (mapping-model-id mapping) 'mapping mapping))
   (for ([import (in-list (workflow-model-imports method))])
     (register (import-model-id import) 'import import))
   (for ([implementation (in-list (workflow-model-implementations method))])
@@ -103,6 +105,7 @@
            [(stage) (stage-model-parent (cdr entry))]
            [(activity) (activity-model-parent (cdr entry))]
            [(item) (item-model-scope (cdr entry))]
+           [(mapping) (mapping-model-parent (cdr entry))]
            [else #f])))
   (define (execution-parent activity-id)
     (define parent (parent-of activity-id))
@@ -126,7 +129,7 @@
          (and (or (memq from-type '(workflow procedure stage))
                   (memq (activity-kind from)
                         '(sequence repeat repeat-until for-each while if branch)))
-              (memq to-type '(stage activity item))
+              (memq to-type '(stage activity item mapping))
               (equal? from (parent-of to)))]
         [(defines) (and (eq? from-type 'workflow) (eq? to-type 'procedure))]
         [(defines-performer)
@@ -175,14 +178,17 @@
                   issues))))
   (for ([element (in-list (append (workflow-model-stages method)
                                   (workflow-model-activities method)
-                                  (workflow-model-items method)))])
+                                  (workflow-model-items method)
+                                  (workflow-model-mappings method)))])
     (define id
       (cond [(stage-model? element) (stage-model-id element)]
             [(activity-model? element) (activity-model-id element)]
+            [(mapping-model? element) (mapping-model-id element)]
             [else (item-model-id element)]))
     (define source
       (cond [(stage-model? element) (stage-model-source element)]
             [(activity-model? element) (activity-model-source element)]
+            [(mapping-model? element) (mapping-model-source element)]
             [else (item-model-source element)]))
     (define count (hash-ref containment-counts id 0))
     (unless (= count 1)
@@ -305,20 +311,24 @@
 (define (assess-implementation declaration method-path)
   (define path (implementation-model-path declaration))
   (define alias (implementation-model-alias declaration))
+  (define resolved (implementation-model-interface declaration))
   (define interface-path
-    (simplify-path (build-path
-                    (path-only (source-ref-source
-                                (implementation-model-source declaration)))
-                    (string->path path))))
-  (if (file-exists? interface-path)
-      (assess-existing-interface declaration interface-path)
-      (values #f
-              (list (finding 'missing-interface-file alias path '()
-                             'sciencelogo:interface-resolves
-                             (implementation-model-id declaration)
-                             'violated
-                             (list (implementation-model-source declaration))))
-              '())))
+    (and path
+         (simplify-path
+          (build-path (path-only (source-ref-source
+                                 (implementation-model-source declaration)))
+                      (string->path path)))))
+  (cond
+    [resolved (assess-workflow-parts declaration (interface-model-source resolved) resolved)]
+    [(file-exists? interface-path) (assess-existing-interface declaration interface-path)]
+    [else
+     (values #f
+             (list (finding 'missing-interface-file alias path '()
+                            'sciencelogo:interface-resolves
+                            (implementation-model-id declaration)
+                            'violated
+                            (list (implementation-model-source declaration))))
+             '())]))
 
 (define (assess-existing-interface declaration interface-path)
   (define interface (read-interface-model interface-path))
@@ -350,33 +360,37 @@
     (append*
      (for/list ([provision (in-list provisions)])
        (define part (provision-model-part provision))
+       (define direct? (mapping-model? (provision-model-locator provision)))
        (define issue
          (cond
-           [(not (hash-has-key? condition-by-part part))
+           [(not (or (and direct? (not part)) (hash-has-key? condition-by-part part)))
             (finding 'unknown-part alias part '()
                      'sciencelogo:known-part (provision-model-id provision)
                      'violated (list (provision-model-source provision)))]
-           [(hash-has-key? provided part)
+           [(and (not direct?) (hash-has-key? provided part))
             (finding 'duplicate-part alias part '()
                      'sciencelogo:unique-provision (provision-model-id provision)
                      'violated (list (provision-model-source provision)))]
            [else #f]))
-       (hash-set! provided part provision)
+       (hash-update! provided part (lambda (earlier) (append earlier (list provision))) '())
        (if issue (list issue) '()))))
   (define (claim-for condition)
     (define parent (hash-ref condition-by-id (condition-model-scope condition) #f))
-    (or (hash-ref provided (condition-model-target condition) #f)
-        (and parent (eq? (condition-model-kind condition) 'required-entry)
-             (claim-for parent))))
+    (define explicit (hash-ref provided (condition-model-target condition) '()))
+    (if (pair? explicit) explicit
+        (if (eq? (condition-model-kind condition) 'required-entry)
+            (if parent (claim-for parent) (hash-ref provided #f '()))
+            '())))
   (define (presence-provisions condition)
     (define claimed (claim-for condition))
-    (cond [claimed (list claimed)]
+    (cond [(pair? claimed) claimed]
           [(eq? (condition-model-evidence condition) 'nested-entries)
            (define prefix (string-append (symbol->string (condition-model-target condition)) "."))
-           (for/list ([(part provision) (in-hash provided)]
-                      #:when (and (hash-has-key? condition-by-part part)
-                                  (string-prefix? (symbol->string part) prefix)))
-             provision)]
+           (append*
+            (for/list ([(part provisions) (in-hash provided)]
+                       #:when (and (hash-has-key? condition-by-part part)
+                                   (string-prefix? (symbol->string part) prefix)))
+              provisions))]
           [else '()]))
   (define (active? condition)
     (define parent (hash-ref condition-by-id (condition-model-scope condition) #f))

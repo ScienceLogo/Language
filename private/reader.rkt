@@ -556,8 +556,13 @@
                                      includes-allowed? imports-allowed?) backward))])))
   (define (parse-form definitions-allowed? in-procedure? includes-allowed?
                       imports-allowed?)
-    (define command (expect 'word "a command"))
-    (match (token-value command)
+    (define command (current))
+    (unless (memq (token-kind command) '(word string))
+      (read-error source command "expected a command or a stage implementation mapping"))
+    (advance!)
+    (match (if (eq? (token-kind command) 'string) '#:stage-mapping (token-value command))
+      ['#:stage-mapping
+       (parse-implementation (node 'stage-reference (token-value command) '() command) command)]
       ["to"
        (unless definitions-allowed?
          (read-error source command "to definitions belong in the investigation, not a do block"))
@@ -687,20 +692,7 @@
           (when (< (length names) 2)
             (read-error source command "must stages in order needs at least two stage names"))
           (node 'must-stage-order names '() command)]
-         [_
-          (define name (string->symbol (token-value form)))
-          (when (member (token-value form) reserved)
-            (read-error source form "expected a record name after must"))
-          (expect-word "implement")
-          (define reference
-            (if (eq? (token-kind (current)) 'string)
-                (let ([path (token-value (advance!))])
-                  (when (or (string=? path "")
-                            (not (relative-path? (string->path path))))
-                    (read-error source form "interface file path must be relative"))
-                  path)
-                (named-word "an interface name or quoted relative path")))
-          (node 'must-implement (list name reference) '() command)])]
+         [_ (read-error source command "use subject implement Interface without a must prefix")])]
       ["stage"
        (when (or includes-allowed? imports-allowed?)
          (read-error source command "stage belongs in a workflow or procedure"))
@@ -797,6 +789,9 @@
        (define target (dotted-value command name))
        (cond
          [(and (eq? (token-kind (current)) 'word)
+               (string=? (token-value (current)) "implement"))
+          (parse-implementation target command)]
+         [(and (eq? (token-kind (current)) 'word)
                (member (token-value (current)) '("=" "+=")))
           (define operator (token-value (advance!)))
           (define expression (parse-value))
@@ -811,6 +806,16 @@
           (node 'path-update-command #f (list target) command)]
          [else
           (read-error source command "expected = or += after assignment target")])]))
+  (define (parse-implementation subject command)
+    (expect-word "implement")
+    (define reference
+      (if (eq? (token-kind (current)) 'string)
+          (let ([path (token-value (advance!))])
+            (when (or (string=? path "") (not (relative-path? (string->path path))))
+              (read-error source command "interface file path must be relative"))
+            path)
+          (named-word "an interface or nested requirement reference")))
+    (node 'implement reference (list subject) command))
   (define (parse-interface-entry command required?)
     (define name (token-value command))
     (when (or (member name reserved)
@@ -1131,7 +1136,7 @@
                  (list form)))))
   (expand forms entry))
 
-(define (qualify-library-form form alias interface-names)
+(define (qualify-library-form form alias interface-names [procedure-names '()] [bound '()])
   (define (qualified name)
     (string->symbol (format "~a.~a" alias name)))
   (define (qualify-value value)
@@ -1144,7 +1149,18 @@
        (struct-copy node value
                     [children (map qualify-value (node-children value))])]))
   (define (qualify-form child)
-    (qualify-library-form child alias interface-names))
+    (qualify-library-form child alias interface-names procedure-names bound))
+  (define (qualify-body forms [locals bound])
+    (define-values (result _locals)
+      (for/fold ([result '()] [locals locals]) ([child (in-list forms)])
+        (values
+         (cons (qualify-library-form child alias interface-names procedure-names locals) result)
+         (case (node-kind child)
+           [(assignment) (cons (car (node-value child)) locals)]
+           [(call) (if (cdr (node-value child))
+                       (cons (cdr (node-value child)) locals) locals)]
+           [else locals]))))
+    (reverse result))
   (case (node-kind form)
     [(interface)
      (struct-copy node form
@@ -1164,12 +1180,31 @@
      (struct-copy node form
                   [value (cons (format "~a.~a" alias (car (node-value form)))
                                (cdr (node-value form)))]
-                  [children (map qualify-form (node-children form))])]
+                  [children (qualify-body (node-children form))])]
     [(to)
      (struct-copy node form
                   [value (cons (qualified (procedure-name form))
                                (procedure-inputs form))]
-                  [children (map qualify-form (node-children form))])]
+                  [children (qualify-body (node-children form) (procedure-inputs form))])]
+    [(implement)
+     (define reference (node-value form))
+     (define subject (car (node-children form)))
+     (define root
+       (and (symbol? reference)
+            (interface-reference-root
+             (for/hasheq ([name (in-list interface-names)]) (values name #t)) reference)))
+     (struct-copy node form
+                  [value (if root (qualified reference) reference)]
+                  [children
+                   (list
+                    (cond
+                      [(eq? (node-kind subject) 'stage-reference)
+                       (struct-copy node subject [value (format "~a.~a" alias (node-value subject))])]
+                      [(and (eq? (node-kind subject) 'result)
+                            (memq (node-value subject) procedure-names)
+                            (not (memq (node-value subject) bound)))
+                       (struct-copy node subject [value (qualified (node-value subject))])]
+                      [else (qualify-value subject)]))])]
     [(call)
      (struct-copy node form
                   [value (cons (qualified (call-name form))
@@ -1188,20 +1223,21 @@
     [(repeat repeat-until while)
      (struct-copy node form
                   [value (qualify-value (node-value form))]
-                  [children (map qualify-form (node-children form))])]
+                  [children (qualify-body (node-children form))])]
     [(for-each)
      (struct-copy node form
                   [value (cons (car (node-value form))
                                (qualify-value (cdr (node-value form))))]
-                  [children (map qualify-form (node-children form))])]
+                  [children (qualify-body (node-children form)
+                                          (cons (car (node-value form)) bound))])]
     [(branch)
      (struct-copy node form
                   [value (and (node-value form)
                               (qualify-value (node-value form)))]
-                  [children (map qualify-form (node-children form))])]
+                  [children (qualify-body (node-children form))])]
     [(sequence if)
      (struct-copy node form
-                  [children (map qualify-form (node-children form))])]
+                  [children (qualify-body (node-children form))])]
     [else form]))
 
 (define (load-library import parent-alias stack)
@@ -1270,7 +1306,11 @@
             (substring (node-value form) (string-length alias-prefix))))))
       (define local-definitions
         (map (lambda (form)
-               (qualify-library-form form qualified-alias interface-names))
+               (qualify-library-form
+                form qualified-alias interface-names
+                (map procedure-name
+                     (filter (lambda (form) (eq? (node-kind form) 'to))
+                             (node-children expanded)))))
              (filter (lambda (form) (memq (node-kind form) '(to interface)))
                      (node-children expanded))))
       (define definitions (append dependencies local-definitions))
@@ -1323,8 +1363,9 @@
     (when (memq (node-kind form) '(result extends))
       (check-private-name (node-value form) (node-at form)))
     (case (node-kind form)
-      [(must-implement)
-       (check-private-name (cadr (node-value form)) (node-at form) #t)]
+      [(implement)
+       (check-private-name (node-value form) (node-at form) #t)
+       (check-form (car (node-children form)))]
       [else
        (define value (node-value form))
        (cond [(node? value) (check-form value)]
@@ -1826,18 +1867,29 @@
            (read-error source (node-at form)
                        "a call with state locations belongs inside a state stage"))
          visible]
-        [(must-implement)
-         (define name (car (node-value form)))
-         (define root (string->symbol
-                       (car (string-split (symbol->string name) "."))))
-         (unless (memq root visible)
+        [(implement)
+         (define subject (car (node-children form)))
+         (define procedure-subject?
+           (and (eq? (node-kind subject) 'result)
+                (hash-has-key? definitions (node-value subject))
+                (not (memq (node-value subject) visible))))
+         (case (node-kind subject)
+           [(stage-reference)
+            (unless (hash-has-key? stage-names (node-value subject))
+              (read-error source (node-at subject)
+                          (format "unknown stage ~s in implement mapping" (node-value subject))))]
+           [else
+            (unless procedure-subject?
+              (check-value subject inputs visible))])
+         (define reference (node-value form))
+         (when (and (string? reference)
+                    (or procedure-subject? (eq? (node-kind subject) 'stage-reference)))
            (read-error source (node-at form)
-                       (format "unknown record ~a in must implement" name)))
-         (define reference (cadr (node-value form)))
+                       "stage and procedure mappings need a named interface or requirement"))
          (when (and (symbol? reference)
-                    (not (resolve-interface-reference resolved-interfaces reference)))
+                    (not (resolve-interface-target resolved-interfaces reference)))
            (read-error source (node-at form)
-                       (format "unknown interface ~a in must implement" reference)))
+                       (format "unknown interface or requirement ~a in implement mapping" reference)))
          visible]
         [(sequence)
          (check-forms (node-children form) inputs visible writable)
@@ -2032,7 +2084,9 @@
            (eq? (node-kind form) 'required-interface-group)
            (map node->datum (node-children form)))]
     [(must-call) (list 'must-call (node-value form))]
-    [(must-implement) (cons 'must-implement (node-value form))]
+    [(implement)
+     (list 'implement (node->datum (car (node-children form))) (node-value form))]
+    [(stage-reference) (list 'stage-reference (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]
     [(stage) (list 'stage (node-value form))]
     [(performer)

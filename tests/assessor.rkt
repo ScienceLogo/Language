@@ -44,10 +44,10 @@
     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
     "interface \"Site\" [must [place]]\n"
     "complete = Combined.[duration = 2 place = \"lab\" note = \"planned\"]\n"
-    "must complete implement Combined\n"
-    "must complete implement Timing\n"
+    "complete implement Combined\n"
+    "complete implement Timing\n"
     "incomplete = [duration = 2 unit = \"seconds\" note = \"planned\"]\n"
-    "must incomplete implement Combined\n")
+    "incomplete implement Combined\n")
    (lambda (_interface method)
      (define result (assess-file method))
      (check-equal? (map condition-check-outcome (assessment-checks result))
@@ -66,12 +66,12 @@
     "#lang sciencelogo\nworkflow \"Check timing\"\n"
     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
     "trial = Timing.[duration = unknown]\n"
-    "must trial implement Timing\n"
-    "must trial implement \"requirement.rkt\"\n"
+    "trial implement Timing\n"
+    "trial implement \"requirement.rkt\"\n"
     "other = [duration = 2]\n"
-    "must other implement Timing\n"
+    "other implement Timing\n"
     "other = other.[unit = \"minutes\"]\n"
-    "must other implement \"requirement.rkt\"\n")
+    "other implement \"requirement.rkt\"\n")
    (lambda (interface method)
      (define result (assess-file method))
      (check-equal? (map condition-check-outcome (assessment-checks result))
@@ -88,7 +88,7 @@
     "#lang sciencelogo\nworkflow \"Check dynamic record\"\n"
     "to make-record [output [duration = 2 unit = \"seconds\"]]\n"
     "do make-record as trial\n"
-    "must trial implement \"requirement.rkt\"\n")
+    "trial implement \"requirement.rkt\"\n")
    (lambda (_interface method)
      (define result (assess-file method))
      (check-equal? (map condition-check-outcome (assessment-checks result))
@@ -101,7 +101,7 @@
    (string-append
     "#lang sciencelogo\n"
     "trial = [review = unknown]\n"
-    "must trial implement \"requirement.rkt\"\n")
+    "trial implement \"requirement.rkt\"\n")
    (lambda (_interface method)
      (check-equal? (assessment-findings (assess-file method)) '())))
 

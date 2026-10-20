@@ -552,7 +552,7 @@
            [`(implements ,_ ,_) (void)]
            [`(must-call ,_) (void)]
            [`(must-stage-order ,_) (void)]
-           [`(must-implement ,_ ,_) (void)]
+           [`(implement ,_ ,_) (void)]
            [`(interface ,_ ,_) (void)]
            [`(performer ,_ ,_) (void)]
            [`(resource ,_ ,_) (void)]
