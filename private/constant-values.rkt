@@ -17,7 +17,7 @@
        (contains-unresolved? part))]
     [else #f]))
 
-(define (constant-value expression [lookup (lambda (_name) no-constant)])
+(define (constant-value expression [lookup (lambda (_name) no-constant)] [partial? #f])
   (define (evaluate expression)
     (match expression
       [`(result ,name) (lookup name)]
@@ -26,12 +26,12 @@
        (uncertain-value (evaluate base) (evaluate description))]
       [`(list ,parts)
        (define values (map evaluate parts))
-       (if (ormap contains-unresolved? values) no-constant values)]
+       (if (and (not partial?) (ormap contains-unresolved? values)) no-constant values)]
       [`(fields ,entries)
        (define values
          (for/list ([entry (in-list entries)])
            (cons (first entry) (evaluate (second entry)))))
-       (if (ormap (lambda (entry) (contains-unresolved? (cdr entry))) values)
+       (if (and (not partial?) (ormap (lambda (entry) (contains-unresolved? (cdr entry))) values))
            no-constant
            (make-immutable-hasheq values))]
       [`(dot-update (,source ,changes))
@@ -42,7 +42,7 @@
              (hash-set record name value))
            no-constant)]
       [`(dot-select (,source ,selectors ...))
-       (define container (evaluate source))
+       (define container (plain-value (evaluate source)))
        (define (one selector)
          (match selector
            [`(literal ,n)
@@ -64,13 +64,17 @@
                 (list-ref container (sub1 n)) no-constant)]))
        (define selected (map one selectors))
        (cond
-         [(ormap unresolved? selected) no-constant]
+         [(ormap (if partial? (lambda (value) (eq? value no-constant)) unresolved?) selected)
+          no-constant]
          [(= (length selected) 1) (car selected)]
          [(hash? container)
           (for/hasheq ([selector (in-list selectors)]
                        [value (in-list selected)])
             (values (cadr selector) value))]
          [else selected])]
+      [`(field-ref count ,receiver)
+       ;; Item values need not be known to establish the number of positions.
+       (value-field (constant-value receiver lookup #t) 'count no-constant)]
       [`(field-ref ,name ,receiver)
        (match receiver
          [`(fields ,entries)
@@ -79,6 +83,17 @@
          [_
           (define record (evaluate receiver))
           (value-field record name no-constant)])]
+      [`(range (,start ,end ,step))
+       (define a (plain-value (evaluate start)))
+       (define b (plain-value (evaluate end)))
+       (define increment (plain-value (evaluate step)))
+       (if (and (real? a) (exact? a) (real? b) (exact? b)
+                (real? increment) (exact? increment) (not (zero? increment))
+                (or (= a b) (and (< a b) (positive? increment))
+                    (and (> a b) (negative? increment))))
+           (for/list ([value (in-range a (+ b increment) increment)]
+                      #:when (if (positive? increment) (<= value b) (>= value b))) value)
+           no-constant)]
       [`(unary ,operator (,part))
        (define value (plain-value (evaluate part)))
        (cond

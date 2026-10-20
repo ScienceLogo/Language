@@ -25,6 +25,8 @@ interface "Timing" [
 @tt{duration} and @tt{unit} must both be present. When constructing a record,
 supply @tt{duration}; the interface supplies @tt{"seconds"} for @tt{unit}
 unless another value is provided. @tt{notes} may be absent.
+Required fields reject @tt{unknown} by default, including overrides of a
+supplied default.
 
 @(tabular #:style 'boxed
   (list
@@ -33,6 +35,29 @@ unless another value is provided. @tt{notes} may be absent.
    (list (tt "must [duration unit = \"seconds\"]")
          "Both fields are required; unit has an overridable default")
    (list (tt "notes") "Optional; may be absent")))
+
+Declare a default of @tt{unknown} when a required field may contain it:
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Declaration") (bold "Meaning"))
+   (list (tt "must [period]") "Must be supplied; unknown is rejected")
+   (list (tt "must [period = 2]") "Defaults to 2; an override cannot be unknown")
+   (list (tt "must [period = unknown]") "Unknown is permitted and supplied as the default")))
+
+The field remains required. Construction fills an omitted default; checking
+an existing record leaves it unchanged and still reports an absent field.
+The permission follows the field through inheritance and library imports.
+Redeclaring a field replaces its default and permission.
+The @hyperlink[(source-file-url "examples/unknown-fields.rkt")]{runnable example}
+shows a supplied period and a period explicitly allowed to be unknown.
+
+A required list or record can contain unknown entries; requirements on
+those entries are checked separately. Optional fields can still be absent
+or contain @tt{unknown}. A permitted unknown value does not establish an
+additional condition such as @tt{period > 0}; that condition remains
+undetermined. A value the structural checker cannot resolve is also
+undetermined, rather than being treated as an explicitly supplied @tt{unknown}.
 
 @tt{must} applies to every entry inside its brackets, whether they share a
 line or use separate lines. A field with a default is compulsory even if it
@@ -55,10 +80,10 @@ interface "Timing-trial" [
 
 This requires @tt{swing-count} to be greater than @tt{10},
 @tt{swing-height} to be present, and @tt{unit} to equal @tt{"seconds"}.
-The entries referenced by a condition must be present. A bare entry requires
-presence only, so @tt{swing-height = unknown} can satisfy its presence
-requirement. An unknown value in a comparison can leave the comparison
-undetermined.
+The entries referenced by a condition must be present and reject @tt{unknown}
+by default. @tt{swing-height = unknown} therefore violates this interface.
+Declare @tt{must [swing-height = unknown]} to permit that value and provide
+it as a default. A comparison using a permitted unknown can remain undetermined.
 
 Use the existing arithmetic, comparison, and Boolean expressions:
 
@@ -168,7 +193,7 @@ Named blocks also describe nested data fields. A nested part can be used
 with the existing construction and record-check forms:
 
 @verbatim|{
-details = Pendulum-protocol.documentation.[uncertainty = unknown]
+details = Pendulum-protocol.documentation.[uncertainty = [estimate = unknown]]
 details implement Pendulum-protocol.documentation
 }|
 
@@ -231,7 +256,8 @@ manual = Timing-protocol.[method = "manual" observer = "researcher"]
 
 @tt{automatic.unit} is @tt{"seconds"}. The other records receive no unit
 default from the inactive branch. Construction checks the requirements of
-the applicable branch. If an omitted required field depends on an unknown
+the applicable branch. To allow an unknown method, declare
+@tt{must [method = unknown]}. If an omitted required field depends on an unknown
 condition, construction reports an undetermined conditional requirement.
 Plain records can retain unknown values for inspection; the structural
 check reports unresolved requirements as @tt{undetermined}.
@@ -267,7 +293,8 @@ The interface requires a @tt{measurements} list. Each item must have a
 @tt{period.u}. These are the requirements of this example protocol.
 The block describes the items; it does not perform measurements.
 The @hyperlink[(source-file-url "examples/list-requirements.rkt")]{runnable example}
-constructs and checks a series with two measurements.
+constructs and checks a series with three measurements, including a minimum
+count requirement.
 
 The name @tt{measurement} refers to one item and is local to the block.
 Use its dotted paths for entries and the existing expressions for conditions:
@@ -286,17 +313,38 @@ can appear inside the block. Nested loops can refer to their enclosing
 item names. Scalar lists can use the item name directly, as in
 @tt{for each count in counts [must [count > 10]]}.
 
+To require a minimum number of measurements as well as their individual
+fields, use the list's reserved @tt{.count} property:
+
+@verbatim|{
+interface "Timing-series" [
+  must [measurements.count >= 3]
+
+  for each measurement in measurements [
+    must [measurement.period measurement.period.u]
+  ]
+]
+}|
+
+This requires at least three items. @tt{must [measurements.count == 3]}
+requires exactly three. The count is computed from the list; it is not
+a separate field the author supplies. An unknown item value still occupies
+one position. An explicitly unknown list is rejected by default. Declare
+@tt{must [measurements = unknown]} to permit it; its count requirement then
+remains undetermined.
+
 @(tabular #:style 'boxed
   (list
    (list (bold "Written collection") (bold "Check"))
    (list "Known list" "Checks every item; any known violation makes the requirement violated")
-   (list (tt "[]") "Satisfied: there are no items to check")
-   (list (tt "unknown") "Undetermined")
+   (list (tt "[]") "Per-item requirements are satisfied; a separate minimum count can still be violated")
+   (list (tt "unknown") "Rejected by default; unresolved checks are undetermined when the collection permits unknown")
    (list "Missing collection or a known value that is not a list" "Violated when the block applies")))
 
 A missing item field identifies its position, such as
 @tt{measurements.[2].period.u}. An unknown value can leave a condition
-undetermined. A bare field requirement checks presence only.
+undetermined when the field permits @tt{unknown}. Required item fields
+otherwise reject it by default.
 The existence of @tt{period.u} does not establish the adequacy of the
 uncertainty description.
 
@@ -349,12 +397,14 @@ A literal record can satisfy the same interface even when it was not
 constructed from @tt{Timing}:
 
 @verbatim|{
-direct = [duration = unknown unit = "seconds"]
+direct = [duration = 2 unit = "seconds"]
 direct implement Timing
 }|
 
-@tt{unknown} is an explicit field value and satisfies field presence. It does
-not mean the field is absent or that its scientific value has been established.
+@tt{duration = unknown} would violate this interface. Declaring
+@tt{must [duration = unknown unit = "seconds"]} explicitly permits an unknown
+duration and supplies it as a default. The permission does not establish
+a scientific value for it.
 The @tt{implement} check is declarative: it examines the written record shape and
 does not run the workflow. A direct record assignment or a dotted update has
 a known shape. A record returned by a procedure, or one possibly changed by

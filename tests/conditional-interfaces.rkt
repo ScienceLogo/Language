@@ -57,11 +57,16 @@
   (check-equal? (outcomes (string-append simple "trial = [method = \"automatic\"]\ntrial implement Timing\n"))
                 '(violated))
   (check-equal? (outcomes (string-append simple "trial = [method = unknown]\ntrial implement Timing\n"))
-                '(undetermined))
+                '(violated))
   (check-equal? (outcomes (string-append simple "trial = [method = unknown instrument = unknown]\ntrial implement Timing\n"))
-                '(satisfied))
-  (check-exn #rx"undetermined conditional requirements"
+                '(violated))
+  (check-exn #rx"does not allow unknown.*method"
              (lambda () (output-of (string-append simple "trial = Timing.[method = unknown]\n"))))
+  (define open-method "interface \"Timing\" [must [method = unknown] if method == \"automatic\" [must [instrument]]]\n")
+  (check-equal? (outcomes (string-append open-method "trial = [method = unknown]\ntrial implement Timing\n"))
+                '(undetermined))
+  (check-equal? (outcomes (string-append open-method "trial = [method = unknown instrument = \"timer\"]\ntrial implement Timing\n"))
+                '(satisfied))
 
   ;; Conditions use entries of the surrounding named part, including when that
   ;; part is constructed through its dotted interface reference.

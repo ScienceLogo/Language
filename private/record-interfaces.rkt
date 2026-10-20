@@ -14,8 +14,10 @@
          complete-interface-record
          missing-interface-fields
          undetermined-interface-fields
+         unknown-interface-fields
          interface-requirement-results
          requirement-references
+         requirement-entry-references
          interface-guard-value
          interface-value
          iteration-template
@@ -53,6 +55,13 @@
              [_ (for ([part (in-list expression)]) (walk part))])]))
   (walk expression)
   (remove-duplicates (reverse references)))
+
+;; A list's count is derived from its container, not a separately supplied part.
+(define (requirement-entry-references expression)
+  (remove-duplicates
+   (for/list ([path (in-list (requirement-references expression))])
+     (define position (index-of (cdr path) 'count))
+     (if position (take path (add1 position)) path))))
 
 ;; Declarations map interface names to reader datums: (extends Parent) and
 ;; (interface-field name default-or-#f required? children-or-#f), conditional
@@ -117,7 +126,7 @@
                                                             (add1 (string-length (symbol->string root)))) "."))])
                (define (mentioned? fields requirements [prefix '()])
                  (or (for*/or ([requirement (in-list requirements)]
-                               [path (in-list (requirement-references (record-requirement-expression requirement)))])
+                               [path (in-list (requirement-entry-references (record-requirement-expression requirement)))])
                        (define full (append prefix path))
                        (and (<= (length requested) (length full))
                             (equal? requested (take full (length requested)))))
@@ -246,17 +255,6 @@
       [`(fields ,entries)
        (for/hasheq ([entry (in-list entries)]) (values (car entry) (evaluate (cadr entry))))]
       [`(uncertain ,base ,description) (uncertain-value (evaluate base) (evaluate description))]
-      [`(range (,start ,end ,step))
-       (define a (evaluate start))
-       (define b (evaluate end))
-       (define increment (evaluate step))
-       (if (and (real? a) (exact? a) (real? b) (exact? b)
-                (real? increment) (exact? increment) (not (zero? increment))
-                (or (= a b) (and (< a b) (positive? increment))
-                    (and (> a b) (negative? increment))))
-           (for/list ([value (in-range a (+ b increment) increment)]
-                      #:when (if (positive? increment) (<= value b) (>= value b))) value)
-           no-constant)]
       [_ (constant-value expression (lambda (name) (known (hash-ref record name 'unknown))))]))
   (evaluate expression))
 
@@ -291,11 +289,63 @@
   (define value (if expression (interface-value expression record) #t))
   (if (boolean? value) value 'unknown))
 
+(define (unknown-default? expression)
+  (match expression
+    [`(literal unknown) #t]
+    [`(uncertain ,base ,_) (unknown-default? base)]
+    [_ #f]))
+
+;; A permission comes from the resolved declaration, including its guard.
+(define (unknown-permission fields path record evaluate)
+  (for/fold ([permission #f]) ([field (in-list fields)])
+    (define own-path (field-path field))
+    (define active (if (record-field-guard field)
+                       (evaluate (record-field-guard field) record) #t))
+    (define found
+      (cond [(equal? own-path path)
+             (and (unknown-default? (record-field-default field)) active)]
+            [(and (record-field-children field) (< (length own-path) (length path))
+                  (equal? own-path (take path (length own-path))))
+             (define child (path-value record own-path))
+             (and (hash? child)
+                  (and-status active
+                              (unknown-permission (record-field-children field)
+                                                  (drop path (length own-path)) child evaluate)))]
+            [else #f]))
+    (cond [(or (eq? permission #t) (eq? found #t)) #t]
+          [(or (eq? permission 'unknown) (eq? found 'unknown)) 'unknown]
+          [else #f])))
+
+(define (required-value-gaps fields expression record evaluate)
+  (define invalid '())
+  (define pending '())
+  (for ([reference (in-list (requirement-references expression))])
+    ;; A known record's count is an ordinary field. If the receiver of
+    ;; .count is unknown, check its declaration instead of its derived size.
+    (define path
+      (or (for/or ([part (in-list reference)] [position (in-naturals)])
+            (and (positive? position) (eq? part 'count)
+                 (let* ([parent (take reference position)]
+                        [value (plain-value (path-value record parent))])
+                   (and (or (memq value '(unknown undetermined)) (eq? value no-constant))
+                        parent))))
+          reference))
+    (define value (plain-value (path-value record path)))
+    (define permission (unknown-permission fields path record evaluate))
+    (cond [(and (eq? value 'unknown) (eq? permission #f))
+           (set! invalid (cons path invalid))]
+          [(and (not (eq? permission #t))
+                (or (eq? value unknown-path) (eq? value 'undetermined)
+                    (eq? value no-constant) (and (eq? value 'unknown) (eq? permission 'unknown))))
+           (set! pending (cons path pending))]))
+  (values (reverse invalid) (reverse pending)))
+
 (define (interface-field-gaps interface record [evaluate-guard interface-guard-value])
   (unless (record-interface? interface)
     (raise-argument-error 'missing-interface-fields "record-interface?" interface))
   (define missing '())
   (define pending '())
+  (define unknown '())
   (define (walk fields value [prefix ""] [outer #t])
     (for ([field (in-list fields)])
        (define name (string-append prefix (symbol->string (record-field-name field))))
@@ -314,6 +364,16 @@
                 (when (or (record-field-required? field) (record-field-children field))
                   (set! pending (cons (string->symbol name) pending)))]
                [(eq? found absent) (when (record-field-required? field) (gap))]
+               [(and (record-field-required? field)
+                     (not (unknown-default? (record-field-default field)))
+                     (eq? (plain-value found) 'unknown))
+                (if (eq? status #t)
+                    (set! unknown (cons (string->symbol name) unknown))
+                    (set! pending (cons (string->symbol name) pending)))]
+               [(and (record-field-required? field)
+                     (not (unknown-default? (record-field-default field)))
+                     (or (eq? (plain-value found) 'undetermined) (eq? found no-constant)))
+                (set! pending (cons (string->symbol name) pending))]
                [(record-field-children field)
                 (cond [(memq found '(unknown undetermined))
                        (set! pending (cons (string->symbol name) pending))]
@@ -321,15 +381,19 @@
                        (walk (record-field-children field) found (string-append name ".") status)]
                       [else (gap)])]))))
   (walk (record-interface-fields interface) record)
-  (values (reverse missing) (reverse pending)))
+  (values (reverse missing) (reverse pending) (reverse unknown)))
 
 (define (missing-interface-fields interface record [evaluate-guard interface-guard-value])
-  (define-values (missing _pending) (interface-field-gaps interface record evaluate-guard))
+  (define-values (missing _pending _unknown) (interface-field-gaps interface record evaluate-guard))
   missing)
 
 (define (undetermined-interface-fields interface record [evaluate-guard interface-guard-value])
-  (define-values (_missing pending) (interface-field-gaps interface record evaluate-guard))
+  (define-values (_missing pending _unknown) (interface-field-gaps interface record evaluate-guard))
   pending)
+
+(define (unknown-interface-fields interface record [evaluate-guard interface-guard-value])
+  (define-values (_missing _pending unknown) (interface-field-gaps interface record evaluate-guard))
+  unknown)
 
 (define (interface-requirement-results interface record [evaluate interface-guard-value])
   (define results '())
@@ -368,6 +432,8 @@
            (match-define `(interface-for-each ,binder ,collection ,body) expression)
            (define items (plain-value (interface-value collection value)))
            (define template (iteration-template body))
+           (define-values (invalid _pending-values)
+             (required-value-gaps fields expression value evaluate))
            (define missing-collection
              (for/list ([path (in-list (requirement-references collection))]
                         #:when (eq? (path-value value path) absent))
@@ -375,6 +441,7 @@
            (cond
              [(pair? missing-collection)
               (add prefix expression (if (eq? active #t) 'violated 'undetermined) missing-collection)]
+             [(pair? invalid) (add prefix expression (if (eq? active #t) 'violated 'undetermined))]
              [(unresolved? items) (add prefix expression 'undetermined)]
              [(not (list? items))
               (add prefix expression (if (eq? active #t) 'violated 'undetermined))]
@@ -385,24 +452,30 @@
                 (define location (item-location collection value prefix index))
                 (define missing (missing-interface-fields template local evaluate))
                 (define pending (undetermined-interface-fields template local evaluate))
+                (define unknown (unknown-interface-fields template local evaluate))
                 (unless (null? missing)
                   (add location expression (if (eq? active #t) 'violated 'undetermined)
                        (map (lambda (name) (relocate name binder location)) missing)))
                 (unless (null? pending) (add location expression 'undetermined))
+                (unless (null? unknown)
+                  (add location expression (if (eq? active #t) 'violated 'undetermined)))
                 (parameterize ([locations (hash-set (locations) binder location)])
                   (walk (record-interface-fields template) (record-interface-requirements template)
                         local location active)))])]
           [else
+           (define-values (invalid pending-values)
+             (required-value-gaps fields expression value evaluate))
            (define missing
              (for/list ([path (in-list (requirement-references expression))]
                         #:when (eq? (path-value value path) absent))
                (path-label (locate prefix path))))
            (define outcome
              (cond [(pair? missing) (if (eq? active #t) 'violated 'undetermined)]
+                   [(pair? invalid) (if (eq? active #t) 'violated 'undetermined)]
                    [else
                     (define answer (evaluate expression value))
-                    (cond [(eq? answer #t) 'satisfied]
-                          [(and (eq? answer #f) (eq? active #t)) 'violated]
+                    (cond [(and (eq? answer #f) (eq? active #t)) 'violated]
+                          [(and (eq? answer #t) (null? pending-values)) 'satisfied]
                           [else 'undetermined])]))
            (add prefix expression outcome missing)])))
     (for ([field (in-list fields)] #:when (record-field-children field))
@@ -450,6 +523,11 @@
     (for/fold ([record (hasheq)])
               ([field (in-list fields)] #:when (active? field values))
       (cond [(record-field-default field)
+             (let check ([value values] [path (field-path field)])
+               (when (pair? path)
+                 (when (and (eq? (car path) 'count) (list? (plain-value value)))
+                   (error 'interface-record "the list property .count is read only; use == for an exact count"))
+                 (check (value-field value (car path) absent) (cdr path))))
              (put-path record (field-path field)
                        (evaluate-default (record-field-default field)))]
             [(and (record-field-children field) (record-field-required? field))
@@ -534,6 +612,11 @@
            (record-interface-name interface)
            (if (= (length missing) 1) "" "s")
            (string-join (map symbol->string missing) ", ")))
+  (define unknown (unknown-interface-fields interface result evaluate-guard))
+  (unless (null? unknown)
+    (error 'interface-record "~a does not allow unknown for field~a ~a; declare a default of unknown to permit it"
+           (record-interface-name interface) (if (= (length unknown) 1) "" "s")
+           (string-join (map symbol->string unknown) ", ")))
   (define pending (undetermined-interface-fields interface result evaluate-guard))
   (unless (null? pending)
     (error 'interface-record "~a has undetermined conditional requirements: ~a"

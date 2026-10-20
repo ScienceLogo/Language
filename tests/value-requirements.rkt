@@ -39,18 +39,18 @@
              (lambda () (run (string-append declaration "trial = Timing.[swing-count = 20 swing-height = 0.1]\n"))))
   (check-exn #rx"missing field.*swing-height"
              (lambda () (run (string-append declaration "trial = Timing.[swing-count = 20 unit = \"seconds\"]\n"))))
-  (check-exn #rx"undetermined value requirement"
+  (check-exn #rx"does not allow unknown.*swing-height"
              (lambda () (run (string-append declaration
                                             "trial = Timing.[swing-count = unknown swing-height = unknown unit = \"seconds\"]\n"))))
   (check-equal? (outcomes (string-append declaration
                                         "trial = [swing-count = 20 swing-height = unknown unit = \"seconds\"]\ntrial implement Timing\n"))
-                '(satisfied))
+                '(violated))
   (check-equal? (outcomes (string-append declaration
                                         "trial = [swing-count = 10 swing-height = 0.1 unit = \"seconds\"]\ntrial implement Timing\n"))
                 '(violated))
   (check-equal? (outcomes (string-append declaration
                                         "trial = [swing-count = unknown swing-height = 0.1 unit = \"seconds\"]\ntrial implement Timing\n"))
-                '(undetermined))
+                '(violated))
 
   ;; Boolean expressions and adjacent bare entries share the same must group.
   (check-equal?

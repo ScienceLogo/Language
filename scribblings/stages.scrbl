@@ -123,6 +123,10 @@ assigned name may be used only for an integer counter or position; inside
 this form, @tt{for each} likewise needs integer positions. Only a declared
 @tt{into} location, or fields within a record returned to it, can change
 through a call. The same location can be both an input and an output.
+The reserved list property @tt{information.measurements.count} can be read
+as an input location or used for an integer counter or range bound. It is
+computed from the list, so it is not another stored state field and cannot
+be an @tt{into} location or the target of a resource read.
 An assignment from a declared @secref["resources"] can also change a state
 field; an assignment to a resource path declares an outbound transfer.
 

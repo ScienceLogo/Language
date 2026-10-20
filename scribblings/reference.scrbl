@@ -134,7 +134,7 @@ procedures, and record interfaces; it has no top-level executable commands.
          (tt "numbers, text, true, false, unknown, lists, records")
          "Values used by runnable forms")
    (list (secref "values")
-         (tt "range, .field, .[ ... ], arithmetic, comparisons, not, and, xor, or")
+         (tt "range, .field, .[ ... ], .count, arithmetic, comparisons, not, and, xor, or")
          "Expressions used by runnable forms")
    (list (secref "uncertainty")
          (tt "value u [declared = [ ... ] omitted = [ ... ]], value.u")

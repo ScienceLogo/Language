@@ -12,4 +12,6 @@
          (uncertain-value-uncertainty value)]
         [(hash? (plain-value value))
          (hash-ref (plain-value value) name missing)]
+        [(and (eq? name 'count) (list? (plain-value value)))
+         (length (plain-value value))]
         [else missing]))

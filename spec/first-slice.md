@@ -348,8 +348,11 @@ trial implement Timing
 `duration` and `unit` are required; `unit` defaults to `"seconds"` and can be
 overridden with `trial.unit = "minutes"`. `notes` is optional and may be
 absent. Additional fields are allowed. A record made without the constructor
-can also satisfy the interface. `unknown` is an explicit value and counts as
-present; omission does not. A standalone interface file can be checked with
+can also satisfy the interface. Required fields reject `unknown` unless
+their declaration explicitly defaults to it. `must [duration = unknown]`
+both permits an unknown duration and supplies it as the default. A supplied
+default such as `unit = "seconds"` does not permit an unknown override.
+Optional fields can still be absent or unknown. A standalone interface file can be checked with
 `trial implement "relative/path.rkt"`. The assessor checks field
 presence from direct assignments and dotted updates. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and
@@ -359,7 +362,8 @@ revision hash.
 `must [...]` can also contain value requirements, such as
 `must [swing-count > 10 swing-height unit == "seconds"]`. The referenced
 entries must be present and the expressions must hold. A bare entry such
-as `swing-height` requires presence only. Equality requirements use `==`
+as `swing-height` requires a supplied value other than `unknown`, unless
+its declaration defaults to `unknown`. Equality requirements use `==`
 and supply no default; `unit = "seconds"` remains an overridable default.
 The [value-requirement specification](interfaces.md#requirements-on-values)
 defines mixed groups, nesting, and unknown values.
@@ -455,6 +459,17 @@ from the end is an error. `[0.25 0.50 0.75]` is a list literal; lists can contai
 other values or lists. A `for each` collection must evaluate to a list. Nested
 `for each` blocks express combinations of parameters. These forms describe and
 run the iteration of the written method; `print` still only displays text.
+
+The reserved list property `.count` reports the number of items, including
+unknown item values. An empty list has count 0; an unknown list has an
+unknown count. It is read only: change the list rather than assigning to
+its count. `must [measurements.count >= 3]` can require a minimum number of
+items, alongside per-item interface requirements. The count is computed
+from the list and does not introduce a separately supplied protocol part.
+It also works on ranges and nested lists, such as `grid.[1].count`.
+The reservation applies to lists. A record may have an ordinary mutable
+field named `count`, with the usual assignment and default rules.
+`count` is also a valid variable or procedure input name.
 
 List positions start at 1. `lengths.[1]` reads the first value;
 `lengths.[0]` is an error. An index can be a named value or expression,

@@ -369,6 +369,13 @@
          [`(field-ref ,name ,receiver)
           (cond
             [(resource-root expression) 'unknown]
+            [(eq? name 'count)
+             (define container (plain-value (value-of receiver inputs scopes)))
+             (cond [(list? container) (length container)]
+                   [(eq? container 'unknown) 'unknown]
+                   [(or (hash? container) (record-interface? container))
+                    (select-one container '(result count) inputs scopes)]
+                   [else (error 'run-program ".count needs a list or a record field")])]
             [(eq? name 'u)
              (define value (value-of receiver inputs scopes))
              (unless (uncertain-value? value)
@@ -527,6 +534,8 @@
                                                             (exn-message e))))
                                      (lambda (_) (hasheq))])
                        (value-of receiver inputs scopes))])
+                (when (and (eq? field 'count) (list? (plain-value container)))
+                  (error 'run-program "the list property .count is read only"))
                 (unless (hash? container)
                   (error 'run-program "field update needs a record"))
                 (when (and (collection-target receiver inputs scopes)

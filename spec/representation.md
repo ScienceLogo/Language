@@ -87,6 +87,17 @@ pendulum.
   defaults and presence requirements, including all referenced entry paths.
   Equality comparisons use `==`; assignment and default expressions retain
   their distinct `=` meaning.
+  A required data field rejects `unknown` unless its resolved declaration
+  supplies a default of `unknown`. Preserve that default as both the missing
+  value to insert during construction and the field's explicit permission.
+  Keep an explicitly supplied unknown distinct from a value the checker
+  cannot resolve from the method. Permission for a field does not waive
+  conditions on its value or requirements on its children.
+  Preserve `.count` references in expressions. On a list, this is a read-only
+  computed property, not a separately supplied field or protocol part.
+  A count requirement identifies the list it reads and retains the full
+  comparison for inspection. Unknown item values do not obscure the count
+  of a list whose positions are known.
   For `for each` inside an interface, preserve its collection expression,
   local item name, enclosing scope, guard, and the body with its nested
   requirements and source locations. The body describes each item; it is

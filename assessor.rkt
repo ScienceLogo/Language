@@ -467,7 +467,7 @@
           (let ([results (interface-requirement-results
                           (record-interface "list" '() (list (record-requirement expression #f)))
                           (for/hasheq ([path (in-list (requirement-references expression))])
-                            (values (car path) 'unknown)))])
+                            (values (car path) 'undetermined)))])
             (cond [(ormap (lambda (check) (eq? (requirement-result-outcome check) 'violated)) results) #f]
                   [(ormap (lambda (check) (eq? (requirement-result-outcome check) 'undetermined)) results) 'unknown]
                   [else #t]))
@@ -548,13 +548,16 @@
   ;; or an executable block can depend on information absent from the method.
   (match expression
     [`(uncertain ,base ,_) (record-shape base environment templates)]
-    [`(literal unknown) 'undetermined]
+    [`(literal unknown) 'unknown]
     [`(fields ,entries)
      (for/hasheq ([entry (in-list entries)])
        (values (car entry)
                (nested-record-shape (cadr entry) environment templates)))]
     [`(list ,parts)
      (map (lambda (part) (nested-record-shape part environment templates)) parts)]
+    [`(range ,_)
+     (define value (interface-value expression environment))
+     (if (unresolved? value) 'undetermined value)]
     [`(result ,name)
      (hash-ref environment name 'undetermined)]
     [`(field-ref ,name ,receiver)
@@ -597,7 +600,7 @@
        (define found
          (for/fold ([value record]) ([part (in-list (string-split (symbol->string (record-field-name field)) "."))])
            (and (hash? value) (hash-ref value (string->symbol part) #f))))
-       (cond [(eq? found 'undetermined) (list (string->symbol name))]
+       (cond [(memq found '(unknown undetermined)) (list (string->symbol name))]
              [(hash? found) (walk (record-field-children field) found (string-append name "."))]
              [else '()]))))
   (walk (record-interface-fields template) shape))
@@ -748,10 +751,13 @@
                              (append* (map requirement-result-missing failed-values)))))))
      (define pending
        (if (hash? shape) (undetermined-interface-fields template shape) '()))
+     (define disallowed-unknown
+       (if (hash? shape) (unknown-interface-fields template shape) '()))
      (define-values (outcome gap)
-       (cond [(eq? shape 'undetermined) (values 'undetermined 'unknown-record)]
+       (cond [(memq shape '(unknown undetermined)) (values 'undetermined 'unknown-record)]
              [(not (hash? shape)) (values 'violated 'not-a-record)]
              [(pair? missing) (values 'violated 'missing-field)]
+             [(pair? disallowed-unknown) (values 'violated 'unknown-field)]
              [(pair? failed-values) (values 'violated 'invalid-value)]
              [(pair? unknown-parts) (values 'undetermined 'unknown-record)]
              [(pair? pending) (values 'undetermined 'unknown-condition)]
@@ -762,6 +768,7 @@
      (values assessed
              (if gap
                  (list (finding gap reference (cond [(pair? missing) missing]
+                                                   [(pair? disallowed-unknown) disallowed-unknown]
                                                    [(pair? pending) pending]
                                                    [else target])
                                 '() condition-id target outcome evidence))
@@ -884,6 +891,10 @@
                     (finding-part issue) (finding-target issue))]
           [(missing-field)
            (fprintf out "Record ~a is missing field(s) ~a required by ~a.\n"
+                    (finding-target issue) (finding-part issue)
+                    (finding-interface issue))]
+          [(unknown-field)
+           (fprintf out "Record ~a has unknown field(s) ~a that ~a does not permit.\n"
                     (finding-target issue) (finding-part issue)
                     (finding-interface issue))]
           [(unknown-record)

@@ -93,7 +93,7 @@
   (check-equal?
    (output-of
     (string-append nested-record
-                   "trial = Protocol.[documentation = [uncertainty = unknown]]\n"
+                   "trial = Protocol.[documentation = [uncertainty = [estimate = unknown]]]\n"
                    "print trial.documentation.unit\n"
                    "part = Protocol.documentation.[uncertainty = \"hand timed\"]\n"
                    "print part.unit\n"))
@@ -101,7 +101,7 @@
   (check-equal?
    (output-of
     (string-append nested-record
-                   "trial = Protocol.[documentation = [uncertainty = unknown] appendix = [reason = \"review\"]]\n"
+                   "trial = Protocol.[documentation = [uncertainty = [estimate = unknown]] appendix = [reason = \"review\"]]\n"
                    "print trial.appendix.method\n"))
    "manual\n")
   (check-exn #rx"missing field documentation.uncertainty"
@@ -109,7 +109,7 @@
   (with-sources
    nested-record
    (string-append nested-record
-                  "trial = [documentation = [uncertainty = unknown unit = \"seconds\"]]\n"
+                  "trial = [documentation = [uncertainty = [estimate = unknown] unit = \"seconds\"]]\n"
                   "trial implement Protocol\n"
                   "trial implement \"interface.rkt\"\n"
                   "trial.documentation implement Protocol.documentation\n"
@@ -125,7 +125,7 @@
   (with-sources
    nested-record
    (string-append nested-record
-                  "details = [uncertainty = unknown unit = \"seconds\"]\n"
+                  "details = [uncertainty = [estimate = unknown] unit = \"seconds\"]\n"
                   "trial = [documentation = details]\n"
                   "trial implement Protocol\n"
                   "missing-details = unknown\n"
@@ -134,7 +134,7 @@
                   "trial implement \"interface.rkt\"\n")
    (lambda (_interface workflow)
      (check-equal? (map condition-check-outcome (assessment-checks (assess-file workflow)))
-                   '(satisfied undetermined undetermined))))
+                   '(satisfied violated violated))))
 
   (check-equal?
    (output-of
@@ -159,10 +159,10 @@
     (check-equal?
      (output-of
       (string-append declaration
-                     "trial = Timing.[duration = unknown]\nprint trial\n"
+                     "trial = Timing.[duration = 2]\nprint trial\n"
                      "other = Timing.[duration = 3 unit = \"minutes\" notes = \"checked\"]\n"
                      "print other.unit\nprint other.notes\n"))
-     "[duration = unknown unit = \"seconds\"]\nminutes\nchecked\n")
+     "[duration = 2 unit = \"seconds\"]\nminutes\nchecked\n")
     (with-sources declaration ""
       (lambda (interface _workflow)
         (define entries (interface-model-conditions (read-interface-model interface)))
@@ -195,7 +195,7 @@
      declaration
      (string-append
       declaration
-      "trial = [duration = unknown]\n"
+      "trial = [duration = 2]\n"
       "trial implement Timing\n"
       "trial implement \"interface.rkt\"\n"
       "trial.unit = \"minutes\"\n"

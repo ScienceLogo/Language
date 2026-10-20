@@ -1748,21 +1748,23 @@
                               "state list position needs a positive number or stage control name"))
                 (append parent (list position))))]
         [else #f]))
-    (define (control-expression? value)
+    (define (control-expression? value [known entry-paths])
       (case (node-kind value)
         [(literal) (exact-integer? (node-value value))]
         [(result) (hash-has-key? controls (node-value value))]
+        [(field-ref)
+         (define path (state-path value))
+         (and path (list-count-path? known path))]
         [(unary)
          (and (eq? (node-value value) '-)
-              (control-expression? (car (node-children value))))]
+              (control-expression? (car (node-children value)) known))]
         [(binary)
          (and (memq (node-value value) '(+ - *))
-              (andmap control-expression? (node-children value)))]
+              (andmap (lambda (part) (control-expression? part known)) (node-children value)))]
         [else #f]))
-    (define (control-collection? value)
+    (define (control-collection? value [known entry-paths])
       (case (node-kind value)
-        [(list) (andmap control-expression? (node-children value))]
-        [(range) (andmap control-expression? (node-children value))]
+        [(list range) (andmap (lambda (part) (control-expression? part known)) (node-children value))]
         [else #f]))
     (define (expand-path known path)
       (let loop ([prefix '()] [remaining path])
@@ -1781,10 +1783,33 @@
               (loop candidate (cdr remaining))))]
           [else (loop (append prefix (list (car remaining)))
                       (cdr remaining))])))
+    (define (list-count-path? known path)
+      (and (pair? path) (eq? (last path) 'count)
+           (hash-has-key? known (drop-right path 1))
+           (let ([value (hash-ref known (drop-right path 1))])
+             (define descriptor
+               (if (eq? value #t)
+                   (hash-ref entry-paths (drop-right path 1)
+                             (lambda () (hash-ref exit-paths (drop-right path 1) #t)))
+                   value))
+             (let countable? ([value descriptor])
+               (match value
+                 [`(list ,_) #t]
+                 [`(range ,_) #t]
+                 [`(uncertain ,base ,_) (countable? base)]
+                 [`(literal unknown) #t]
+                 [#t #t]
+                 [_ #f])))))
+    (define (check-count-write known path at)
+      (when (for*/or ([candidate (in-list (expand-path known path))]
+                     [size (in-range 1 (add1 (length candidate)))])
+              (list-count-path? known (take candidate size)))
+        (read-error source at "the list property .count is read only")))
     (define (declared-path? known path)
       (define candidates (expand-path known path))
       (and (pair? candidates)
-           (andmap (lambda (candidate) (hash-has-key? known candidate))
+           (andmap (lambda (candidate) (or (hash-has-key? known candidate)
+                                          (list-count-path? known candidate)))
                    candidates)))
     (define (check-state-reads value known)
       (define path (state-path value))
@@ -1824,6 +1849,7 @@
              (read-error source (node-at form)
                          (format "procedure ~a may finish without output" name)))
            (define target (node-value (second (node-value form))))
+           (check-count-write known target (node-at form))
            (unless (declared-path? known (drop-right target 1))
              (read-error source (node-at form)
                          "return location needs an existing parent in state"))
@@ -1855,7 +1881,7 @@
           [(assignment)
            (define name (car (node-value form)))
            (unless (and (not (memq name '(information environment factors)))
-                        (control-expression? (cdr (node-value form))))
+                        (control-expression? (cdr (node-value form)) known))
              (read-error source (node-at form)
                          "local names in a state stage are only for integer counters or positions"))
            (hash-set! controls name #t)
@@ -1864,6 +1890,7 @@
            (define target (first (node-children form)))
            (define expression (second (node-children form)))
            (define target-path (state-path target))
+           (when target-path (check-count-write known target-path (node-at form)))
            (check-state-reads expression known)
            (cond
              [(and (resource-path? target) (not target-path)) known]
@@ -1908,7 +1935,7 @@
                                     (cdr candidates)))
              (values path #t))]
           [(for-each)
-           (unless (control-collection? (cdr (node-value form)))
+           (unless (control-collection? (cdr (node-value form)) known)
              (read-error source (node-at form)
                          "for each in a state stage needs integer positions"))
            (define name (car (node-value form)))

@@ -83,6 +83,11 @@ Calls inside a paired stage take scientific inputs from state locations, not
 from literals or detached local names. Locally assigned values are restricted to
 integer counters or positions; `for each` there likewise needs integer
 positions. A value intended as a scientific input must be placed in state.
+The reserved `.count` property of a list in state can be read as an input
+location, such as `information.measurements.count`. It can also supply an
+integer counter or range bound. It is computed from the list rather than
+stored as another state field, and cannot be an `into` location or the
+target of a resource read.
 An assignment from a declared [data source](resources.md) can also
 change a state field. It needs an existing parent in state; an assignment to a
 resource path declares an outbound transfer and does not change stage state.

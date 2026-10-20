@@ -22,14 +22,51 @@ interface "Timing" [
 - A bare entry outside `must [...]`, without a default, is optional and may
   be absent.
 
-Required means that the field or workflow part must be present. It does not
-mean that its value must always be supplied explicitly: a default supplies
-the field's value when no override is given. A required data field without
-a default must be supplied when constructing the object.
+Required data fields must be present and reject `unknown` by default. A
+default supplies a field when no override is given. A required field without
+a default must be supplied when constructing the object. Required workflow
+parts must be provided through the existing mappings.
 
 In the example, both `duration` and `unit` must be present. `duration` has no
-default; `unit` defaults to `"seconds"`. `notes` may be absent. An explicit
-`unknown` is a present value, not an omitted field.
+default; `unit` defaults to `"seconds"`. Neither accepts an override of
+`unknown`. `notes` may be absent.
+
+## Permit unknown explicitly
+
+Declare a default of `unknown` to permit it for a required field:
+
+| Declaration | Meaning |
+| --- | --- |
+| `must [period]` | A value must be supplied; `unknown` is rejected. |
+| `must [period = 2]` | Defaults to `2`; an override cannot be `unknown`. |
+| `must [period = unknown]` | Permits `unknown` and supplies it as the default. |
+
+The field remains compulsory in all three cases. A check of an existing
+record does not add missing defaults, so an absent field still fails that
+check. An explicitly supplied `unknown` is a present value, not an omission;
+it violates a required field unless its declaration permits it. An unresolved
+value whose contents the checker cannot establish remains undetermined.
+
+The permission belongs to the field's resolved declaration. Inheritance,
+imports, and includes preserve it. Redeclaring an inherited field replaces
+its default and permission under the existing override rules. Conditional
+declarations apply only in their active branches. A default of `unknown`
+written outside `must [...]` has the same meaning; documentation groups
+all compulsory fields inside the brackets.
+
+This rule concerns the required field's value. A supplied list or record
+can contain unknown entries; requirements on its contents are checked
+separately. Optional fields may still be absent or contain `unknown`.
+Additional value conditions keep their own meaning: permitting an unknown
+`period` does not establish `period > 0`. The comparison stays undetermined
+until its value can be established. Ordinary comparisons with `unknown`
+retain their existing behavior.
+
+An attached `u` description does not make an unknown underlying value
+known. The same permission rule applies to a qualified `unknown`;
+a default such as `period = unknown u []` also permits it.
+The [runnable example](../examples/unknown-fields.rkt) shows a supplied
+period and an interface that explicitly permits a pending period.
 
 ## Presentation in documentation
 
@@ -63,9 +100,10 @@ interface "Timing-trial" [
 
 This requires `swing-count` to be present and greater than 10,
 `swing-height` to be present, and `unit` to be present and equal to
-`"seconds"`. A bare entry requires presence only; its value may be `unknown`.
-A value condition can itself be undetermined when a referenced value is
-`unknown`.
+`"seconds"`. A bare required entry rejects `unknown` unless its declaration
+defaults to `unknown`. Entries referenced by value requirements follow the
+same default rule, using any existing declaration's permission. A value
+condition can remain undetermined when it uses a permitted unknown value.
 
 Conditions use `==`, `!=`, `<`, `<=`, `>`, and `>=`, with the existing
 arithmetic and Boolean operators. For example:
@@ -185,6 +223,7 @@ interface declaration level. An `affects` link written inside a branch
 retains that branch's condition.
 
 Construction applies active defaults and checks active required fields.
+To permit an unknown timing method, declare `must [method = unknown]`.
 If an omitted required field depends on an unknown condition, construction
 reports an undetermined conditional requirement. An ordinary record can
 still describe unknown values and be mapped to the interface for inspection.
@@ -225,8 +264,9 @@ or run workflow activities.
 The loop name denotes the current item and is available only within its
 block. Entry declarations in the block begin with that name, such as
 `measurement.period` or `measurement.unit = "seconds"`. The existing
-required, optional, and default rules apply. A bare required entry checks
-presence; a comparison checks its stated condition. For example:
+required, optional, and default rules apply. A bare required entry must be
+present and rejects `unknown` unless permitted; a comparison also checks
+its stated condition. For example:
 
 ```text
 for each measurement in measurements [
@@ -247,8 +287,24 @@ ordinary rule that its fields and conditions are relative to that part.
 
 When the block applies, the collection must be present and must be a list.
 An empty list has no items to check and satisfies the per-item requirements;
-the form does not require a nonempty list. An unknown collection or an
-unknown value needed by a condition produces an undetermined check.
+the form does not require a nonempty list. Use the reserved `.count`
+property to require a number of items:
+
+```text
+must [measurements.count >= 3]
+```
+
+This requires at least three items; `must [measurements.count == 3]`
+requires exactly three. The property is computed from the list, including
+positions whose values are `unknown`. It is read only and cannot receive a
+default or assignment. The requirement references the list; it does not
+declare an additional field or protocol part named `measurements.count`.
+The full comparison remains in the model for inspection.
+
+An explicitly unknown required collection or item field is rejected unless
+its declaration defaults to `unknown`. A permitted unknown collection,
+an unavailable value, or a permitted unknown needed by a condition leaves
+the corresponding check undetermined.
 A known violation remains a violation even if another item is unknown.
 Missing item fields are identified with positions starting at 1, for
 example `measurements.[2].period.u`.
@@ -315,7 +371,7 @@ The [runnable mapping example](../examples/protocol-mapping.rkt) declares the
 pendulum protocol and maps a stage and its uncertainty description.
 
 A nested group is also a data shape. The existing forms can construct it
-with `Pendulum-protocol.documentation.[uncertainty = unknown]` and check a
+with `Pendulum-protocol.documentation.[uncertainty = [estimate = unknown]]` and check a
 record with `record-name implement Pendulum-protocol.documentation`.
 This also works for imported interfaces, using
 `alias.Interface.part`. Constructing from a full interface applies nested
@@ -339,7 +395,8 @@ The reader preserves each entry's name, requiredness, default if any, and
 source location. Named parts retain their hierarchy through child scopes
 and `contains` relations; conditions use complete dotted paths. It does not infer a different kind of interface from the
 presence of a requirement marker. A record check tests required field
-presence; a stage or procedure mapping tests required mapping declarations.
+presence, unknown permissions, and value conditions; a stage or procedure
+mapping tests required mapping declarations.
 Optional entries may be supplied in either use without becoming compulsory.
 Constructing a record applies defaults; checking an existing record does
 not insert missing fields.

@@ -36,6 +36,24 @@ and the position must be an exact positive integer within the list.
 @tt{grid.[1].[2]} reads the second value of the first row. Several positions,
 as in @tt{sequence.[1 3]}, select a new list in the stated order.
 
+@tt{sequence.count} reports the number of items. @tt{.count} is a reserved,
+read-only list property:
+
+@verbatim|{
+measurements = [2 unknown 2.1]
+print measurements.count       ; 3
+print [].count                 ; 0
+}|
+
+It counts positions, so unknown item values still count. An unknown list
+has an unknown count. The property also works on nested lists, selected
+lists, and ranges, such as @tt{grid.[1].count} or @tt{lengths.count}.
+Use it in assignments, procedure inputs, arithmetic, loops, and conditions.
+Changing a list changes its count automatically. Assigning to
+@tt{measurements.count}, including with @tt{+=}, is an error.
+@secref["interface-list-requirements"] shows how an interface can require
+a minimum or exact count.
+
 @section{Records and fields}
 
 Brackets whose first entry is @tt{name = value} make a record with named
@@ -53,6 +71,13 @@ print trial.unit
 new record containing both named fields; it does not create local names.
 It is an error to read a missing field. Field order does not affect record
 equality. Brackets without an initial @tt{name = value} make a list instead.
+
+A record may have an ordinary field named @tt{count}. For example,
+@tt{trial = [count = 7]} makes @tt{trial.count} equal to @tt{7}, and
+@tt{trial.count = 8} updates that field normally. The reserved list property
+applies when the value before @tt{.count} is a list; it does not reserve
+@tt{count} as a record field or variable name.
+
 Data stored outside the workflow uses a declared @secref["resources"] instead of
 an ordinary record path.
 An attached @secref["uncertainty"] is read with @tt{value.u}; @tt{u} is not

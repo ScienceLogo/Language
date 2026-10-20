@@ -65,7 +65,7 @@
    (string-append
     "#lang sciencelogo\nworkflow \"Check timing\"\n"
     "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
-    "trial = Timing.[duration = unknown]\n"
+    "trial = Timing.[duration = 2]\n"
     "trial implement Timing\n"
     "trial implement \"requirement.rkt\"\n"
     "other = [duration = 2]\n"
@@ -103,7 +103,7 @@
     "trial = [review = unknown]\n"
     "trial implement \"requirement.rkt\"\n")
    (lambda (_interface method)
-     (check-equal? (assessment-findings (assess-file method)) '())))
+     (check-equal? (map finding-kind (assessment-findings (assess-file method))) '(unknown-field))))
 
   (for ([body (in-list
                '("if false [do target]"

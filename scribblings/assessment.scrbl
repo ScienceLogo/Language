@@ -148,12 +148,25 @@ as field presence. A false requirement is violated; an unresolved requirement
 is undetermined. Construction fills defaults with @tt{=}; an equality
 requirement written with @tt{==} supplies no default.
 
+Required data fields reject an explicitly supplied @tt{unknown} unless
+their declaration defaults to @tt{unknown}. This is a violated requirement,
+reported separately from a missing field. A value the checker cannot resolve
+from the written method remains undetermined. The permission and the default
+are preserved in the interface declaration; the field remains required.
+
 An interface can use @tt{for each} to apply requirements to every item of
 a written list. The structural record check examines the known items and
 identifies missing fields by their positions, such as
 @tt{measurements.[2].period.u}. Empty lists have no items to check;
-unknown collections or needed values leave checks undetermined.
+explicitly unknown required collections and item fields are rejected unless
+their declarations permit them. Checks needing permitted unknown or
+unavailable values remain undetermined.
 @secref["interface-list-requirements"] explains the declaration form.
+The reserved @tt{.count} property allows requirements such as
+@tt{must [measurements.count >= 3]}. The check computes the number of
+positions even when their values are unknown. If an unknown collection is
+explicitly permitted, its count is undetermined. It does not ask for a
+separate count field or mapping.
 
 For workflow mappings, the model retains the expressions and their guards.
 The current mapping checker resolves literal expressions; requirements

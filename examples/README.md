@@ -23,6 +23,11 @@ group. Equality comparisons use `==`; assignments and defaults use `=`.
 The [list-requirement example](list-requirements.rkt) uses `for each` inside
 an interface to require a period and its uncertainty description in every
 measurement of a list.
+It also uses the reserved `.count` property to require at least three
+measurements.
+The [unknown-field example](unknown-fields.rkt) shows a required value that
+rejects `unknown` and a planning interface that explicitly permits it with
+`period = unknown`.
 
 The prose examples are **provisional research and language sketches**, not
 executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)

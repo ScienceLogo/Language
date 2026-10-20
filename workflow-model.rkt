@@ -714,7 +714,7 @@
         [(interface-requirement interface-for-each)
          (define iteration? (eq? (node-kind form) 'interface-for-each))
          (define expression (if iteration? (node->datum form) (node->datum (node-value form))))
-         (for ([path (in-list (requirement-references expression))])
+         (for ([path (in-list (requirement-entry-references expression))])
            (define name (qualified prefix (string->symbol (string-join (map symbol->string path) "."))))
            (unless (hash-has-key? declared name)
              (hash-set! declared name #t)

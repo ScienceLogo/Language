@@ -29,10 +29,10 @@
   (check-equal? (check-record "[[period = 2 u []] [period = 2.1]]") '(violated))
   (check-equal? (check-record "[[period = 2 u []] [note = \"not measured\"]]") '(violated))
   (check-equal? (check-record "[]") '(satisfied))
-  (check-equal? (check-record "unknown") '(undetermined))
-  (check-equal? (check-record "[[period = unknown]]") '(undetermined))
+  (check-equal? (check-record "unknown") '(violated))
+  (check-equal? (check-record "[[period = unknown]]") '(violated))
   (check-equal? (check-record "[unknown]") '(undetermined))
-  (check-equal? (check-record "[[period = unknown u []]]") '(satisfied))
+  (check-equal? (check-record "[[period = unknown u []]]") '(violated))
   (check-equal? (check-record "[2]") '(violated))
   (check-equal? (check-record "\"not a list\"") '(violated))
   (check-equal? (outcomes (string-append declaration "series = []\nseries implement Timing-series\n")) '(violated))
@@ -49,19 +49,19 @@
   (check-equal? (outcomes (string-append compared "series = [counts = [11 9] minimum = 10]\nseries implement Counts\n"))
                 '(violated))
   (check-equal? (outcomes (string-append compared "series = [counts = [11 unknown] minimum = 10]\nseries implement Counts\n"))
-                '(undetermined))
+                '(violated))
   (check-equal? (outcomes (string-append compared "series = [counts = [unknown 9] minimum = 10]\nseries implement Counts\n"))
                 '(violated))
   (check-equal? (run (string-append compared "series = Counts.[counts = [11 20] minimum = 10]\nprint series.counts.[2]\n"))
                 "20\n")
   (check-exn #rx"does not satisfy value requirement"
              (lambda () (run (string-append compared "series = Counts.[counts = [11 9] minimum = 10]\n"))))
-  (check-exn #rx"undetermined value requirement"
+  (check-exn #rx"does not allow unknown.*counts"
              (lambda () (run (string-append compared "series = Counts.[counts = unknown minimum = 10]\n"))))
   (check-equal? (outcomes (string-append compared "series = [counts = [11 u []] minimum = 10]\nseries implement Counts\n"))
                 '(satisfied))
   (check-equal? (outcomes (string-append compared "series = [counts = [unknown u []] minimum = 10]\nseries implement Counts\n"))
-                '(undetermined))
+                '(violated))
   (check-equal? (outcomes (string-append compared "series = [counts = [11 20] u [] minimum = 10]\nseries implement Counts\n"))
                 '(satisfied))
   (check-equal? (run (string-append compared
@@ -82,7 +82,7 @@
                 '(violated))
   (check-equal? (outcomes (string-append conditional
                                         "series = [measurements = [[method = unknown]]]\nseries implement Methods\n"))
-                '(undetermined))
+                '(violated))
   (check-equal? (run (string-append "interface \"Conditional-default\" [must [measurements] "
                                    "for each m in measurements [must [m.method] "
                                    "if m.method == \"automatic\" [must [m.unit = \"seconds\"]]]]\n"

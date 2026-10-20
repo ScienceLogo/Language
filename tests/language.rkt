@@ -1094,7 +1094,7 @@
       (format
        (string-append
         "#lang sciencelogo\nimport ~s at \"v1.0.0\" as hello\n"
-        "details = hello.Timing.documentation.[uncertainty = unknown]\n"
+        "details = hello.Timing.documentation.[uncertainty = [estimate = unknown]]\n"
         "details implement hello.Timing.documentation\n"
         "print details.unit\n") url)
       (lambda (path)
