@@ -64,10 +64,10 @@
      (member 'state-call
              (map activity-model-kind (workflow-model-activities method))))
     (check-equal?
-     (activity-model-details
+     (take (activity-model-details
       (first (filter (lambda (activity)
                        (eq? (activity-model-kind activity) 'state-call))
-                     (workflow-model-activities method))))
+                     (workflow-model-activities method)))) 3)
      '(((duration (information elapsed)) (count (information swing-count)))
        (information period) researcher))
     (check-equal? (stage-model-performer (first (workflow-model-stages method)))

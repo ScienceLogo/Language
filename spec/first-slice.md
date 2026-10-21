@@ -479,6 +479,12 @@ dotted update,
 `name += increment` or `name.field += increment` adds the numeric expression.
 On an existing list, `name += value` appends one item. These meanings depend
 on the current value on the left; a scalar is never converted into a list.
+Every explicit parenthesis group is retained in the reader's tree and the
+workflow model, including nested and redundant groups. Grouping applies to
+all value expressions: `(1 == 1) == true` compares a grouped Boolean result
+with `true`, and `(2 is number) == true` is also valid. Ungrouped comparison
+chains such as `1 < 2 < 3` remain invalid; use `and` for those two conditions.
+
 Equality comparisons use `==` throughout expressions, including `if`, `while`,
 `until`, and interface requirements. A comparison can be passed directly to a
 procedure, as in `do check count == 10`. Parentheses group expressions.

@@ -297,3 +297,6 @@ From strongest to weakest, the reader groups operations in this order:
 Operations at the same level associate left to right. Use parentheses when
 the intended grouping is not immediately clear. For example,
 @tt{do add 1 + 2 (3 * 4) as total} passes two expressions to @tt{add}.
+Every explicit parenthesis group remains in the parsed workflow, including
+nested or redundant groups. Checks and evaluation respect those groups.
+For example, @tt{((1 == 1)) == true} is valid and evaluates to @tt{true}.

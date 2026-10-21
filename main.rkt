@@ -3,6 +3,7 @@
 (require racket/list racket/match racket/string
          "private/record-interfaces.rkt" "private/uncertain-values.rkt"
          "private/value-kinds.rkt"
+         "private/expression-groups.rkt"
          (only-in "private/constant-values.rkt" list-membership no-constant current-interface-test))
 
 (provide (all-from-out racket/base) run-program)
@@ -111,7 +112,7 @@
        (for/hasheq ([(name child) (in-hash value)])
          (values name (proposition-value (singular collection) name child))))
      (define (resource-root expression)
-       (match expression
+       (match (ungroup-expression expression)
          [`(result ,name) (and (hash-has-key? resources name) name)]
          [`(field-ref ,_ ,receiver) (resource-root receiver)]
          [`(dot-select (,receiver ,_ ...)) (resource-root receiver)]
@@ -223,12 +224,12 @@
        (set! container (plain-value container))
        (cond
          [(or (hash? container) (record-interface? container))
-          (match selector
+          (match (ungroup-expression selector)
             [`(result ,name) name]
             [_ (error 'run-program "record selection needs a field name")])]
          [(list? container)
           (define n
-            (match selector
+            (match (ungroup-expression selector)
               [`(result ,name)
                (or (string->number (symbol->string name))
                    (value-of selector inputs scopes))]
@@ -273,7 +274,7 @@
                        (merge-records earlier value)
                        value))))
      (define (collection-target expression inputs scopes)
-       (match expression
+       (match (ungroup-expression expression)
          [`(result ,name)
           (and (memq name '(hypotheses assumptions conclusions)) name)]
          [`(field-ref ,name ,receiver)
@@ -311,7 +312,7 @@
         interfaces (lambda () (evaluate-value expression inputs scopes))
         (lambda (default) (value-of default inputs scopes))))
      (define (evaluate-value expression inputs scopes)
-       (match expression
+       (match (ungroup-expression expression)
          [`(literal ,value) value]
          [`(typed-default ,_ (,value)) (value-of value inputs scopes)]
          [`(kind-test ,kind (,expression))
@@ -396,7 +397,7 @@
                (error 'run-program "this value has no u description"))
              (uncertain-value-uncertainty value)]
             [else
-             (match receiver
+             (match (ungroup-expression receiver)
                [`(result ,collection)
                 (if (and (memq collection '(hypotheses assumptions conclusions))
                          (hash-has-key? proposition-expressions
@@ -463,7 +464,7 @@
           (define container (plain-value (value-of right inputs scopes)))
           (cond
             [(hash? container)
-             (match left
+             (match (ungroup-expression left)
                [`(result ,name) (hash-has-key? container name)]
                [_ (error 'run-program "in needs an unquoted field name on the left of a record")])]
             [(list? container)

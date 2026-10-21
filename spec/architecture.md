@@ -67,8 +67,8 @@ language package; the language supplies the syntax and representation they need.
 ## Current documents
 
 - [Compact grammar](compact.ebnf) and its [context rules](../scribblings/grammar.scrbl)
-  collect current forms for implementations in any language and identify
-  current reader limitations separately.
+  collect current forms, grouping, and name-resolution rules for implementations
+  in any language.
 - [First runnable slice](first-slice.md) and [Libraries](libraries.md) describe
   accepted runnable forms and file rules.
 - [Paired stages and state locations](stage-state.md) describes accepted

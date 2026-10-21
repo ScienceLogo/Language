@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require racket/list racket/match racket/string "constant-values.rkt" "uncertain-values.rkt"
-         "value-kinds.rkt")
+         "value-kinds.rkt" "expression-groups.rkt")
 
 (provide (struct-out record-interface)
          (struct-out record-field)
@@ -34,6 +34,26 @@
 (struct record-field (name default required? children guard requirements) #:transparent)
 (struct record-requirement (expression guard) #:transparent)
 (struct requirement-result (scope expression outcome missing) #:transparent)
+
+(define (equivalent-fields? first second)
+  (define a (record-field-children first))
+  (define b (record-field-children second))
+  (define left (record-field-requirements first))
+  (define right (record-field-requirements second))
+  (and (eq? (record-field-name first) (record-field-name second))
+       (eq? (record-field-required? first) (record-field-required? second))
+       (expression-equivalent? (record-field-default first) (record-field-default second))
+       (expression-equivalent? (record-field-guard first) (record-field-guard second))
+       (or (and (not a) (not b))
+           (and a b (= (length a) (length b))
+                (for/and ([child (in-list a)] [other (in-list b)])
+                  (equivalent-fields? child other))))
+       (= (length left) (length right))
+       (for/and ([requirement (in-list left)] [other (in-list right)])
+         (and (expression-equivalent? (record-requirement-expression requirement)
+                                     (record-requirement-expression other))
+              (expression-equivalent? (record-requirement-guard requirement)
+                                     (record-requirement-guard other))))))
 
 (define active-interface-tests (make-parameter '()))
 
@@ -72,7 +92,7 @@
 (define (requirement-reference-guards expression)
   (define references '())
   (define (path expression)
-    (match expression
+    (match (ungroup-expression expression)
       [`(result ,name) (list name)]
       [`(field-ref ,name ,receiver)
        (define parent (path receiver))
@@ -82,18 +102,20 @@
     (define location (path expression))
     (cond [location (set! references (cons (cons location guard) references))]
           [(pair? expression)
-           (match expression
+           (match (ungroup-expression expression)
              [`(literal ,_) (void)]
              [`(interface-for-each ,_ ,collection ,_) (walk collection guard)]
              [`(fields ,entries) (for ([entry (in-list entries)]) (walk (cadr entry) guard))]
-             [`(compare in (,(and left `(result ,_)) ,right))
+             [`(compare in (,left ,right))
               ;; A bare word supplies a value only when the receiver is a list.
               ;; For a record it is a field label, even if that name is bound.
-              (walk left (combine-interface-guards guard `(kind-test list (,right))))
+              (walk left (if (match (ungroup-expression left) [`(result ,_) #t] [_ #f])
+                             (combine-interface-guards guard `(kind-test list (,right))) guard))
               (walk right guard)]
              [`(dot-select (,receiver ,selectors ...))
               (walk receiver guard)
-              (for ([selector (in-list selectors)] #:unless (eq? (car selector) 'result))
+              (for ([selector (in-list selectors)]
+                    #:unless (eq? (car (ungroup-expression selector)) 'result))
                 (walk selector guard))]
              [_ (for ([part (in-list expression)]) (walk part guard))])]))
   (walk expression)
@@ -270,7 +292,7 @@
                     (cond
                       [(not existing)
                        (set! inherited (append inherited (list field)))]
-                      [(not (equal? existing field))
+                      [(not (equivalent-fields? existing field))
                        (fail name
                              (format "conflicting inherited field ~a in ~a; declare it explicitly"
                                      (record-field-name field) name))])))
@@ -306,7 +328,7 @@
           [(list? value) (map known value)]
           [else value]))
   (define (evaluate expression)
-    (match expression
+    (match (ungroup-expression expression)
       [`(typed-default ,_ (,value)) (evaluate value)]
       [`(list ,parts) (map evaluate parts)]
       [`(fields ,entries)
@@ -320,7 +342,7 @@
       (record-interface "list item" (declaration-fields body) (declaration-requirements body))))
 
 (define (expression-location expression record)
-  (match expression
+  (match (ungroup-expression expression)
     [`(result ,name) (list name)]
     [`(field-ref ,name ,receiver)
      (define parent (expression-location receiver record))
@@ -328,7 +350,7 @@
     [`(dot-select (,receiver ,selector))
      (define parent (expression-location receiver record))
      (define container (plain-value (interface-value receiver record)))
-     (define key (match selector
+     (define key (match (ungroup-expression selector)
                    [`(result ,name) (if (hash? container) name (interface-value selector record))]
                    [_ (interface-value selector record)]))
      (and parent (or (and (hash? container) (symbol? key))
@@ -347,7 +369,7 @@
   (if (boolean? value) value 'unknown))
 
 (define (unknown-default? expression)
-  (match expression
+  (match (ungroup-expression expression)
     [`(literal unknown) #t]
     [`(uncertain ,base ,_) (unknown-default? base)]
     [`(typed-default ,_ (,value)) (unknown-default? value)]

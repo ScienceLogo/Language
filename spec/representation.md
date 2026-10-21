@@ -57,7 +57,11 @@ pendulum.
   name where present, nested blocks, branches, loops, and the expressions
   needed to understand them. Lists, records, ranges, quoted text, and the
   explicit value `unknown` retain their distinct forms. An absent field is
-  different from a field whose value is `unknown`. Preserve a value's attached
+  different from a field whose value is `unknown`. Preserve every explicit
+  parenthesis group as `(group expression)`, including redundant and nested
+  groups, with its source location in the reader's tree. The interpreter and
+  structural checks evaluate its enclosed expression. They must not remove
+  groups from the recorded method. Preserve a value's attached
   `u` description, including its named `declared` and `omitted` sources and
   open fields, separately from the underlying value.
 - **References and relationships.** Preserve the resolved target of each
@@ -71,7 +75,12 @@ pendulum.
   to or from the same part. For a
   paired-stage call, preserve each named input location and
   its return location and effective performer, whether named on the call or
-  inherited from its stage. Preserve containment, required order, result production and use,
+  inherited from its stage. Keep each location's source expression alongside
+  its resolved path, so parentheses in list positions remain inspectable.
+  In the Racket reader, `(location resolved-path source-expression)` retains
+  both. A state call retains a final `(locations input-locations return-location)`
+  entry; the workflow activity's details retain this after the input paths,
+  return path, and effective performer. Preserve containment, required order, result production and use,
   and the dependencies that follow from them. The representation must not
   invent an order between activities that the method leaves unordered.
 - **Conditions.** Preserve each declared requirement or guard, its target,

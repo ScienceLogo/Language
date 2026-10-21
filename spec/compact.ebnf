@@ -26,7 +26,8 @@ workflow-form = procedure | interface | include | performer | resource
               | proposition | obligation | file-provisions | command ;
 library-form = procedure | interface | include | import ;
 
-(* Words, names, numbers, and strings. *)
+(* Words, names, numbers, and strings. Names are case-sensitive. Capitalization
+   and hyphen conventions are optional; declarations determine interface names. *)
 word = word-character, { word-character } ;
 word-character = ? a non-whitespace character other than [ ] ( ) ; " # ? ;
 name = ? a word other than a reserved word, not beginning with : ? ;
@@ -55,7 +56,8 @@ block-comment = "#|", { block-comment | block-comment-character }, "|#" ;
 block-comment-character = ? a character not starting #| or |# ? ;
 
 (* Expressions. Precedence and the stopping rules are defined in the manual.
-   A prefix operator can occur wherever an operand begins. *)
+   A prefix operator can occur wherever an operand begins. Each explicit
+   parenthesis group is retained, including redundant and nested groups. *)
 expression = operand, { binary-operator, operand | "is", type-target } ;
 operand = "-", expression | "not", expression | primary, { suffix } ;
 primary = number | text | "true" | "false" | "unknown" | value-reference
@@ -68,9 +70,10 @@ list = "[", { expression }, "]" ;
 record = "[", field, { field }, "]" ;
 field = field-name, "=", expression ;
 field-name = name | proposition-collection ;
-object = record | "[", "]" ;
+object-fields = record | "[", "]" ;
+object = object-fields | "(", object, ")" ;
 range = "range", expression, "to", expression, "step", expression ;
-suffix = ".", segment | ".", selection | ".", object | "u", uncertainty ;
+suffix = ".", segment | ".", selection | ".", object-fields | "u", uncertainty ;
 selection = "[", expression, { expression }, "]" ;
 
 (* Declarations and ordinary commands. Context rules restrict their placement. *)
@@ -82,7 +85,7 @@ command = assignment | dotted-update | call | state-call | "do", block
 assignment = target, ( "=" | "+=" ), expression ;
 target = value-reference, { path-suffix } ;
 path-suffix = ".", segment | ".", selection ;
-dotted-update = target, ".", object ;
+dotted-update = target, ".", object-fields ;
 call = "do", reference, { expression }, [ "as", simple-name ] ;
 repeat = "repeat", expression, block | "repeat", block, "until", expression ;
 while = "while", expression, block ;
@@ -94,14 +97,16 @@ conditional = "if", expression, block,
 stage = "stage", text
       | "stage", text, [ "by", simple-name ], "from", state,
         { command }, "end", "stage", "with", state ;
-state = "state", "[", { state-set }, "]" ;
+state = "state", state-object ;
+state-object = "[", { state-set }, "]" | "(", state-object, ")" ;
 state-set = ( "information" | "environment" | "factors" ), "=", object ;
 state-call = "do", reference, [ "by", simple-name ],
              [ "with", "[", { input-mapping }, "]" ], "into", location ;
 input-mapping = simple-name, "at", location ;
 location = ( "information" | "environment" | "factors" ), ".", segment,
            { ".", segment | ".", "[", position, "]" } ;
-position = ? a positive integer literal or a stage control name ? ;
+position = ? a positive integer literal or a stage control name ?
+         | "(", position, ")" ;
 performer = "performer", simple-name, object ;
 resource = "resource", simple-name, object ;
 
@@ -109,14 +114,17 @@ resource = "resource", simple-name, object ;
 proposition = proposition-type, simple-name, proposition-object ;
 proposition-type = "hypothesis" | "assumption" | "conclusion" ;
 proposition-collection = "hypotheses" | "assumptions" | "conclusions" ;
-proposition-object = "[", { proposition-field }, "]" ;
+proposition-object = "[", { proposition-field }, "]"
+                   | "(", proposition-object, ")" ;
 proposition-field = "text", "=", expression
                   | proposition-collection, "=", proposition-children ;
-proposition-children = "[", { simple-name, "=", proposition-object }, "]" ;
+proposition-children = "[", { simple-name, "=", proposition-object }, "]"
+                     | "(", proposition-children, ")" ;
 
 (* Uncertainty source fields are open; only the two collection names are fixed. *)
-uncertainty = "[", { ( "declared" | "omitted" ), "=", sources }, "]" ;
-sources = "[", { name, "=", object }, "]" ;
+uncertainty = "[", { ( "declared" | "omitted" ), "=", sources }, "]"
+            | "(", uncertainty, ")" ;
+sources = "[", { name, "=", object }, "]" | "(", sources, ")" ;
 
 (* Interface bodies and nested parts share their entry rules. *)
 interface = "interface", text, "[", { interface-root-entry }, "]" ;

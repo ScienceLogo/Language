@@ -9,6 +9,7 @@
          racket/string
          racket/system
          syntax/readerr
+         "expression-groups.rkt"
          "record-interfaces.rkt"
          "value-kinds.rkt")
 
@@ -17,11 +18,25 @@
          parse-sciencelogo-file
          parse-sciencelogo-tree-file
          node->datum
+         ungroup-node
+         state-call-location-syntax
          (struct-out token)
          (struct-out node))
 
 (struct token (kind value line column position source) #:transparent)
 (struct node (kind value children at) #:transparent)
+
+;; This is a temporary view for structural checks. The source tree retains
+;; every group, including redundant and nested parentheses.
+(define (ungroup-node value)
+  (if (eq? (node-kind value) 'group)
+      (ungroup-node (car (node-children value))) value))
+
+(define (map-grouped-node value transform)
+  (if (eq? (node-kind value) 'group)
+      (struct-copy node value
+                   [children (list (map-grouped-node (car (node-children value)) transform))])
+      (transform value)))
 
 (define (read-error source at message)
   (raise-read-error message (token-source at) (token-line at) (token-column at)
@@ -123,7 +138,6 @@
       (read-error source found (format "expected ~a" description)))
     (string->symbol text))
   (define comparisons '("==" "!=" "<" "<=" ">" ">=" "in" "is"))
-  (define import-aliases '())
   (define (valid-inline-interface-name? name)
     (and (not (string=? name ""))
          (not (regexp-match? #px"[\\s\\[\\]();\"#]" name))
@@ -160,6 +174,14 @@
                               (string->symbol (token-value found))
                               (list left right) found)))))
           left)))
+  (define (object-value value message)
+    (map-grouped-node
+     value
+     (lambda (raw)
+       (cond [(eq? (node-kind raw) 'fields) raw]
+             [(and (eq? (node-kind raw) 'list) (null? (node-children raw)))
+              (struct-copy node raw [kind 'fields])]
+             [else (read-error source (node-at value) message)]))))
   (define (dotted-value found text)
     (define input? (string-prefix? text ":"))
     (define parts (string-split (if input? (substring text 1) text)
@@ -167,18 +189,9 @@
     (when (or (string=? (car parts) "")
               (member "" (drop-right parts 1)))
       (read-error source found "empty part in dotted path"))
-    (define imported-interface-position
-      (and (not input?)
-           (>= (length parts) 2)
-           (member (car parts) import-aliases)
-           (for/first ([part (in-list (cdr parts))] [position (in-naturals 1)]
-                       #:when (regexp-match? #px"^[A-Z]" part))
-             position)))
-    (define root-count
-      (if imported-interface-position (add1 imported-interface-position) 1))
     (define root
       (node (if input? 'parameter 'result)
-            (string->symbol (string-join (take parts root-count) "."))
+            (string->symbol (car parts))
             '() found))
     (define (bracket receiver at)
       (define selector (parse-atom #f #f))
@@ -194,7 +207,7 @@
       (for/fold ([value receiver]) ([part (in-list tail)]
                                     #:unless (string=? part ""))
         (node 'field-ref (string->symbol part) (list value) at)))
-    (define initial (fields root (drop parts root-count) found))
+    (define initial (fields root (cdr parts) found))
     (define after-bracket
       (if (string=? (last parts) "") (bracket initial found) initial))
     (let loop ([value after-bracket])
@@ -222,13 +235,14 @@
            (node 'field-entry name (list value) at)]
           [else
            (define old-value (and existing (car (node-children existing))))
-           (when (and old-value (not (eq? (node-kind old-value) 'fields)))
+           (when (and old-value (not (eq? (node-kind (ungroup-node old-value)) 'fields)))
              (read-error source at (format "field ~a is already a value" name)))
            (define nested
-             (node 'fields #f
-                   (insert (if old-value (node-children old-value) '())
-                           (cdr parts) value at)
-                   at))
+             (map-grouped-node
+              (or old-value (node 'fields #f '() at))
+              (lambda (raw)
+                (struct-copy node raw
+                             [children (insert (node-children raw) (cdr parts) value at)]))))
            (node 'field-entry name (list nested) at)]))
       (if existing
           (for/list ([entry (in-list entries)])
@@ -250,22 +264,16 @@
       (cond
         [(and (eq? (token-kind at) 'word)
               (string=? (token-value at) "u"))
-         (when (eq? (node-kind value) 'uncertain)
+         (when (eq? (node-kind (ungroup-node value)) 'uncertain)
            (read-error source at "a value can have only one u description"))
          (advance!)
          (define raw (parse-atom #f #f))
-         (define fields
-           (cond
-             [(eq? (node-kind raw) 'fields) raw]
-             [(and (eq? (node-kind raw) 'list)
-                   (null? (node-children raw)))
-              (struct-copy node raw [kind 'fields])]
-             [else (read-error source at "u needs named fields or []")]))
-         (for ([entry (in-list (node-children fields))])
+         (define fields (object-value raw "u needs named fields or []"))
+         (for ([entry (in-list (node-children (ungroup-node fields)))])
            (unless (memq (node-value entry) '(declared omitted))
              (read-error source (node-at entry)
                          "u fields must be declared or omitted"))
-           (define collection (first (node-children entry)))
+           (define collection (ungroup-node (first (node-children entry))))
            (unless (or (eq? (node-kind collection) 'fields)
                        (and (eq? (node-kind collection) 'list)
                             (null? (node-children collection))))
@@ -274,7 +282,7 @@
                                  (node-value entry))))
            (when (eq? (node-kind collection) 'fields)
              (for ([source-entry (in-list (node-children collection))])
-               (define source-fields (first (node-children source-entry)))
+               (define source-fields (ungroup-node (first (node-children source-entry))))
                (unless (or (eq? (node-kind source-fields) 'fields)
                            (and (eq? (node-kind source-fields) 'list)
                                 (null? (node-children source-fields))))
@@ -314,7 +322,7 @@
        (advance!)
        (define value (parse-value))
        (expect 'right-paren ") after grouped expression")
-       value]
+       (node 'group #f (list value) found)]
       [(open)
        (advance!)
        (define fields?
@@ -432,48 +440,23 @@
     (define alias (named-word "an import alias"))
     (when (regexp-match? #rx"[.]" (symbol->string alias))
       (read-error source start "an import alias cannot contain a dot"))
-    (set! import-aliases (cons (symbol->string alias) import-aliases))
     (node 'import (list url revision alias) '() start))
   (define (parse-state-object)
     (expect-word "state")
-    (define value (parse-atom))
-    (cond
-      [(eq? (node-kind value) 'fields) value]
-      [(and (eq? (node-kind value) 'list) (null? (node-children value)))
-       (struct-copy node value [kind 'fields])]
-      [else (read-error source (node-at value)
-                        "state needs named sets in [name = value] or []")]))
+    (object-value (parse-atom) "state needs named sets in [name = value] or []"))
   (define (parse-performer-object)
-    (define value (parse-atom))
-    (cond
-      [(eq? (node-kind value) 'fields) value]
-      [(and (eq? (node-kind value) 'list) (null? (node-children value)))
-       (struct-copy node value [kind 'fields])]
-      [else (read-error source (node-at value)
-                        "performer needs named fields in [name = value] or []")]))
+    (object-value (parse-atom) "performer needs named fields in [name = value] or []"))
   (define (parse-resource-object)
-    (define value (parse-atom))
-    (cond
-      [(eq? (node-kind value) 'fields) value]
-      [(and (eq? (node-kind value) 'list) (null? (node-children value)))
-       (struct-copy node value [kind 'fields])]
-      [else (read-error source (node-at value)
-                        "resource needs named fields in [name = value] or []")]))
+    (object-value (parse-atom) "resource needs named fields in [name = value] or []"))
   (define (parse-proposition-object)
-    (define value (parse-atom))
     (define fields
-      (cond
-        [(eq? (node-kind value) 'fields) value]
-        [(and (eq? (node-kind value) 'list) (null? (node-children value)))
-         (struct-copy node value [kind 'fields])]
-        [else (read-error source (node-at value)
-                          "proposition needs named fields in [text = value] or []")]))
-    (for ([entry (in-list (node-children fields))])
+      (object-value (parse-atom) "proposition needs named fields in [text = value] or []"))
+    (for ([entry (in-list (node-children (ungroup-node fields)))])
       (unless (memq (node-value entry) '(text hypotheses assumptions conclusions))
         (read-error source (node-at entry)
                     "proposition fields must be text, hypotheses, assumptions, or conclusions"))
       (when (memq (node-value entry) '(hypotheses assumptions conclusions))
-        (define collection (first (node-children entry)))
+        (define collection (ungroup-node (first (node-children entry))))
         (unless (or (eq? (node-kind collection) 'fields)
                     (and (eq? (node-kind collection) 'list)
                          (null? (node-children collection))))
@@ -493,7 +476,7 @@
          (define children (node-children part))
          (unless (= (length children) 2)
            (read-error source at "state list location needs one position"))
-         (define position (second children))
+         (define position (ungroup-node (second children)))
          (define index
            (case (node-kind position)
              [(literal)
@@ -516,7 +499,7 @@
                          (cdr parts)))
       (read-error source at
                   "location must begin with information, environment, or factors and name a field"))
-    (node 'location parts '() at))
+    (node 'location parts (list value) at))
   (define (parse-state-mappings)
     (expect 'open "[ after with")
     (let loop ([backward '()] [seen '()])
@@ -847,7 +830,9 @@
               (begin (advance!) (parse-value))))
        (define (unknown-default? value)
          (and value
-              (or (and (eq? (node-kind value) 'literal) (eq? (node-value value) 'unknown))
+              (or (and (eq? (node-kind value) 'group)
+                       (unknown-default? (car (node-children value))))
+                  (and (eq? (node-kind value) 'literal) (eq? (node-value value) 'unknown))
                   (and (eq? (node-kind value) 'uncertain)
                        (unknown-default? (car (node-children value)))))))
        (define declared-default
@@ -881,7 +866,7 @@
          (define start index)
          (define command (current))
          (define expression (parse-value))
-         (if (memq (node-kind expression) '(compare kind-test binary unary literal))
+         (if (memq (node-kind (ungroup-node expression)) '(compare kind-test binary unary literal))
              (loop (cons (node 'interface-requirement expression '() command) backward))
              (begin
                (set! index start)
@@ -1024,7 +1009,7 @@
                                    workflow-forms) start)]))
   (define normalized-result
     (if (memq (node-kind result) '(workflow interface))
-        (resolve-typed-defaults result) result))
+        (resolve-typed-defaults (resolve-value-references result)) result))
   (cond
     [(memq (node-kind result) '(fragment workflow-fragment)) result]
     [(eq? (node-kind result) 'interface)
@@ -1064,16 +1049,19 @@
                                                 (not (eq? (node-kind form) 'import)))
                                               (node-children expanded)))]))
      (define names (interface-names-in assembled))
-     (define checked (resolve-typed-defaults assembled names))
-     (check-direct-calls (node-children (resolve-typed-defaults expanded names)) source)
+     (define checked (resolve-typed-defaults (resolve-value-references assembled names) names))
+     (check-direct-calls
+      (node-children (resolve-typed-defaults (resolve-value-references expanded names) names)) source names)
      (validate-program checked source)
      checked]
     [else
      (when (eq? (node-kind result) 'workflow)
        (check-direct-calls
         (node-children
-         (resolve-typed-defaults (struct-copy node result [children workflow-forms])
-                                 (interface-names-in result))) source))
+         (resolve-typed-defaults
+          (resolve-value-references (struct-copy node result [children workflow-forms])
+                                    (interface-names-in result))
+          (interface-names-in result))) source (interface-names-in result)))
      (validate-program normalized-result source)
      normalized-result]))
 
@@ -1081,6 +1069,32 @@
   (if (eq? (node-kind tree) 'interface) (list (string->symbol (node-value tree)))
       (for/list ([form (in-list (node-children tree))] #:when (eq? (node-kind form) 'interface))
         (string->symbol (node-value form)))))
+
+;; Dots are parsed uniformly first. Once imports and includes are assembled,
+;; recognize declared interface roots by their complete names, never by case.
+(define (resolve-value-references tree [names (interface-names-in tree)])
+  (define interfaces (for/hasheq ([name (in-list names)]) (values name #t)))
+  (define (path-name value)
+    (case (node-kind value)
+      [(result) (symbol->string (node-value value))]
+      [(field-ref)
+       (define parent (path-name (car (node-children value))))
+       (and parent (format "~a.~a" parent (node-value value)))]
+      [else #f]))
+  (define (walk-value value)
+    (cond [(node? value) (walk value)]
+          [(pair? value) (cons (walk-value (car value)) (walk-value (cdr value)))]
+          [else value]))
+  (define (walk form)
+    (define resolved
+      (struct-copy node form
+                   [value (walk-value (node-value form))]
+                   [children (map walk (node-children form))]))
+    (define path (and (eq? (node-kind resolved) 'field-ref) (path-name resolved)))
+    (if (and path (hash-has-key? interfaces (string->symbol path)))
+        (node 'result (string->symbol path) '() (node-at resolved))
+        resolved))
+  (walk tree))
 
 (define (resolve-typed-defaults tree [names (interface-names-in tree)])
   (define interfaces (for/hasheq ([name (in-list names)]) (values name #t)))
@@ -1436,8 +1450,9 @@
                                 (string-prefix? (node-value form) alias-prefix)))
            (string->symbol
             (substring (node-value form) (string-length alias-prefix))))))
-      (define normalized-expanded (resolve-typed-defaults expanded interface-names))
-      (check-direct-calls (node-children normalized-expanded) source)
+      (define normalized-expanded
+        (resolve-typed-defaults (resolve-value-references expanded interface-names) interface-names))
+      (check-direct-calls (node-children normalized-expanded) source interface-names)
       (define local-definitions
         (map (lambda (form)
                (qualify-library-form
@@ -1476,17 +1491,24 @@
        (append (calls-in (node-children form)) calls)]
       [else calls])))
 
-(define (check-direct-calls forms source)
+(define (check-direct-calls forms source [interface-names '()])
   (define local-interfaces
     (for/hasheq ([form (in-list forms)] #:when (eq? (node-kind form) 'interface))
       (values (string->symbol (node-value form)) form)))
+  (define known-interfaces
+    (for/fold ([known local-interfaces]) ([name (in-list interface-names)])
+      (hash-set known name #t)))
   (define (check-private-name name at [interface-reference? #f])
+    (define root
+      (and interface-reference? (symbol? name)
+           (interface-reference-root known-interfaces name)))
     (when (and (symbol? name)
                (regexp-match? #rx"[.].*[.]" (symbol->string name))
-               (not (and interface-reference?
-                         (or (interface-reference-root local-interfaces name)
-                             (let ([parts (string-split (symbol->string name) ".")])
-                               (regexp-match? #px"^[A-Z]" (second parts)))))))
+               ;; Declarations are either local (Shape) or directly imported
+               ;; (tools.Shape). Deeper declaration roots belong to private
+               ;; dependencies; nested public parts share their public root.
+               (not (and root
+                         (not (regexp-match? #rx"[.].*[.]" (symbol->string root))))))
       (read-error source at
                   "a library dependency is private; import it directly to use it")))
   (for ([call (in-list (calls-in forms))])
@@ -1528,8 +1550,9 @@
       [(output) #t]
       [(sequence repeat-until) (always-outputs? (node-children form))]
       [(repeat)
-       (and (eq? (node-kind (node-value form)) 'literal)
-            (exact-positive-integer? (node-value (node-value form)))
+       (define count (ungroup-node (node-value form)))
+       (and (eq? (node-kind count) 'literal)
+            (exact-positive-integer? (node-value count))
             (always-outputs? (node-children form)))]
       [(if)
        (define branches (node-children form))
@@ -1543,6 +1566,7 @@
 (define (state-paths state source)
   (define seen (make-hash))
   (define (walk value prefix)
+    (set! value (ungroup-node value))
     (case (node-kind value)
       [(fields)
        (for ([entry (in-list (node-children value))])
@@ -1561,12 +1585,12 @@
          (hash-set! seen path (node->datum child))
          (walk child path))]
       [else (void)]))
-  (for ([entry (in-list (node-children state))])
+  (for ([entry (in-list (node-children (ungroup-node state)))])
     (define root (node-value entry))
     (unless (memq root '(information environment factors))
       (read-error source (node-at entry)
                   "state sets must be information, environment, or factors"))
-    (define value (car (node-children entry)))
+    (define value (ungroup-node (car (node-children entry))))
     (unless (or (eq? (node-kind value) 'fields)
                 (and (eq? (node-kind value) 'list)
                      (null? (node-children value))))
@@ -1681,11 +1705,14 @@
           [(dot-select)
            (expression (caadr value))
            (for ([selector (in-list (cdadr value))]
-                 #:unless (eq? (car selector) 'result))
+                 #:unless (eq? (car (ungroup-expression selector)) 'result))
              (expression selector))]
           [(compare)
            (match value
-             [`(compare in ((result ,_) ,right)) (expression right)]
+             [`(compare in (,left ,right))
+              (unless (match (ungroup-expression left) [`(result ,_) #t] [_ #f])
+                (expression left))
+              (expression right)]
              [_ (for ([part (in-list value)]) (expression part))])]
           [else (for ([part (in-list value)]) (expression part))])))
     (for ([field (in-list fields)])
@@ -1779,12 +1806,14 @@
                   (format "duplicate ~a ~a" (first key) (second key))))
     (hash-set! propositions key form))
   (define (path-root value)
+    (set! value (ungroup-node value))
     (case (node-kind value)
       [(result) (node-value value)]
       [(field-ref dot-select dot-update)
        (path-root (car (node-children value)))]
       [else #f]))
   (define (resource-path? value)
+    (set! value (ungroup-node value))
     (and (memq (node-kind value) '(field-ref dot-select))
          (hash-has-key? resources (path-root value))))
   (define (check-performer name at)
@@ -1814,10 +1843,10 @@
       [(compare)
        (match (node-children value)
          [(list left right)
-          (unless (and (eq? (node-value value) 'in) (eq? (node-kind left) 'result))
+          (unless (and (eq? (node-value value) 'in) (eq? (node-kind (ungroup-node left)) 'result))
             (check-value left inputs results))
           (check-value right inputs results)])]
-      [(list fields field-entry proposition-value uncertain range kind-test typed-default binary unary augment
+      [(group list fields field-entry proposition-value uncertain range kind-test typed-default binary unary augment
              dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
@@ -1849,6 +1878,7 @@
     (define written (make-hash))
     (define controls (make-hasheq))
     (define (state-path value)
+      (set! value (ungroup-node value))
       (case (node-kind value)
         [(result)
          (and (memq (node-value value) '(information environment factors))
@@ -1860,7 +1890,7 @@
          (define parent (state-path (car (node-children value))))
          (and parent
               (= (length (node-children value)) 2)
-              (let* ([selector (second (node-children value))]
+              (let* ([selector (ungroup-node (second (node-children value)))]
                      [position
                       (case (node-kind selector)
                         [(literal) (node-value selector)]
@@ -1874,6 +1904,7 @@
                 (append parent (list position))))]
         [else #f]))
     (define (control-expression? value [known entry-paths])
+      (set! value (ungroup-node value))
       (case (node-kind value)
         [(literal) (exact-integer? (node-value value))]
         [(result) (hash-has-key? controls (node-value value))]
@@ -1888,6 +1919,7 @@
               (andmap (lambda (part) (control-expression? part known)) (node-children value)))]
         [else #f]))
     (define (control-collection? value [known entry-paths])
+      (set! value (ungroup-node value))
       (case (node-kind value)
         [(list range) (andmap (lambda (part) (control-expression? part known)) (node-children value))]
         [else #f]))
@@ -1918,7 +1950,7 @@
                              (lambda () (hash-ref exit-paths (drop-right path 1) #t)))
                    value))
              (let countable? ([value descriptor])
-               (match value
+               (match (ungroup-expression value)
                  [`(list ,_) #t]
                  [`(range ,_) #t]
                  [`(uncertain ,base ,_) (countable? base)]
@@ -2073,8 +2105,8 @@
            (define after (validate-body (node-children form) (hash-copy known)))
            (if (or (eq? (node-kind form) 'repeat-until)
                    (and (eq? (node-kind form) 'repeat)
-                        (eq? (node-kind (node-value form)) 'literal)
-                        (exact-positive-integer? (node-value (node-value form)))))
+                        (eq? (node-kind (ungroup-node (node-value form))) 'literal)
+                        (exact-positive-integer? (node-value (ungroup-node (node-value form))))))
                after
                known)]
           [else known])))
@@ -2103,7 +2135,7 @@
                (or (prefix? path target) (prefix? target path)))))
       (when (and (hash-has-key? exit-paths path)
                  (not affected?)
-                 (not (equal? before (hash-ref exit-paths path))))
+                 (not (expression-equivalent? before (hash-ref exit-paths path))))
         (read-error source (node-at stage)
                     (format "closing state changes ~a without a return location"
                             (string-join (map (lambda (part) (format "~a" part)) path) "."))))))
@@ -2190,7 +2222,7 @@
          (define root-append?
            (and (memq name '(hypotheses assumptions conclusions))
                 (eq? (node-kind expression) 'augment)
-                (eq? (node-kind (second (node-children expression)))
+                (eq? (node-kind (ungroup-node (second (node-children expression))))
                      'proposition-value)))
          (when (and (not root-append?)
                     (or (hash-has-key? interfaces name)
@@ -2277,7 +2309,7 @@
         [else (values #f #f)]))
     (when (and target expression
                (eq? (node-kind expression) 'augment))
-      (define child (second (node-children expression)))
+      (define child (ungroup-node (second (node-children expression))))
       (define parent-path (written-path target))
       (when (and parent-path (eq? (node-kind child) 'proposition-value))
         (define key (append parent-path (node-value child)))
@@ -2324,6 +2356,7 @@
 
 (define (node->datum form)
   (case (node-kind form)
+    [(group) (list 'group (node->datum (car (node-children form))))]
     [(workflow library fragment workflow-fragment interface)
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
@@ -2397,7 +2430,11 @@
              (list (node-value mapping)
                    (node-value (car (node-children mapping)))))
            (node-value (second (node-value form)))
-           (third (node-value form)))]
+           (third (node-value form))
+           (state-call-location-syntax form))]
+    [(location)
+     (list 'location (node-value form)
+           (node->datum (car (node-children form))))]
     [(sequence) (list 'sequence (map node->datum (node-children form)))]
     [(repeat) (list 'repeat (node->datum (node-value form))
                     (map node->datum (node-children form)))]
@@ -2436,6 +2473,15 @@
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))
+
+;; Keep source expressions beside resolved location paths: an index such as
+;; [(position)] must retain its group even though its resolved path is unchanged.
+(define (state-call-location-syntax form)
+  (list 'locations
+        (for/list ([mapping (in-list (node-children form))])
+          (list (node-value mapping)
+                (node->datum (car (node-children mapping)))))
+        (node->datum (second (node-value form)))))
 
 (define (parse-sciencelogo-tree-file path)
   (define full (path->complete-path path))

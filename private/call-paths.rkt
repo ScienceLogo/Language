@@ -3,6 +3,7 @@
 (require racket/list
          racket/match
          "../workflow-model.rkt"
+         "expression-groups.rkt"
          "constant-values.rkt")
 
 (provide required-call-paths)
@@ -24,7 +25,7 @@
         [else 'unknown]))
 
 (define (collection-status expression)
-  (match expression
+  (match (ungroup-expression expression)
     [`(list ,parts) (if (null? parts) 'empty 'nonempty)]
     [`(range (,start ,end ,step))
      (define a (constant-value start))

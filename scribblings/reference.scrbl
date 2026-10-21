@@ -38,8 +38,11 @@ value; within an interface, it supplies a default. At command position,
 @section{Names and labels}
 
 Names are case-sensitive. The table gives the project's spelling convention.
-It is guidance for readable workflows; the reader does not enforce letter
-case or the suggested word separator.
+These conventions are optional guidance for readable workflows. Capitalization
+and hyphens do not determine what a name represents and are not validation
+requirements. The declaration identifies an interface. For example,
+@tt{Timing}, @tt{timing}, and @tt{timing_shape} can each name an interface;
+they remain distinct names because names are case-sensitive.
 
 @(tabular #:style 'boxed
   (list
@@ -177,7 +180,9 @@ procedures, and record interfaces; it has no top-level executable commands.
 @tt{;} begins a line comment. @tt{#|} and @tt{|#} enclose a block comment;
 block comments can nest. Whitespace is flexible, and empty blocks are allowed.
 Parentheses group value expressions; brackets delimit blocks, lists, and
-named-field records.
+named-field records. The reader and workflow model preserve every explicit
+parenthesis group, including nested and redundant groups. Evaluation and
+checks respect the written grouping.
 
 @section{What the reader checks}
 

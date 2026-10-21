@@ -68,6 +68,11 @@ An imported interface is named `alias.Interface` in construction, `extends`,
 `is` tests, and `... implement`. For example, `must [timing is timing-tools.Timing]`
 reuses an imported interface for a nested field. The importing
 workflow can define its own interface that extends an imported one.
+Capitalization and hyphenated names are optional conventions. An interface
+declared as `timing_shape` is referenced as `alias.timing_shape`; declarations
+determine its identity in constructors, tests, defaults, and nested mappings.
+Names remain case-sensitive. Dependency aliases keep their existing privacy
+regardless of capitalization.
 
 A larger library may move the procedure or interface to another file. Its root entry then has
 `include "greetings/greeting.rkt"`, and that included file has the top-level

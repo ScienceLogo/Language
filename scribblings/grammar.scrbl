@@ -109,10 +109,13 @@ starts with minimum 0, and parentheses start a fresh full expression.
 This procedure gives left association within a priority and makes
 @tt{not period > 2} mean @tt{not (period > 2)}.
 
-A second comparison on the same left result is rejected; use @tt{and} to
-combine comparisons. The current reader also rejects @tt{(1 == 1) == true}
-because it discards the left grouping before this check. That restriction
-is a reader limitation, not an additional comparison operator.
+Unparenthesized comparison chains such as @tt{1 < 2 < 3} are rejected;
+use @tt{1 < 2 and 2 < 3} for those two conditions. A grouped comparison is
+a value: @tt{(1 == 1) == true} and @tt{(2 is number) == true} are valid.
+Every explicit pair of parentheses is retained in the parsed tree and
+workflow model, including extra groups such as @tt{(((1 == 1)))}.
+Checks and evaluation follow that grouping. Parentheses are available
+wherever the grammar accepts a value expression.
 
 Range bounds and the step are full expressions: @tt{to} and @tt{step} stop
 the preceding bound. Parenthesize the range before applying a suffix to
@@ -276,12 +279,12 @@ repository, without repeated files or cycles. Imports choose a tag or full
 commit on @tt{main}; dependency aliases remain private. See
 @secref["libraries"].
 
-The current reader recognizes an imported interface as a value or
-constructor using its initial capital, for example @tt{tools.Timing.[]}.
-It does not consistently recognize a lowercase imported interface in those
-positions, although the naming convention is advisory. This is an
-implementation limitation; it does not make capitalization a language rule.
-The grammar does not silently settle that discrepancy.
+Interface references are resolved from declarations after imports and
+includes are assembled. A library interface named @tt{timing_shape} uses
+@tt{tools.timing_shape}, including in constructors, named tests, defaults,
+and nested requirement mappings. Capitalization and hyphens remain
+optional naming conventions. Private dependency aliases remain private
+regardless of their spelling.
 
 A grammar match is only the first check. Name resolution, placement,
 writability, and the stated structural constraints are also required.

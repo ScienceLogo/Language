@@ -8,6 +8,7 @@
          "private/constant-values.rkt"
          "private/uncertain-values.rkt"
          "private/record-interfaces.rkt"
+         "private/expression-groups.rkt"
          "workflow-model.rkt")
 
 (provide assess-file
@@ -512,18 +513,21 @@
         [else 'undetermined]))
 
 (define (shape-expression-path expression)
-  (match expression
+  (match (ungroup-expression expression)
     [`(result ,name) (list name)]
     [`(field-ref ,name ,receiver)
      (define parent (shape-expression-path receiver))
      (and parent (append parent (list name)))]
-    [`(dot-select (,receiver (literal ,index)))
+    [`(dot-select (,receiver ,selector))
      (define parent (shape-expression-path receiver))
-     (and parent (exact-positive-integer? index) (append parent (list index)))]
+     (match (ungroup-expression selector)
+       [`(literal ,index)
+        (and parent (exact-positive-integer? index) (append parent (list index)))]
+       [_ #f])]
     [_ #f]))
 
 (define (shape-expression-root expression)
-  (match expression
+  (match (ungroup-expression expression)
     [`(result ,name) name]
     [`(field-ref ,_ ,receiver) (shape-expression-root receiver)]
     [`(dot-select (,receiver ,_ ...)) (shape-expression-root receiver)]
@@ -538,7 +542,7 @@
                   value))))
 
 (define (expression-interface expression templates)
-  (match expression
+  (match (ungroup-expression expression)
     [`(result ,name) (hash-ref templates name #f)]
     [`(field-ref ,name ,receiver)
      (define parent (expression-interface receiver templates))
@@ -551,7 +555,7 @@
 (define (record-shape expression environment templates)
   ;; Only written, direct record constructions are known here. A procedure result
   ;; or an executable block can depend on information absent from the method.
-  (match expression
+  (match (ungroup-expression expression)
     [`(typed-default ,_ (,value)) (record-shape value environment templates)]
     [`(uncertain ,base ,_) (record-shape base environment templates)]
     [`(literal unknown) 'unknown]
@@ -587,7 +591,7 @@
     [_ 'undetermined]))
 
 (define (nested-record-shape expression environment templates)
-  (match expression
+  (match (ungroup-expression expression)
     [`(list ,parts) (map (lambda (part) (nested-record-shape part environment templates)) parts)]
     [`(uncertain ,base ,description)
      (uncertain-value (nested-record-shape base environment templates)

@@ -669,7 +669,9 @@ Constructing a record applies defaults; checking an existing record does
 not insert missing fields.
 
 Inheritance preserves requiredness and defaults. Identical inherited entries
-merge. Conflicting inherited declarations need an explicit child declaration,
+merge. Redundant parentheses alone do not make inherited defaults or guards
+conflict; the written groups remain in their source declarations.
+Conflicting inherited declarations need an explicit child declaration,
 as with existing default conflicts. Child declarations replace inherited
 declarations of the same entry. Local and imported interfaces support
 inheritance; a standalone interface file cannot extend a local interface.

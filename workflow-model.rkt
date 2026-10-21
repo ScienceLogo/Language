@@ -221,12 +221,14 @@
        (node->datum (first (node-children declaration)))
        (origin (node-at declaration)))))
   (define (path-root value)
+    (set! value (ungroup-node value))
     (case (node-kind value)
       [(result) (node-value value)]
       [(field-ref dot-select) (path-root (car (node-children value)))]
       [else #f]))
   (define (proposition-key value)
     (define (parts node)
+      (set! node (ungroup-node node))
       (case (node-kind node)
         [(result) (list (node-value node))]
         [(field-ref)
@@ -240,6 +242,7 @@
       [(list* 'conclusions name _) (list 'conclusion name)]
       [_ #f]))
   (define (resource-path? value)
+    (set! value (ungroup-node value))
     (and (memq (node-kind value) '(field-ref dot-select))
          (hash-has-key? resource-ids (path-root value))))
   (define current-performer (make-parameter #f))
@@ -287,7 +290,8 @@
                                          (list (node-value mapping)
                                                (node-value (car (node-children mapping)))))
                                        (node-value (second (node-value form)))
-                                       effective-performer)])]
+                                       effective-performer
+                                       (state-call-location-syntax form))])]
                   [(call assignment path-assignment path-update-command print output)
                    (struct-copy activity-model activity
                                 [details (node->datum form)])]
@@ -340,16 +344,17 @@
          [(compare)
           (define left (first (node-children value)))
           (define right (second (node-children value)))
+          (define bare-left (ungroup-node left))
           (cond
-            [(and (eq? (node-value value) 'in) (eq? (node-kind left) 'result))
-             (when (or (for/or ([scope (in-list scopes)]) (hash-has-key? scope (node-value left)))
-                       (hash-has-key? inline-interfaces (node-value left))
-                       (hash-has-key? performer-ids (node-value left)))
+            [(and (eq? (node-value value) 'in) (eq? (node-kind bare-left) 'result))
+             (when (or (for/or ([scope (in-list scopes)]) (hash-has-key? scope (node-value bare-left)))
+                       (hash-has-key? inline-interfaces (node-value bare-left))
+                       (hash-has-key? performer-ids (node-value bare-left)))
                (add-use activity-id left inputs scopes
                         (combine-interface-guards guard `(kind-test list (,(node->datum right))))))]
             [else (add-use activity-id left inputs scopes guard)])
           (add-use activity-id right inputs scopes guard)]
-         [(list fields field-entry proposition-value uncertain field-ref range kind-test typed-default
+         [(group list fields field-entry proposition-value uncertain field-ref range kind-test typed-default
                 binary unary augment dot-update)
           (for ([part (in-list (node-children value))])
             (add-use activity-id part inputs scopes guard))]

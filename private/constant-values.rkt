@@ -1,5 +1,6 @@
 #lang racket/base
-(require racket/list racket/match "uncertain-values.rkt" "value-kinds.rkt")
+(require racket/list racket/match "uncertain-values.rkt" "value-kinds.rkt"
+         "expression-groups.rkt")
 (provide constant-value no-constant unresolved? contains-unresolved? list-membership
          current-interface-test)
 
@@ -49,7 +50,7 @@
 
 (define (constant-value expression [lookup (lambda (_name) no-constant)] [partial? #f])
   (define (evaluate expression)
-    (match expression
+    (match (ungroup-expression expression)
       [`(result ,name) (lookup name)]
       [`(literal ,value) value]
       [`(uncertain ,base ,description)
@@ -81,9 +82,9 @@
       [`(dot-select (,source ,selectors ...))
        (define container (plain-value (evaluate source)))
        (define (one selector)
-         (match selector
+         (match (ungroup-expression selector)
            [`(literal ,n)
-            (match source
+            (match (ungroup-expression source)
               [`(list ,parts)
                (if (and (exact-positive-integer? n) (<= n (length parts)))
                    (evaluate (list-ref parts (sub1 n))) no-constant)]
@@ -107,13 +108,13 @@
          [(hash? container)
           (for/hasheq ([selector (in-list selectors)]
                        [value (in-list selected)])
-            (values (cadr selector) value))]
+            (values (cadr (ungroup-expression selector)) value))]
          [else selected])]
       [`(field-ref count ,receiver)
        ;; Item values need not be known to establish the number of positions.
        (value-field (constant-value receiver lookup #t) 'count no-constant)]
       [`(field-ref ,name ,receiver)
-       (match receiver
+       (match (ungroup-expression receiver)
          [`(fields ,entries)
           (define entry (assoc name entries))
           (if entry (evaluate (second entry)) no-constant)]
@@ -179,7 +180,7 @@
        (define container (plain-value (constant-value right lookup #t)))
        (cond
          [(hash? container)
-          (match left
+          (match (ungroup-expression left)
             [`(result ,name) (hash-has-key? container name)]
             [_ no-constant])]
          [(list? container) (list-membership (constant-value left lookup #t) container)]
