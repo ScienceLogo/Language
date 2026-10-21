@@ -106,7 +106,7 @@
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   (define tokens (list->vector (lex in source)))
   (define index 0)
-  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "hypothesis" "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set"))
+  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "hypothesis" "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set" "about"))
   (define reserved
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
@@ -514,9 +514,21 @@
          (expect-word "at")
          (loop (cons (node 'state-mapping name (list (parse-location)) at) backward)
                (cons name seen))])))
+  ;; Descriptions belong to their owner, rather than becoming activities in
+  ;; that owner's body. Only these explicit attachment points consume about.
+  (define (parse-about)
+    (if (and (eq? (token-kind (current)) 'word)
+             (string=? (token-value (current)) "about"))
+        (let* ([at (advance!)]
+               [text (token-value (expect 'string "quoted Markdown text after about"))])
+          (when (and (eq? (token-kind (current)) 'word)
+                     (string=? (token-value (current)) "about"))
+            (read-error source (current) "only one about description is allowed per named part"))
+          (list (node 'about text '() at)))
+        '()))
   (define (parse-state-stage name performer command in-procedure?)
     (define entry (parse-state-object))
-    (let loop ([backward '()])
+    (let loop ([backward (parse-about)])
       (define found (current))
       (cond
         [(eq? (token-kind found) 'eof)
@@ -573,7 +585,12 @@
                   (read-error source found "an input name cannot contain a dot"))
                  (loop (cons input backward))))))
        (expect 'open "[ after procedure inputs")
-       (node 'to (cons name inputs) (parse-body #f #t #f #f) command)]
+       (define description (parse-about))
+       (node 'to (cons name inputs)
+             (append description (parse-body #f #t #f #f)) command)]
+      ["about"
+       (read-error source command
+                   "about belongs at the start of a workflow or procedure, or immediately after a stage header")]
       ["include"
        (unless (and definitions-allowed? (not in-procedure?))
          (read-error source command "include belongs directly in a workflow or library file"))
@@ -694,7 +711,7 @@
            (begin (advance!) (parse-state-stage name performer command in-procedure?))
            (if performer
                (read-error source command "stage by performer needs from state")
-               (node 'stage name '() command)))]
+               (node 'stage name (parse-about) command)))]
       ["end" (read-error source command "end stage has no matching stage")]
       ["do"
        (if (eq? (token-kind (current)) 'open)
@@ -952,13 +969,14 @@
               (begin
                 (advance!)
                 (token-value (expect 'string "a quoted workflow title")))))
+       (define description (parse-about))
        (define imports
          (let loop ([backward '()])
            (if (and (eq? (token-kind (current)) 'word)
                     (string=? (token-value (current)) "import"))
                (loop (cons (parse-import (advance!)) backward))
                (reverse backward))))
-       (values leading-title imports (parse-to-eof #t #f))]
+       (values leading-title imports (append description (parse-to-eof #t #f)))]
       [(string=? kind "fragment")
        (values #f '() (parse-to-eof #t #t))]
       [(string=? kind "workflow-fragment")
@@ -2144,7 +2162,7 @@
     (define writable settable)
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
-        [(to import interface performer resource proposition implements must-call must-stage-order stage
+        [(to import interface performer resource proposition implements must-call must-stage-order stage about
              included-file) visible]
         [(state-stage)
          (check-value (second (node-value form)) inputs visible)
@@ -2397,7 +2415,9 @@
      (list 'implement (node->datum (car (node-children form))) (node-value form))]
     [(stage-reference) (list 'stage-reference (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]
-    [(stage) (list 'stage (node-value form))]
+    [(about) (list 'about (node-value form))]
+    [(stage) (append (list 'stage (node-value form))
+                     (map node->datum (node-children form)))]
     [(performer)
      (list 'performer (node-value form)
            (node->datum (first (node-children form))))]

@@ -11,6 +11,7 @@
 (provide read-workflow-model
          read-interface-model
          (struct-out source-ref)
+         (struct-out description-model)
          (struct-out workflow-model)
          (struct-out stage-model)
          (struct-out performer-model)
@@ -31,14 +32,15 @@
 
 ;; These records describe a method. They do not report that any activity occurred.
 (struct source-ref (source line column position) #:transparent)
+(struct description-model (text source) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
                            relations imports implementations conditions performers resources
-                           propositions mappings) #:transparent)
-(struct stage-model (id name parent source entry exit performer) #:transparent)
+                           propositions mappings description) #:transparent)
+(struct stage-model (id name parent source entry exit performer description) #:transparent)
 (struct performer-model (id name fields source) #:transparent)
 (struct resource-model (id name fields source) #:transparent)
 (struct proposition-model (id type name fields source) #:transparent)
-(struct procedure-model (id name inputs source) #:transparent)
+(struct procedure-model (id name inputs source description) #:transparent)
 (struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
 (struct relation-model (kind from to source) #:transparent)
@@ -62,6 +64,12 @@
 
 (define (source-revision path)
   (call-with-input-file path sha1))
+
+(define (description-of form)
+  (define description
+    (findf (lambda (child) (eq? (node-kind child) 'about)) (node-children form)))
+  (and description
+       (description-model (node-value description) (origin (node-at description)))))
 
 (define (element-id root kind at [context #f])
   (format "~a#~a~a@~a:~a"
@@ -382,7 +390,7 @@
          (define id (element-id root 'stage (node-at form) parent))
          (set! stages
                (cons (stage-model id (node-value form) parent
-                                  (origin (node-at form)) #f #f #f)
+                                  (origin (node-at form)) #f #f #f (description-of form))
                      stages))
          (add-relation 'contains parent id (node-at form))
          (set! current-stage id)]
@@ -393,7 +401,7 @@
                                   (origin (node-at form))
                                   (node->datum (second (node-value form)))
                                   (node->datum (third (node-value form)))
-                                  (fourth (node-value form)))
+                                  (fourth (node-value form)) (description-of form))
                      stages))
          (add-relation 'contains parent id (node-at form))
          (parameterize ([current-performer (fourth (node-value form))]
@@ -597,7 +605,7 @@
         item-id))
     (set! procedures
           (cons (procedure-model id (car (node-value definition)) input-ids
-                                 (origin (node-at definition)))
+                                 (origin (node-at definition)) (description-of definition))
                 procedures))
     (add-relation
      (if (equal? (format "~a" (token-source (node-at definition))) source)
@@ -683,7 +691,7 @@
                   (reverse procedures) (reverse stages) (reverse activities) (reverse items)
                   (reverse relations) (reverse imports)
                   (reverse implementations) (reverse conditions) performers resources
-                  propositions mappings))
+                  propositions mappings (description-of tree)))
 
 (define (read-interface-model path)
   (define source (path->string (path->complete-path path)))

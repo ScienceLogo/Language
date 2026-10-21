@@ -194,8 +194,11 @@ interface mappings, @tt{must do}
 conditions, and typed relations. @tt{read-workflow-model} reads an
 investigation file;
 @tt{read-interface-model} reads an interface file. Method elements carry
-source locations. Explicit state stages retain their entry and exit records;
-state calls retain input-location mappings and the return location. A call
+source locations. Optional @tt{about} descriptions retain their owning workflow, stage, or
+procedure, Markdown text, and source location. They introduce no activities
+or assessment conditions; see @secref["descriptions"]. Explicit state stages
+retain their entry and exit records; state calls retain input-location
+mappings and the return location. A call
 links to its procedure with @tt{invokes}; named
 results link to their producing and using activities. A sequence retains
 command order. Data assignments retain their dotted paths and link to a

@@ -105,9 +105,11 @@ Definitions may appear after their uses.
    (list (bold "Form") (bold "Where it belongs") (bold "Purpose"))
    (list (tt "workflow \"title\"") "First form of an entry workflow"
          "Names the method; at most one per file")
+   (list (tt "about \"Markdown text\"") "After the optional workflow title, before imports"
+         "Describes the workflow; also attaches to stages and procedures")
    (list (tt "library \"name\" [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces")
    (list (tt "import \"Git URL\" at \"tag\" as alias")
-         "After a workflow title, before method forms; or directly in a library"
+         "After an optional workflow title and description, before method forms; or directly in a library"
          "Loads a pinned library")
    (list (tt "include \"relative/path.rkt\"")
          "Top level of a workflow or library file"
@@ -133,11 +135,68 @@ propositions, interfaces,
 obligations, and includes. A library file may contain imports, includes,
 procedures, and record interfaces; it has no top-level executable commands.
 
+@section[#:tag "descriptions"]{Describe a workflow, stage, or procedure}
+
+@tt{about "text"} supplies an optional description in CommonMark Markdown.
+It uses ordinary quoted text, which may span lines; escaped quotes and
+backslashes follow the usual string rules. No headings or template are
+required. A short opening summary is recommended. Explain purpose,
+assumptions, limits, or how to interpret results when that helps a reader.
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "What it describes") (bold "Where to place about"))
+   (list "Workflow" "After its optional title, before imports and other forms")
+   (list "Procedure" "First inside the opening bracket of its to definition")
+   (list "Simple stage" "Immediately after its stage header")
+   (list "Paired stage" "Immediately after its complete opening header and entry state")))
+
+@verbatim|{
+#lang sciencelogo
+workflow "Review a timing plan"
+about "Explain how to time a pendulum as the swing gets smaller."
+
+stage "Prepare"
+about "Prepare the timing plan."
+do make-plan as plan
+
+to make-plan [
+  about "Return a timing plan, with its **purpose**."
+  output "Time ten swings as the swing gets smaller."
+]
+
+stage "Review"
+about "Read the plan."
+print plan
+}|
+
+Each workflow, stage, or procedure may have one description. Whitespace and
+comments may separate it from its header; commands may not. A workflow
+without a title may begin with @tt{about}. Procedures in libraries and
+included files follow the same rule. A description on a nested stage
+belongs to that stage, separately from its procedure's description.
+
+A workflow description can summarize the question, scope, and limits. A
+stage description can explain its checkpoint or work. A procedure
+description can explain a reusable method and its limitations; its inputs
+and results remain defined by the code. An empty description is allowed.
+
+The reader preserves the text and its source location for inspection and
+external documentation tools. It does not render Markdown or treat prose
+as a declaration or a condition. Descriptions have no effect on execution
+or check results. Anonymous @tt{do}, @tt{if}, and loop blocks, libraries,
+and interfaces have no @tt{about} attachment; use comments for local notes.
+The @hyperlink[(source-file-url "spec/descriptions.md")]{description contract}
+records these rules and the workflow model accessors.
+
 @section{Where to find each form}
 
 @(tabular #:style 'boxed
   (list
    (list (bold "Topic") (bold "Forms covered") (bold "Current behavior"))
+   (list (secref "descriptions")
+         (tt "about \"Markdown text\"")
+         "Optional explanation attached to a workflow, stage, or procedure")
    (list (secref "values")
          (tt "numbers, text, true, false, unknown, lists, records")
          "Values used by runnable forms")

@@ -10,6 +10,17 @@ leaves it. The reader accepts and checks that declaration, but the current
 interpreter does not execute a paired stage's body. Neither form records an
 observed run.
 
+Both forms may have an optional @tt{about "Markdown text"} immediately after
+their complete opening header. For a paired stage this means after its entry
+state, as below. It describes the stage's purpose without adding an activity;
+see @secref["descriptions"].
+
+@verbatim|{
+stage "Inspect" from state [information = [period = 2]]
+about "Inspect the stated period."
+end stage with state [information = [period = 2]]
+}|
+
 @section{The three sets}
 
 A paired stage's state can contain three named sets. Each set is a record with

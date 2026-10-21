@@ -589,7 +589,8 @@
            [`(performer ,_ ,_) (void)]
            [`(resource ,_ ,_) (void)]
            [`(proposition ,_ ,_) (void)]
-           [`(stage ,_) (void)]
+           [`(about ,_) (void)]
+           [(list 'stage _ _ ...) (void)]
            [`(state-stage ,_ ,_ ,_ ,_ ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]
            [`(call ,name ,arguments ,result-name)

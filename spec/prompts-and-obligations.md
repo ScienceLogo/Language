@@ -3,8 +3,9 @@
 **Status:** design proposal for broader obligations and AI requests. The
 current reader and structural assessor already support the narrower
 `must do`, `must stages in order`, and `record-name implement` forms
-described in the [accepted subset](first-slice.md); the other sketches here
-are not accepted syntax. This develops the [semantic core](core.md) using the
+described in the [accepted subset](first-slice.md), as well as comments and
+[`about` descriptions](descriptions.md). The broader obligation and AI request
+sketches here are not accepted syntax. This develops the [semantic core](core.md) using the
 [knowledge-synthesis example](../examples/knowledge-synthesis.md).
 
 ## Which words declare, and which words act?
@@ -143,15 +144,16 @@ constructs such as standards and agents still need definition.
 
 ### Comments and descriptions
 
-The proposed comment forms are `;` to the end of a line, following
+The accepted comment forms are `;` to the end of a line, following
 [Logo](https://people.eecs.berkeley.edu/~bh/docs/html/usermanual_1.html), and
 `#| ... |#` across lines, following
 [Racket](https://docs.racket-lang.org/reference/reader.html). Both are ignored by the
-checker. An optional `about "..."` field retains explanatory text on an investigation,
-procedure, stage, or other named part, without making it an obligation or an LLM prompt. An
-ordinary quoted string may span several lines; no second quote form is needed. `about` is
-recognized in that field position, leaving phrases such as `ask agent ... about paper`
-unambiguous.
+checker. An optional `about "..."` retains explanatory text on a workflow,
+procedure, or stage, without making it an obligation or an LLM prompt.
+An ordinary quoted string may span several lines; no second quote form is
+needed. The [accepted description contract](descriptions.md) defines placement
+and preservation. The broader AI request sketches below are separate from
+that implemented form.
 
 ScienceLogo uses [CommonMark Markdown](https://spec.commonmark.org/) for `about` text:
 ordinary prose stays readable in source, while established syntax provides emphasis,
@@ -159,30 +161,28 @@ lists, links, and code. A parser can retain the text without rendering Markdown 
 run. Richer dialects such as [MyST](https://mystmd.org/spec/overview) may be useful for a
 separate documentation site, but are not required inside a ScienceLogo workflow.
 
-`about` describes a workflow or one of its named parts. Its first paragraph should
-briefly explain the part's purpose. Further prose may explain rationale, assumptions, or
+`about` describes a workflow, stage, or procedure. A short opening summary is
+recommended. Further prose may explain rationale, assumptions, or
 limitations. Headings are optional. The facts available to
 [external publication tools](workflow-documentation.md) come from named activities,
 inputs, outputs, agents, `require` rules, `must` rules, and observed run events. Authors
 should not have to copy those formal facts into Markdown. An `about` paragraph cannot
 satisfy a scientific obligation or establish that an LLM suggestion is true.
 
-For example, the procedure could begin with:
+For example, a procedure can include:
 
 ```text
-to time-pendulum :pendulum :length [
-  about "Time ten swings and record the pendulum length and duration with units.
+to estimate-period :duration :swings [
+  about "Estimate one period from a duration and swing count.
 
 ## Why
-Repeated timings allow periods to be compared across lengths."
-  require :pendulum is a pendulum
-  require :length has a unit
-  ...
+Use the same definition of a swing when comparing timings."
+  output :duration / :swings
 ]
 ```
 
-`about` stays optional in this draft. Whether a shared investigation must have a summary
-can be decided with the rules for publishing workflows.
+`about` is optional. External publication templates can recommend summaries
+without making them a language requirement.
 
 ### A small vocabulary for conditions
 

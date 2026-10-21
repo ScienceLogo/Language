@@ -3,7 +3,8 @@
 **Status:** design contract for a portable representation. The current Racket
 reader produces an inspectable Racket workflow model, including paired-stage
 state, call locations, declared performers, named data sources and storage,
-and propositions with their updates.
+and propositions with their updates. It also preserves optional `about`
+descriptions of workflows, stages, and procedures.
 A language-neutral exchange format and its versioning rules remain to be
 specified.
 This contract covers a **written method**. A record of what happened and an
@@ -53,6 +54,13 @@ pendulum.
   imports, and includes. A stage remains a label and
   checkpoint, not a procedure call or variable scope. A procedure definition
   does not count as a call.
+- **Human explanation.** Preserve each optional `about` description as Markdown
+  text after ordinary string decoding, with its owning workflow, stage, or
+  procedure and its own source location. Keep absent and empty descriptions
+  distinct. Preserve attachment and text through includes and imports without
+  interpreting prose as commands, dependencies, or established facts. Comments
+  are discarded and do not substitute for these descriptions. See
+  [descriptions](descriptions.md).
 - **Commands and values.** Preserve each command, its arguments and result
   name where present, nested blocks, branches, loops, and the expressions
   needed to understand them. Lists, records, ranges, quoted text, and the

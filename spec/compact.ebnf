@@ -15,13 +15,14 @@
 *)
 
 (* Files. A fragment's role is determined by the file that includes it. *)
-workflow-file = header, [ workflow-title ], { import }, { workflow-form }, EOF ;
+workflow-file = header, [ workflow-title ], [ description ], { import }, { workflow-form }, EOF ;
 library-file = header, "library", text, "[", { library-form }, "]", EOF ;
 interface-file = header, interface, EOF ;
 workflow-fragment = header, { workflow-form }, EOF ;
 library-fragment = header, { procedure | interface | include }, EOF ;
 header = ? first line, trimmed, is exactly #lang sciencelogo ? ;
 workflow-title = "workflow", text ;
+description = "about", text ;
 workflow-form = procedure | interface | include | performer | resource
               | proposition | obligation | file-provisions | command ;
 library-form = procedure | interface | include | import ;
@@ -77,7 +78,7 @@ suffix = ".", segment | ".", selection | ".", object-fields | "u", uncertainty ;
 selection = "[", expression, { expression }, "]" ;
 
 (* Declarations and ordinary commands. Context rules restrict their placement. *)
-procedure = "to", simple-name, { input }, block ;
+procedure = "to", simple-name, { input }, "[", [ description ], { command }, "]" ;
 block = "[", { command }, "]" ;
 command = assignment | dotted-update | call | state-call | "do", block
         | "print", expression | "output", expression
@@ -94,9 +95,9 @@ conditional = "if", expression, block,
               { "else", "if", expression, block }, [ "else", block ] ;
 
 (* Stages. A paired stage has entry and exit state and location-based calls. *)
-stage = "stage", text
+stage = "stage", text, [ description ]
       | "stage", text, [ "by", simple-name ], "from", state,
-        { command }, "end", "stage", "with", state ;
+        [ description ], { command }, "end", "stage", "with", state ;
 state = "state", state-object ;
 state-object = "[", { state-set }, "]" | "(", state-object, ")" ;
 state-set = ( "information" | "environment" | "factors" ), "=", object ;

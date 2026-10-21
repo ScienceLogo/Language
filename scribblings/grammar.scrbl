@@ -68,7 +68,7 @@ reserved everywhere.
 These words and operators are reserved as ordinary names:
 
 @verbatim|{
-to do stage end print output include implements must workflow interface
+to do stage end print output include implements must workflow interface about
 performer resource hypothesis assumption conclusion repeat for while if else
 set as at from with into state import library version require affects provide
 by each in until range step true false unknown = == += != < <= > >=
@@ -79,8 +79,8 @@ hypotheses assumptions conclusions u
 The plural proposition words are nevertheless valid collection roots and
 record keys. Reserved @tt{set}, @tt{require}, @tt{of}, and @tt{but} have no
 accepted compact command or operator form. Reserving a word does not
-implement a feature. In particular, @tt{about} is not an accepted
-documentation command in the current reader.
+implement a feature. @tt{about} is accepted only at the description attachment
+points explained in @secref["descriptions"].
 
 @section{Expression binding}
 
@@ -157,13 +157,20 @@ description, which must retain the shape defined in @secref["uncertainty"].
 @section{Command boundaries and placement}
 
 The file's role determines which declarations are allowed. A workflow title
-is optional and appears only first. Workflow imports follow that title and
-precede other forms. Library imports belong directly in the root library
+is optional and appears only first. A workflow's optional @tt{about} follows
+that title and precedes imports. Workflow imports precede other forms.
+Library imports belong directly in the root library
 block. Included workflow fragments have no title or imports; included library
 fragments contain only procedures, interfaces, and further includes.
 A file beginning with an interface and continuing with other forms is a
 workflow with an inline interface. A file containing only that declaration
 is a standalone interface.
+
+A procedure's optional @tt{about} is first inside its opening bracket.
+A stage's optional @tt{about} immediately follows its complete header,
+including entry state for a paired stage. Each attachment accepts one quoted
+string. These descriptions are not commands in anonymous blocks and do not
+affect execution or checks; see @secref["descriptions"].
 
 Procedure definitions, interfaces, performers, resources, proposition
 declarations, obligations, and the older file-provision form belong at
@@ -180,7 +187,7 @@ The reader checks that count afterwards. The command-start words are:
 
 @verbatim|{
 to do stage end print output include implements must workflow interface
-performer resource hypothesis assumption conclusion repeat for while if else set
+performer resource hypothesis assumption conclusion repeat for while if else set about
 }|
 
 Because proposition declaration words end an argument list, enclose a new

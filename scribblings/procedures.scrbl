@@ -37,6 +37,7 @@ do estimate-period 20 10 as period
 print period
 
 to estimate-period :seconds :swings [
+  about "Estimate one period from a duration and swing count."
   output :seconds / :swings
 ]
 }|
@@ -47,6 +48,11 @@ names the result in the caller. A call using @tt{as} needs an @tt{output} in
 its procedure. Procedure names must be distinct; recursion is not supported
 by the current reader. @tt{print} is a teaching and display action, not a
 scientific observation or evidence record.
+
+An optional @tt{about "Markdown text"} belongs first inside a procedure's
+opening bracket. It describes the reusable method and remains available
+through imports and includes. It does not run as a command or replace its
+input and result declarations. See @secref["descriptions"].
 
 @section{Local values and scope}
 

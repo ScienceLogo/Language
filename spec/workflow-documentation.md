@@ -1,8 +1,11 @@
 # Workflow publication support (draft)
 
-**Status:** design proposal, not an implemented research booklet generator. This
-describes information ScienceLogo must expose to external publication tools. The
-ScienceLogo language manual is maintained in this repository; templates for publishing
+**Status:** publication design, not an implemented research booklet generator.
+The [`about` description form](descriptions.md) is implemented for workflows,
+stages, and procedures. The broader publication and run-record designs below
+remain future work. This describes information ScienceLogo must expose to
+external publication tools. The ScienceLogo language manual is maintained in
+this repository; templates for publishing
 particular research workflows are separate from the language specification.
 
 ## Two records for one investigation
@@ -48,7 +51,7 @@ must expose enough structured information for such a publication to be built:
 | --- | --- |
 | Named, stable references | Investigation, stage, procedure, call site, agent, prompt, standard, condition, method version, run, event, and evidence identities. |
 | Method relationships | Containment, procedure calls and their targets, possible paths, declared dependencies and order, inputs, outputs, and rules. A call resolves even when its declaration appears later in source. |
-| Human explanation | `about` text attached to named parts, including an optional investigation summary, without imposing a page layout. |
+| Human explanation | Implemented `about` text attached to workflows, stages, and procedures, including an optional workflow summary, without imposing a page layout. |
 | Scientific trace | Which activities and decisions actually occurred, their evidence and provenance, and which checks failed or remain undetermined. |
 | Standard assessments | Exact standard source and version, condition identities, applicability, findings, and evidence gaps. |
 
@@ -65,8 +68,10 @@ cross-reference notation for `about` prose and publication exchange format remai
 [CommonMark Markdown](https://spec.commonmark.org/). A short opening summary is the
 recommended convention when `about` is present. Optional prose can describe why a step
 exists, assumptions that cannot be checked automatically, limitations, or how to interpret
-an output. It may appear on an investigation, procedure, agent, prompt, or another named
-component where a description helps. `about` has no effect on execution or check results.
+an output. It is implemented on workflows, stages, and procedures; descriptions
+for other named forms would require separate language definitions. `about` has
+no effect on execution or check results. Its exact placement and preservation
+rules are defined in the [accepted description contract](descriptions.md).
 
 ### Which parts deserve an `about` description?
 
@@ -78,7 +83,7 @@ block. This keeps the source readable and gives generated documentation a stable
 | Investigation | Recommended for a workflow intended to be shared: summarize its scientific purpose, scope, and important limits. The research question in its name remains separate. |
 | Named `stage` | Recommended for a section of work that gathers or changes evidence, delegates to AI, requires human judgment, or has several paths whose purpose needs explanation. The header provides a reference and checkpoint boundary; actors, actions, checks, and outputs come from the commands in that section. |
 | `to` procedure | Useful when the procedure is reused, shared, or has a non-obvious scientific purpose. `to` defines a reusable sequence, which may be called as an activity; it need not be a pure function. Inputs and returned results come from its header and `output`. |
-| Agent, prompt, criteria, fields, or settings | Add a description when a scientific choice or limitation needs rationale. The prompt content, permissions, criteria, and values stay in their structured declarations. |
+| Other named forms | Future design only; the current reader has no `about` attachment for agents, prompts, criteria, fields, or settings. |
 | Anonymous `do`, `if`, `repeat`, or similar control block | Normally no `about`: the containing named part explains its purpose. Use a `;` comment for a local reading note. If a stretch of work is a distinct scientific stage that should appear in the generated account, start it with a `stage` header. |
 
 An `about` field describes its immediately containing named part, or the stage whose
@@ -118,6 +123,6 @@ conforms to either profile.
   an order through source placement alone.
 - Define how stage occurrences are identified in traces, including when the same stage
   is reached in several iterations or procedure calls.
-- Decide whether a published investigation requires an `about` summary. This draft keeps
-  descriptions optional while the publication and validation rules are unsettled.
+- External publication templates may recommend particular descriptions. The
+  language keeps `about` optional and imposes no Markdown template.
 - Define the minimum run record before promising a complete generated run account.

@@ -18,6 +18,8 @@ its declarations and updates remain inspectable in the workflow model.
 The [uncertainty form](uncertainty.md) attaches named sources to a value with
 `u [ ... ]`. Its description is readable at `.u`; the interpreter does not
 calculate or propagate uncertainty.
+The [description form](descriptions.md) attaches optional Markdown explanation
+to workflows, stages, and procedures with `about "text"`.
 
 ## Source file, procedures, and stage headers
 
@@ -68,7 +70,8 @@ the stage.
 
 ## Files and libraries
 
-Imports belong at the top of the workflow file, after an optional title and before method forms:
+Imports belong at the top of the workflow file, after an optional title and
+`about` description and before method forms:
 
 ```text
 workflow "Try a library"

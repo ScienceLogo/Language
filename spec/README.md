@@ -15,6 +15,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | --- | --- |
 | [Compact grammar](compact.ebnf) | Current compact forms in one grammar; the [manual's grammar page](../scribblings/grammar.scrbl) supplies grouping, disambiguation, placement, and declaration-based resolution rules. |
 | [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
+| [Descriptions](descriptions.md) | Accepted optional `about` Markdown for workflows, stages, and procedures; retained for inspection and external publication tools. |
 | [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, value kinds and defaults, explicit unknown permissions, optional entries, nested protocol parts, conditional and per-item requirements, and shared structural checks. |
 | [Libraries](libraries.md) | Accepted layout, import, and include rules. |
 | [Paired stages and state locations](stage-state.md) | Accepted reader syntax; checked as a written method but not executed. |
@@ -28,7 +29,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | [Design principles](design-principles.md) | Goals and learning tests, not syntax. |
 | [Prompts and obligations](prompts-and-obligations.md) | Design of broader conditions and AI requests; its sketches are not accepted forms unless separately listed above. |
 | [LLM variation](llm-variation.md) | Design for attempts, context, replication, and control; not accepted syntax. |
-| [Workflow publication support](workflow-documentation.md) | Design of information external publication tools would need; not a booklet format or implemented generator. |
+| [Workflow publication support](workflow-documentation.md) | Wider publication design; links to the implemented description form. No booklet format or generator is supplied. |
 
 ## How pages are maintained
 
