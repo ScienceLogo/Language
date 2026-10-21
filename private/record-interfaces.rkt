@@ -23,6 +23,8 @@
          requirement-entry-reference-guards
          interface-guard-value
          interface-value
+         call-with-interface-context
+         interface-matches?
          iteration-template
          combine-interface-guards
          interface-branch-guards)
@@ -32,6 +34,39 @@
 (struct record-field (name default required? children guard requirements) #:transparent)
 (struct record-requirement (expression guard) #:transparent)
 (struct requirement-result (scope expression outcome missing) #:transparent)
+
+(define active-interface-tests (make-parameter '()))
+
+(define (call-with-interface-context interfaces thunk [evaluate-default #f])
+  (parameterize
+      ([current-interface-test
+        (lambda (name value)
+          (define target (resolve-interface-reference interfaces name))
+          (if target (interface-matches? target value evaluate-default) no-constant))])
+    (thunk)))
+
+;; A structural test never completes the record or inserts defaults.
+(define (interface-matches? interface value [evaluate-default #f])
+  (define plain (plain-value value))
+  (define key (cons (record-interface-name interface) plain))
+  (cond
+    [(eq? plain no-constant) no-constant]
+    [(memq plain '(unknown undetermined)) 'unknown]
+    [(not (hash? plain)) #f]
+    [(member key (active-interface-tests)) 'unknown]
+    [else
+     (parameterize ([active-interface-tests (cons key (active-interface-tests))])
+       (define-values (missing pending unknown wrong-kind)
+         (interface-field-gaps interface plain interface-guard-value evaluate-default))
+       (define requirements (interface-requirement-results interface plain))
+       (cond
+         [(or (pair? missing) (pair? unknown) (pair? wrong-kind)
+              (ormap (lambda (check) (eq? (requirement-result-outcome check) 'violated)) requirements))
+          #f]
+         [(or (pair? pending)
+              (ormap (lambda (check) (eq? (requirement-result-outcome check) 'undetermined)) requirements))
+          'unknown]
+         [else #t]))]))
 
 ;; A requirement's names refer to entries of its surrounding interface part.
 (define (requirement-reference-guards expression)

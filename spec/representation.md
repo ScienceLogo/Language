@@ -87,8 +87,10 @@ pendulum.
   defaults and presence requirements, including all referenced entry paths.
   Equality comparisons use `==`; assignment and default expressions retain
   their distinct `=` meaning.
-  List membership uses `(compare in (value list-expression))`. Preserve both
-  operands and their referenced entries, including a named or dotted list.
+  Membership and field presence use `(compare in (left right))`. Preserve
+  both operands. With a record on the right, a bare left name is a field
+  label; with a list, it refers to a value. Any inferred value dependency
+  or required entry for that name is conditional on a list receiver.
   A required data field rejects `unknown` unless its resolved declaration
   supplies a default of `unknown`. Preserve that default as both the missing
   value to insert during construction and the field's explicit permission.
@@ -107,6 +109,14 @@ pendulum.
   `(kind-test number ((result period)))`. Kind labels are not variable
   references. Preserve these forms through inheritance, imports, and nested
   requirements, with their source locations.
+  A named interface test retains its resolved reference, as in
+  `(kind-test timing-tools.Timing ((result timing)))`. The Racket
+  `interface-model` also retains `declarations`: the interface definitions
+  available at that point, including resolved library definitions. They
+  give a checker the same definition context without fetching a different
+  library revision. Include these definitions in the interface model's
+  revision identity. Matching is a check; it does not construct an object
+  or insert defaults.
   Preserve `.count` references in expressions. On a list, this is a read-only
   computed property, not a separately supplied field or protocol part.
   A count requirement identifies the list it reads and retains the full

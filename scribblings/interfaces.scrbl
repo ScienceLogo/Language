@@ -101,6 +101,52 @@ interfaces and interfaces describing workflow parts. The
 @hyperlink[(source-file-url "spec/interfaces.md")]{interface specification}
 records the syntax and reader status.
 
+@subsection{Reusing an interface for a field}
+
+Use an interface name after @tt{is} to check the fields of a nested object:
+
+@verbatim|{
+interface "Timing" [
+  must [period is number unit = "seconds"]
+]
+
+interface "Experiment" [
+  must [timing is Timing]
+]
+
+timing = Timing.[period = 2]
+experiment = Experiment.[timing = timing]
+experiment implement Experiment
+}|
+
+The @tt{timing} field is required and must satisfy @tt{Timing}, including
+its required fields, value conditions, and any nested or inherited
+requirements. Extra fields are allowed. The nested object can have been
+created directly with named fields; it need not have been constructed
+from @tt{Timing}.
+
+The test supplies no default and does not change its operand.
+@tt{Timing.[period = 2]} inserts the default unit during construction.
+By contrast, @tt{[period = 2] is Timing} is @tt{false}, because the required
+@tt{unit} field is missing. @tt{[period = 2 unit = "minutes"] is Timing}
+is @tt{true}: @tt{"seconds"} is an overridable default.
+
+The same test works in expressions, such as @tt{if timing is Timing [...]},
+and in conditional or per-item interface requirements. The target may be
+defined later, loaded through @tt{include}, imported as
+@tt{timing-tools.Timing}, or be a named nested group such as
+@tt{Protocol.documentation}. A misspelled target is a reader error.
+
+An unknown whole object gives @tt{unknown}. A missing required field, a
+wrong value kind, or a false requirement gives @tt{false}. If no failure
+is established but some checks remain unresolved, the answer is
+@tt{unknown}. The target interface's existing unknown permissions apply
+to its fields. Recursive interfaces can describe finite nested objects;
+a circular test with no independent answer remains undetermined.
+
+The @hyperlink[(source-file-url "examples/nested-interfaces.rkt")]{runnable example}
+constructs a timing object and reuses its interface in an experiment.
+
 @section{Requirements on values}
 
 A @tt{must [...]} group can mix conditions and required entries:

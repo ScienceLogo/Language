@@ -48,7 +48,7 @@
 (struct implementation-model (id path alias provisions source interface) #:transparent)
 (struct provision-model (id part locator source) #:transparent)
 (struct mapping-model (id kind subject interface part parent source) #:transparent)
-(struct interface-model (id name version source revision conditions relations)
+(struct interface-model (id name version source revision conditions relations declarations)
   #:transparent)
 (struct interface-iteration-model (name collection body) #:transparent)
 (struct condition-model (id kind target scope checkpoint evidence source guard)
@@ -106,6 +106,9 @@
     (resolve-record-interfaces
      (for/hasheq ([(name form) (in-hash inline-interfaces)])
        (values name (map node->datum (node-children form))))))
+  (define interface-declarations
+    (for/list ([form (in-list forms)] #:when (eq? (node-kind form) 'interface))
+      (node->datum form)))
   (define interface-models (make-hasheq))
   (define mappings '())
   (define protocol-roots (make-hasheq))
@@ -165,9 +168,10 @@
                  (define revision
                    (sha1 (open-input-string
                           (format "~s" (list (and (file-exists? file) (source-revision file))
-                                              (node->datum declaration))))))
+                                              (node->datum declaration) interface-declarations)))))
                  (interface-tree-model declaration file revision
-                                       (format "~a@~a/interface:~a" file revision name)))))
+                                       (format "~a@~a/interface:~a" file revision name)
+                                       interface-declarations))))
   (define procedure-ids
     (for/hasheq ([definition (in-list definitions)])
       (values (car (node-value definition))
@@ -684,7 +688,8 @@
   (define revision (source-revision source))
   (interface-tree-model tree source revision))
 
-(define (interface-tree-model tree source revision [identity #f])
+(define (interface-tree-model tree source revision [identity #f]
+                              [declarations (list (node->datum tree))])
   (define id (or identity (format "~a@~a" source revision)))
   (define forms (node-children tree))
   (define version
@@ -755,7 +760,7 @@
                 (interface-tree-model
                  (node 'interface (symbol->string (car (node-value form)))
                        (node-children form) (node-at form))
-                 source revision (string-append condition-id "/body")))
+                 source revision (string-append condition-id "/body") declarations))
                expression))
          (set! conditions
                (cons (condition-model condition-id
@@ -794,4 +799,4 @@
                                     (origin (node-at form))))
                 relations)))
   (interface-model id (node-value tree) version source revision
-                   conditions (reverse relations)))
+                   conditions (reverse relations) declarations))

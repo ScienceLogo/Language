@@ -204,6 +204,8 @@ declared source or destination with @tt{reads-from} or @tt{writes-to}; see
 has one containment link to its recorded parent. A mapping retains whether its
 subject is a stage, procedure, or value, its resolved reference or value path,
 the interface version and source revision, and the nested requirement path.
+Interface models also retain the declarations needed to interpret named
+@tt{is} tests, including resolved library definitions.
 It also retains the declaration location and scope. Multiple mappings remain
 separate records.
 

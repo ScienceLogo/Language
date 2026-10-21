@@ -188,7 +188,7 @@ uses both a named list and an interface requirement. The
 @hyperlink[(source-file-url "examples/field-presence.rkt")]{field-presence example}
 shows both checks together.
 
-@section{Value kind tests}
+@section{Kinds and interface tests}
 
 @tt{value is kind} checks the outer kind of a value:
 
@@ -209,6 +209,20 @@ is @tt{true}. An attached @tt{u} description does not change the kind.
 Combine tests with @tt{and}, @tt{or}, and @tt{not}; comparisons cannot be
 chained. These expressions also work in procedure inputs and outputs,
 loops, and interface conditions.
+
+The same @tt{is} accepts a declared interface name:
+
+@verbatim|{
+interface "Timing" [must [period is number unit = "seconds"]]
+trial = [period = 2 unit = "seconds"]
+if trial is Timing [print trial.period]
+}|
+
+This checks the interface's requirements against the supplied object.
+It returns @tt{true} for a match, @tt{false} for an established mismatch,
+and @tt{unknown} when the available values do not settle the check.
+It does not insert defaults or change the object. Local and imported
+interface names work here, including @tt{trial is timing-tools.Timing}.
 
 @secref["interfaces"] explains how interface defaults declare kinds and how
 @tt{period = unknown number} explicitly permits an unknown numeric field.

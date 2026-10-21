@@ -76,6 +76,58 @@ period even if another declaration permits that unknown. Use the compact
 The [runnable example](../examples/value-kinds.rkt) shows measured and planned
 periods.
 
+## Reuse an interface for a field
+
+`value is Interface` checks an object against an existing interface. The
+same expression can be a field requirement:
+
+```text
+interface "Timing" [
+  must [period is number unit = "seconds"]
+]
+interface "Experiment" [
+  must [timing is Timing]
+]
+
+timing = Timing.[period = 2]
+experiment = Experiment.[timing = timing]
+```
+
+`timing` must be present and satisfy the required fields, kinds, conditions,
+nested groups, per-item rules, and inherited requirements of `Timing`.
+Extra fields are allowed. Matching is structural: an object built directly
+with named fields can match, without having been constructed from the
+interface.
+
+The test supplies no default and never modifies its operand. In particular,
+`[period = 2] is Timing` is false because `unit` is absent. Constructing
+`Timing.[period = 2]` supplies that default. An overridable default retains
+its ordinary meaning: `[period = 2 unit = "minutes"] is Timing` is true.
+
+Named tests work wherever expressions work, including `if`, `else if`,
+procedure inputs and results, and interface guards and requirements.
+The target may be defined later, included, imported as `alias.Interface`,
+or name a nested group such as `Protocol.documentation`. Existing import
+visibility rules apply; private dependency aliases are not exposed. Unknown
+targets and references to a value field rather than an interface or group
+are reader errors. No new source keyword is introduced.
+
+An unknown whole object yields `unknown`. Known non-records, missing
+required fields, disallowed unknown fields, wrong kinds, and false
+requirements yield false. An unresolved check yields `unknown` if no known
+failure has been found. The interface's existing unknown permissions apply
+to its own fields; permitting unknown for an enclosing field does not make
+`unknown is Timing` true. Recursive references may check finite nested
+records. Repeating the same interface test on the same object without
+settling it yields unknown rather than recursing indefinitely.
+
+The reader preserves a named test as `(kind-test Timing ((result timing)))`.
+The target is an interface reference, not a workflow variable. Library
+expansion qualifies it, and interface models retain the declarations needed
+to interpret referenced interfaces. Checks use that retained definition
+context rather than fetching a new version of the interface.
+See the [runnable example](../examples/nested-interfaces.rkt).
+
 ## Permit unknown explicitly
 
 Declare a default of `unknown` to permit it for a required field:

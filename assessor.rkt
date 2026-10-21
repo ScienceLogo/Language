@@ -337,6 +337,11 @@
   (assess-workflow-parts declaration interface-path interface))
 
 (define (assess-workflow-parts declaration interface-path interface)
+  (call-with-interface-context
+   (interface-model-templates interface)
+   (lambda () (assess-workflow-parts/context declaration interface-path interface))))
+
+(define (assess-workflow-parts/context declaration interface-path interface)
   (define alias (implementation-model-alias declaration))
   (define provisions (implementation-model-provisions declaration))
   (define all-conditions (interface-model-conditions interface))
@@ -614,6 +619,12 @@
             (interface-model-template (interface-iteration-model-body evidence)))
       evidence))
 
+(define (interface-model-templates interface)
+  (resolve-record-interfaces
+   (for/hasheq ([declaration (in-list (interface-model-declarations interface))])
+     (match-define `(interface ,name ,parts) declaration)
+     (values (string->symbol name) parts))))
+
 (define (interface-model-template interface)
   (define conditions (interface-model-conditions interface))
   (define (requirements scope)
@@ -664,7 +675,7 @@
                         (record-interface-name local-template) version method-source
                         (workflow-model-revision method)
                         '()
-                        '())]
+                        '() declarations)]
       [(file-exists? interface-path) (read-interface-model interface-path)]
       [else #f]))
   (define condition-id (condition-model-id condition))
@@ -678,6 +689,9 @@
              (list (condition-check condition-id target 'violated '()
                                     'missing-interface-file)))]
     [else
+     (call-with-interface-context
+      (if local-template templates (interface-model-templates interface))
+      (lambda ()
      (define assessed
        (assessed-interface reference (interface-model-name interface)
                            (interface-model-version interface)
@@ -778,7 +792,7 @@
                                                    [else target])
                                 '() condition-id target outcome evidence))
                  '())
-             (list (condition-check condition-id target outcome evidence gap)))]))
+             (list (condition-check condition-id target outcome evidence gap)))))]))
 
 (define (assess-workflow method)
   (unless (workflow-model? method)

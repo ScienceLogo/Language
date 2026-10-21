@@ -61,7 +61,7 @@ create a local scope.
    (list (tt "do alias.procedure ...")
          "Calls an imported procedure")
    (list (tt "alias.Interface")
-         "Names an imported record interface in a value or declaration")))
+         "Names an imported interface in construction, inheritance, is tests, and implement mappings")))
 
 The URL begins with @tt{https://} or @tt{file://}. @tt{at} selects a tag or
 full commit ID reachable from the library's @tt{main} branch, not a branch

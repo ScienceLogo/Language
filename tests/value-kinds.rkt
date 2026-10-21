@@ -47,7 +47,7 @@
                 "true\ntext\n")
   (check-equal? (run "number = 2\ntext = \"label\"\nprint number is number\nprint text is text\n")
                 "true\ntrue\n")
-  (check-exn #rx"expected number, text, boolean, list, or record"
+  (check-exn #rx"unknown interface integer after is"
              (lambda () (run "print 2 is integer\n")))
   (check-exn #rx"comparison cannot be chained"
              (lambda () (run "print 2 is number == true\n")))

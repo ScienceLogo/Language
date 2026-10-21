@@ -3,7 +3,7 @@
 (require racket/list racket/match racket/string
          "private/record-interfaces.rkt" "private/uncertain-values.rkt"
          "private/value-kinds.rkt"
-         (only-in "private/constant-values.rkt" list-membership no-constant))
+         (only-in "private/constant-values.rkt" list-membership no-constant current-interface-test))
 
 (provide (all-from-out racket/base) run-program)
 
@@ -307,12 +307,20 @@
              (merge-records current (hasheq key value))
              (replace-one current key value)))))
      (define (value-of expression inputs scopes)
+       (call-with-interface-context
+        interfaces (lambda () (evaluate-value expression inputs scopes))
+        (lambda (default) (value-of default inputs scopes))))
+     (define (evaluate-value expression inputs scopes)
        (match expression
          [`(literal ,value) value]
          [`(typed-default ,_ (,value)) (value-of value inputs scopes)]
          [`(kind-test ,kind (,expression))
           (define value (plain-value (value-of expression inputs scopes)))
-          (if (eq? value 'unknown) 'unknown (eq? (value-kind value) kind))]
+          (cond [(eq? value 'unknown) 'unknown]
+                [(memq kind value-kind-names) (eq? (value-kind value) kind)]
+                [else
+                 (define answer ((current-interface-test) kind value))
+                 (if (eq? answer no-constant) 'unknown answer)])]
          [`(uncertain ,base ,description)
           (uncertain-value (plain-value (value-of base inputs scopes))
                            (normalize-uncertainty

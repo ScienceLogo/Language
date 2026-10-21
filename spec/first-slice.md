@@ -87,7 +87,7 @@ commands. Included library files hold top-level `to`, record `interface`, and
 nested; paths are relative to the containing file and cannot escape the repository.
 `at` names a tag or full commit ID on `main`, not a branch. Imported procedures use
 `alias.procedure` in calls. Imported record interfaces use `alias.Interface` in
-construction, `extends`, and `... implement` checks. Imported stage names
+construction, `extends`, `is` tests, and `... implement` checks. Imported stage names
 carry the library alias in the
 method model, so separate libraries may reuse a stage label. Git must be available;
 the reader fetches and validates the library before any commands run. See
@@ -378,6 +378,17 @@ and supply no default; `unit = "seconds"` remains an overridable default.
 The [value-requirement specification](interfaces.md#requirements-on-values)
 defines mixed groups, nesting, and unknown values.
 
+`must [timing is Timing]` requires a nested object to satisfy an existing
+interface. The same `timing is Timing` is available in ordinary expressions.
+The target can be local, included, imported as `alias.Timing`, or a named
+nested interface group. Matching checks structure without inserting defaults;
+use `Timing.[...]` to construct an object with defaults. Extra fields are
+allowed. Known violations return false, unresolved checks return unknown
+unless another requirement already establishes a failure, and an unknown
+whole object returns unknown. The target interface's required-field and
+unknown rules apply unchanged. See [interface reuse](interfaces.md#reuse-an-interface-for-a-field)
+and the [runnable example](../examples/nested-interfaces.rkt).
+
 An interface or named part may use the existing `if [...] else if [...] else
 [...]` forms to make entries conditional. Conditions refer to entries of
 that part; branch entries retain the same compulsory, default, and optional
@@ -563,6 +574,9 @@ has comparison precedence. A known value produces a Boolean result; an
 unknown value leaves the result unknown. For instance, `[unknown] is list`
 is true, while `unknown is number` is unknown. Kind names are contextual
 after `is` and after an interface's unknown default; `is` is reserved.
+After `is`, a named interface checks its full structure instead of only
+the outer kind. Local, included, imported, and nested-group references
+use the same matching rules described above.
 Ordered comparisons require numbers. `not` reverses a Boolean value,
 `and` needs both sides true, `or` needs either side true, and `xor` needs
 exactly one side true. Precedence from strongest to weakest is parentheses,

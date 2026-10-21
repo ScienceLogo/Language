@@ -1,8 +1,14 @@
 #lang racket/base
 (require racket/list racket/match "uncertain-values.rkt" "value-kinds.rkt")
-(provide constant-value no-constant unresolved? contains-unresolved? list-membership)
+(provide constant-value no-constant unresolved? contains-unresolved? list-membership
+         current-interface-test)
 
 (define no-constant (gensym 'no-constant))
+
+;; Record checking supplies this callback, keeping the expression evaluator
+;; independent of the interface implementation.
+(define current-interface-test
+  (make-parameter (lambda (_name _value) no-constant)))
 
 (define (unresolved? value)
   (or (eq? value no-constant) (eq? value 'unknown)))
@@ -53,7 +59,8 @@
        (define plain (plain-value (constant-value value lookup #t)))
        (cond [(eq? plain no-constant) no-constant]
              [(eq? plain 'unknown) 'unknown]
-             [else (eq? (value-kind plain) kind)])]
+             [(memq kind value-kind-names) (eq? (value-kind plain) kind)]
+             [else ((current-interface-test) kind plain)])]
       [`(list ,parts)
        (define values (map evaluate parts))
        (if (and (not partial?) (ormap contains-unresolved? values)) no-constant values)]

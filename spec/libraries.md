@@ -65,7 +65,8 @@ trial implement timing.Timing
 ```
 
 An imported interface is named `alias.Interface` in construction, `extends`,
-and `... implement`. The assessor checks field presence. The importing
+`is` tests, and `... implement`. For example, `must [timing is timing-tools.Timing]`
+reuses an imported interface for a nested field. The importing
 workflow can define its own interface that extends an imported one.
 
 A larger library may move the procedure or interface to another file. Its root entry then has

@@ -153,10 +153,7 @@
               (read-error source found "comparison cannot be chained; use and"))
             (advance!)
             (if (string=? (token-value found) "is")
-                (let* ([kind-at (expect 'word "number, text, boolean, list, or record after is")]
-                       [kind (string->symbol (token-value kind-at))])
-                  (unless (memq kind value-kind-names)
-                    (read-error source kind-at "expected number, text, boolean, list, or record after is"))
+                (let ([kind (named-word "a value kind or interface name after is")])
                   (loop (node 'kind-test kind (list left) found)))
                 (let ([right (parse-value (add1 operator) stop-word)])
                   (loop (node (if (= operator 40) 'compare 'binary)
@@ -1017,11 +1014,11 @@
        (read-error source (node-at form)
                    "standalone interfaces cannot extend a local interface"))
      (define name (string->symbol (node-value result)))
+     (define resolved
+       (resolve-record-interfaces (hasheq name (map node->datum (node-children result)))))
+     (validate-kind-targets result resolved source)
      (validate-interface-guards
-      result
-      (hash-ref (resolve-record-interfaces
-                 (hasheq name (map node->datum (node-children result)))) name)
-      source)
+      result (hash-ref resolved name) source)
      result]
     [(and (eq? (node-kind result) 'library) (not expand-local?)) result]
     [(eq? (node-kind result) 'library)
@@ -1202,6 +1199,15 @@
   (define (qualify-value value)
     (cond
       [(not (node? value)) value]
+      [(eq? (node-kind value) 'kind-test)
+       (define target (node-value value))
+       (define root
+         (and (not (memq target value-kind-names))
+              (interface-reference-root
+               (for/hasheq ([name (in-list interface-names)]) (values name #t)) target)))
+       (struct-copy node value
+                    [value (if root (qualified target) target)]
+                    [children (map qualify-value (node-children value))])]
       [(and (eq? (node-kind value) 'result)
             (memq (node-value value) interface-names))
        (struct-copy node value [value (qualified (node-value value))])]
@@ -1228,8 +1234,16 @@
                   [children (map qualify-form (node-children form))])]
     [(extends)
      (struct-copy node form [value (qualified (node-value form))])]
-    [(interface-group required-interface-group interface-if interface-branch interface-for-each)
+    [(interface-group required-interface-group interface-if)
      (struct-copy node form [children (map qualify-form (node-children form))])]
+    [(interface-branch interface-requirement)
+     (struct-copy node form
+                  [value (and (node-value form) (qualify-value (node-value form)))]
+                  [children (map qualify-form (node-children form))])]
+    [(interface-for-each)
+     (struct-copy node form
+                  [value (cons (car (node-value form)) (qualify-value (cdr (node-value form))))]
+                  [children (map qualify-form (node-children form))])]
     [(interface-field required-interface-field)
      (struct-copy node form
                   [children (map qualify-value (node-children form))])]
@@ -1422,6 +1436,8 @@
   (define (check-form form)
     (when (memq (node-kind form) '(result extends))
       (check-private-name (node-value form) (node-at form)))
+    (when (eq? (node-kind form) 'kind-test)
+      (check-private-name (node-value form) (node-at form) #t))
     (case (node-kind form)
       [(implement)
        (check-private-name (node-value form) (node-at form) #t)
@@ -1561,6 +1577,20 @@
         (read-error source (node-at form)
                     (format "impact references unknown part ~a" part))))))
 
+(define (validate-kind-targets tree interfaces source)
+  (define (walk value)
+    (cond
+      [(node? value)
+       (when (and (eq? (node-kind value) 'kind-test)
+                  (not (memq (node-value value) value-kind-names))
+                  (not (resolve-interface-reference interfaces (node-value value))))
+         (read-error source (node-at value)
+                     (format "unknown interface ~a after is" (node-value value))))
+       (walk (node-value value))
+       (walk (node-children value))]
+      [(pair? value) (walk (car value)) (walk (cdr value))]))
+  (walk tree))
+
 (define (validate-interface-guards declaration template source)
   (define (check fields requirements [outer-names '()] [binder #f])
     (define names
@@ -1636,6 +1666,7 @@
      (values name (map node->datum (node-children form))))
    (lambda (name message)
      (read-error source (node-at (hash-ref interfaces name)) message))))
+  (validate-kind-targets program resolved-interfaces source)
   (for ([(name declaration) (in-hash interfaces)])
     (validate-interface-guards declaration (hash-ref resolved-interfaces name) source))
   (for ([form (in-list (node-children program))]
