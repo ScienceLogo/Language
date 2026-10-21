@@ -168,11 +168,20 @@
                    [(*) (* a b)]
                    [(/) (/ a b)]
                    [else no-constant])])])]
+      [`(compare in (,left ,right))
+       (define container (plain-value (constant-value right lookup #t)))
+       (cond
+         [(hash? container)
+          (match left
+            [`(result ,name) (hash-has-key? container name)]
+            [_ no-constant])]
+         [(list? container) (list-membership (constant-value left lookup #t) container)]
+         [(eq? container 'unknown) 'unknown]
+         [else no-constant])]
       [`(compare ,operator (,left ,right))
        (define a (plain-value (constant-value left lookup #t)))
        (define b (plain-value (constant-value right lookup #t)))
        (cond
-         [(eq? operator 'in) (list-membership a b)]
          [(or (contains-unavailable? a) (contains-unavailable? b)) no-constant]
          [(eq? operator '==) (equal? a b)]
          [(eq? operator '!=) (not (equal? a b))]

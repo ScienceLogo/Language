@@ -30,6 +30,8 @@ rejects `unknown` and a planning interface that explicitly permits it with
 `period = unknown`.
 The [list-membership example](list-membership.rkt) uses `value in list`
 in a condition and in an interface requirement for allowed timing methods.
+The [field-presence example](field-presence.rkt) uses the same `in` operator
+to check record fields and list items. A field containing `unknown` is present.
 The [value-kind example](value-kinds.rkt) requires numeric measured periods
 and explicitly permits unknown numeric values for planned periods.
 The [unknown-equality example](unknown-equality.rkt) uses `period == unknown`

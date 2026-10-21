@@ -317,35 +317,52 @@
               [(hash-has-key? (car remaining) (node-value value))
                (hash-ref (car remaining) (node-value value))]
               [else (loop (cdr remaining))]))])]))
-  (define (add-use activity-id value inputs scopes)
+  (define (add-use activity-id value inputs scopes [guard #f])
+    (define (use-relation kind from to at)
+      (if guard
+          (set! relations
+                (cons (guarded-relation-model kind from to (origin at) guard activity-id) relations))
+          (add-relation kind from to at)))
     (define key (proposition-key value))
     (cond
       [(resource-path? value)
-       (add-relation 'reads-from activity-id
+       (use-relation 'reads-from activity-id
                      (hash-ref resource-ids (path-root value)) (node-at value))]
       [(and key (hash-has-key? proposition-ids key))
-       (add-relation 'uses activity-id
+       (use-relation 'uses activity-id
                      (hash-ref proposition-ids key) (node-at value))]
       [else
        (case (node-kind value)
-         [(list fields field-entry proposition-value uncertain field-ref range compare kind-test typed-default
+         [(compare)
+          (define left (first (node-children value)))
+          (define right (second (node-children value)))
+          (cond
+            [(and (eq? (node-value value) 'in) (eq? (node-kind left) 'result))
+             (when (or (for/or ([scope (in-list scopes)]) (hash-has-key? scope (node-value left)))
+                       (hash-has-key? inline-interfaces (node-value left))
+                       (hash-has-key? performer-ids (node-value left)))
+               (add-use activity-id left inputs scopes
+                        (combine-interface-guards guard `(kind-test list (,(node->datum right))))))]
+            [else (add-use activity-id left inputs scopes guard)])
+          (add-use activity-id right inputs scopes guard)]
+         [(list fields field-entry proposition-value uncertain field-ref range kind-test typed-default
                 binary unary augment dot-update)
           (for ([part (in-list (node-children value))])
-            (add-use activity-id part inputs scopes))]
+            (add-use activity-id part inputs scopes guard))]
          [(dot-select)
-          (add-use activity-id (car (node-children value)) inputs scopes)]
+          (add-use activity-id (car (node-children value)) inputs scopes guard)]
          [else
           (define item-id (resolve-item value inputs scopes))
           (when item-id
-            (add-relation 'uses activity-id item-id (node-at value))
+            (use-relation 'uses activity-id item-id (node-at value))
             (define producer
               (for/first ([item (in-list items)]
                           #:when (equal? (item-model-id item) item-id))
                 (item-model-producer item)))
             (when producer
-              (add-relation 'depends-on activity-id producer (node-at value)))
+              (use-relation 'depends-on activity-id producer (node-at value)))
             (for ([updater (in-list (hash-ref update-sites item-id '()))])
-              (add-relation 'depends-on activity-id updater (node-at value))))])]))
+              (use-relation 'depends-on activity-id updater (node-at value))))])]))
   (define (build-block body parent inputs scopes)
     (define previous #f)
     (define current-stage #f)
@@ -679,6 +696,7 @@
   (define (qualified prefix name)
     (string->symbol (string-append prefix (symbol->string name))))
   (define declared (make-hasheq))
+  (define inferred (make-hash))
   (define (collect forms [prefix ""])
     (for ([form (in-list forms)])
       (case (node-kind form)
@@ -714,15 +732,18 @@
         [(interface-requirement interface-for-each)
          (define iteration? (eq? (node-kind form) 'interface-for-each))
          (define expression (if iteration? (node->datum form) (node->datum (node-value form))))
-         (for ([path (in-list (requirement-entry-references expression))])
+         (for ([reference (in-list (requirement-entry-reference-guards expression))])
+           (define path (car reference))
+           (define entry-guard (combine-interface-guards guard (cdr reference)))
            (define name (qualified prefix (string->symbol (string-join (map symbol->string path) "."))))
-           (unless (hash-has-key? declared name)
-             (hash-set! declared name #t)
-             (define child-id (element-id id 'required-value (node-at form) name))
+           (define key (list name entry-guard))
+           (unless (or (hash-has-key? declared name) (hash-has-key? inferred key))
+             (hash-set! inferred key #t)
+             (define child-id (element-id id 'required-value (node-at form) key))
              (set! conditions
                    (cons (condition-model child-id
                                           'required-entry name scope 'interface #f
-                                          (origin (node-at form)) guard) conditions))
+                                          (origin (node-at form)) entry-guard) conditions))
              (unless (equal? scope id)
                (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form))) relations)))))
          (define condition-id

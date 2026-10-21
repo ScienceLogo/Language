@@ -1592,6 +1592,10 @@
            (for ([selector (in-list (cdadr value))]
                  #:unless (eq? (car selector) 'result))
              (expression selector))]
+          [(compare)
+           (match value
+             [`(compare in ((result ,_) ,right)) (expression right)]
+             [_ (for ([part (in-list value)]) (expression part))])]
           [else (for ([part (in-list value)]) (expression part))])))
     (for ([field (in-list fields)])
       (when (and binder
@@ -1711,7 +1715,13 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list fields field-entry proposition-value uncertain range compare kind-test typed-default binary unary augment
+      [(compare)
+       (match (node-children value)
+         [(list left right)
+          (unless (and (eq? (node-value value) 'in) (eq? (node-kind left) 'result))
+            (check-value left inputs results))
+          (check-value right inputs results)])]
+      [(list fields field-entry proposition-value uncertain range kind-test typed-default binary unary augment
              dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]

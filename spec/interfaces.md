@@ -228,8 +228,30 @@ establish can leave membership undetermined. The required-field
 rules still apply: an explicitly unknown required field is rejected unless
 its declaration permits it. Permitting an unknown does not establish a match.
 
-The reader preserves membership as `(compare in (value list-expression))`,
-including references to both operands. It uses comparison precedence and
+The same syntax checks a record for an immediate field:
+
+```text
+interface "Trial" [
+  details [notes]
+  if notes in details [must [reviewer]]
+]
+```
+
+With a record receiver, the bare word `notes` is its field label, not a
+separate value required in `Trial`. The optional field stays optional.
+The branch applies whenever the key exists, including when its value is
+`unknown`. `must [notes in details]` requires presence without constraining
+the field's value. Nested receivers, groups, per-item rules, and inherited
+interfaces use the same interpretation.
+
+The reader preserves both checks as `(compare in (left right))`.
+A bare `(result name)` on the left is contextual: a field label for a record,
+a value reference for a list. The model guards a candidate value dependency
+or inferred required entry with `(kind-test list (right))`; it does not make
+a separate value compulsory when the receiver is a record. The checker
+resolves this using the supplied receiver. An unavailable receiver remains
+undetermined, rather than being treated as an empty record.
+The operator uses comparison precedence and
 cannot be chained with another comparison. See the
 [general expression rules](first-slice.md#lists-ranges-loops-and-conditions)
 and the [runnable example](../examples/list-membership.rkt).

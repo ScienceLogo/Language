@@ -167,6 +167,21 @@ Required fields still reject @tt{unknown} unless explicitly permitted.
 The marker can match a list item: @tt{unknown in [unknown]} is true, while
 @tt{unknown in ["manual" "video"]} is false. An unknown list or values the
 checker cannot establish can leave membership undetermined.
+
+The same @tt{in} checks field presence when its right operand is a record:
+
+@verbatim|{
+interface "Trial" [
+  details [notes]
+  if notes in details [must [reviewer]]
+]
+}|
+
+Here @tt{notes} is an unquoted field name in @tt{details}, not a separate
+entry in @tt{Trial}. The optional field stays optional. If it is present,
+even with value @tt{unknown}, the branch requires @tt{reviewer}.
+@tt{must [notes in details]} instead requires that field to be present;
+the presence test alone does not constrain its value.
 @secref["values"] gives the expression rules.
 
 @section{Declaration forms}

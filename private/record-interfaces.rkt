@@ -20,6 +20,7 @@
          interface-requirement-results
          requirement-references
          requirement-entry-references
+         requirement-entry-reference-guards
          interface-guard-value
          interface-value
          iteration-template
@@ -33,7 +34,7 @@
 (struct requirement-result (scope expression outcome missing) #:transparent)
 
 ;; A requirement's names refer to entries of its surrounding interface part.
-(define (requirement-references expression)
+(define (requirement-reference-guards expression)
   (define references '())
   (define (path expression)
     (match expression
@@ -42,28 +43,44 @@
        (define parent (path receiver))
        (and parent (append parent (list name)))]
       [_ #f]))
-  (define (walk expression)
+  (define (walk expression [guard #f])
     (define location (path expression))
-    (cond [location (set! references (cons location references))]
+    (cond [location (set! references (cons (cons location guard) references))]
           [(pair? expression)
            (match expression
              [`(literal ,_) (void)]
-             [`(interface-for-each ,_ ,collection ,_) (walk collection)]
-             [`(fields ,entries) (for ([entry (in-list entries)]) (walk (cadr entry)))]
+             [`(interface-for-each ,_ ,collection ,_) (walk collection guard)]
+             [`(fields ,entries) (for ([entry (in-list entries)]) (walk (cadr entry) guard))]
+             [`(compare in (,(and left `(result ,_)) ,right))
+              ;; A bare word supplies a value only when the receiver is a list.
+              ;; For a record it is a field label, even if that name is bound.
+              (walk left (combine-interface-guards guard `(kind-test list (,right))))
+              (walk right guard)]
              [`(dot-select (,receiver ,selectors ...))
-              (walk receiver)
+              (walk receiver guard)
               (for ([selector (in-list selectors)] #:unless (eq? (car selector) 'result))
-                (walk selector))]
-             [_ (for ([part (in-list expression)]) (walk part))])]))
+                (walk selector guard))]
+             [_ (for ([part (in-list expression)]) (walk part guard))])]))
   (walk expression)
   (remove-duplicates (reverse references)))
 
-;; A list's count is derived from its container, not a separately supplied part.
-(define (requirement-entry-references expression)
+(define (requirement-references expression [record #f])
   (remove-duplicates
-   (for/list ([path (in-list (requirement-references expression))])
+   (for/list ([reference (in-list (requirement-reference-guards expression))]
+              #:when (or (not record) (not (cdr reference))
+                         (eq? (interface-guard-value (cdr reference) record) #t)))
+     (car reference))))
+
+;; A list's count is derived from its container, not a separately supplied part.
+(define (requirement-entry-reference-guards expression)
+  (remove-duplicates
+   (for/list ([reference (in-list (requirement-reference-guards expression))])
+     (define path (car reference))
      (define position (index-of (cdr path) 'count))
-     (if position (take path (add1 position)) path))))
+     (cons (if position (take path (add1 position)) path) (cdr reference)))))
+
+(define (requirement-entry-references expression)
+  (remove-duplicates (map car (requirement-entry-reference-guards expression))))
 
 ;; Declarations map interface names to reader datums: (extends Parent) and
 ;; (interface-field name default-or-#f required? children-or-#f), conditional
@@ -334,7 +351,7 @@
 (define (required-value-gaps fields expression record evaluate)
   (define invalid '())
   (define pending '())
-  (for ([reference (in-list (requirement-references expression))])
+  (for ([reference (in-list (requirement-references expression record))])
     ;; A known record's count is an ordinary field. If the receiver of
     ;; .count is unknown, check its declaration instead of its derived size.
     (define path
@@ -506,7 +523,7 @@
            (define-values (invalid pending-values)
              (required-value-gaps fields expression value evaluate))
            (define missing
-             (for/list ([path (in-list (requirement-references expression))]
+             (for/list ([path (in-list (requirement-references expression value))]
                         #:when (eq? (path-value value path) absent))
                (path-label (locate prefix path))))
            (define outcome

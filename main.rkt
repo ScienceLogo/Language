@@ -451,15 +451,22 @@
                       (when (zero? y)
                         (error 'run-program "division by zero"))
                       (/ x y)])))])]
+         [`(compare in (,left ,right))
+          (define container (plain-value (value-of right inputs scopes)))
+          (cond
+            [(hash? container)
+             (match left
+               [`(result ,name) (hash-has-key? container name)]
+               [_ (error 'run-program "in needs an unquoted field name on the left of a record")])]
+            [(list? container)
+             (define answer (list-membership (value-of left inputs scopes) container))
+             (if (eq? answer no-constant) 'unknown answer)]
+            [(eq? container 'unknown) 'unknown]
+            [else (error 'run-program "in needs a list or record on its right")])]
          [`(compare ,operator (,left ,right))
           (define a (plain-value (value-of left inputs scopes)))
           (define b (plain-value (value-of right inputs scopes)))
           (cond
-            [(eq? operator 'in)
-             (unless (or (list? b) (eq? b 'unknown))
-               (error 'run-program "in needs a list on its right"))
-             (define answer (list-membership a b))
-             (if (eq? answer no-constant) 'unknown answer)]
             [(eq? operator '==) (equal? a b)]
             [(eq? operator '!=) (not (equal? a b))]
             [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]

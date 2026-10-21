@@ -132,7 +132,29 @@ for each length in lengths [print length]
 One named range can be reused in several loops. Range values may start at
 zero; the one-based rule applies only to list positions.
 
-@section{List membership}
+@section{Membership and field presence}
+
+Use @tt{in} for both checks. The value on the right determines what is checked:
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Form") (bold "Meaning"))
+   (list (tt "value in list") "Does the list contain an equal item?")
+   (list (tt "field in record") "Does the record contain that named field?")))
+
+@verbatim|{
+trial = [period = unknown method = "manual"]
+if period in trial [print "period is present"]
+if not (notes in trial) [print "notes is absent"]
+}|
+
+For a record, the left word is an unquoted field name. It need not name a
+variable, and a variable with the same name does not change which field is
+checked. Presence gives @tt{true} even when the field's value is
+@tt{unknown} or @tt{false}; a missing field gives @tt{false}.
+Only the immediate fields are checked. Use a nested record on the right,
+such as @tt{notes in trial.details}, to check a field inside it.
+Quoted text and other value expressions are not record field selectors.
 
 @tt{value in list} tests whether a value equals an item in a list:
 
@@ -144,8 +166,8 @@ if accepted [print method]
 }|
 
 The right side can be a literal list, a named list, a nested list field,
-or a range. It must evaluate to a list; a known non-list value raises an
-error when the expression runs. Membership compares whole items using
+or a range. With a list on the right, names on the left supply their stored
+values. Membership compares whole items using
 the same equality as @tt{==}; it does not search inside an item's fields
 or nested lists. For example, @tt{1 in [[1 2]]} is @tt{false}.
 
@@ -153,15 +175,18 @@ A matching item returns @tt{true}; if every comparison is false, membership
 returns @tt{false}. An empty list always gives @tt{false}. The explicit
 @tt{unknown} marker is compared like other items: @tt{unknown in [unknown]}
 is @tt{true}, while @tt{2 in [unknown 1]} is @tt{false}.
-When the entire list is @tt{unknown}, membership remains @tt{unknown}.
+When the entire list or record is @tt{unknown}, the check remains @tt{unknown}.
 A checker unable to establish an operand can also leave the result undetermined.
+Any known right operand other than a list or record raises an error when run.
 
 Membership works wherever expressions are accepted, including procedure
 inputs and outputs, conditions, and interface requirements. Use
 @tt{not (method in methods)} to negate it. It has the same precedence as
 @tt{==}; comparisons cannot be chained. The
 @hyperlink[(source-file-url "examples/list-membership.rkt")]{runnable example}
-uses both a named list and an interface requirement.
+uses both a named list and an interface requirement. The
+@hyperlink[(source-file-url "examples/field-presence.rkt")]{field-presence example}
+shows both checks together.
 
 @section{Value kind tests}
 

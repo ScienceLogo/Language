@@ -50,9 +50,9 @@
                 "true\ntrue\ntrue\ntrue\n[true false]\n")
   (check-equal? (run "method = \"video\"\nif method in [\"manual\"] [print \"manual\"] else if method in [\"video\"] [print \"video\"] else [print \"other\"]\nfor each value in [1 2] [print value in [2]]\ncount = 0\nwhile count in [0 1] [count += 1]\nrepeat [count += 1] until count in [3]\nprint count\n")
                 "video\nfalse\ntrue\n3\n")
-  (check-exn #rx"in needs a list on its right"
+  (check-exn #rx"in needs a list or record on its right"
              (lambda () (run "print \"manual\" in \"manual\"\n")))
-  (check-exn #rx"in needs a list on its right"
+  (check-exn #rx"in needs an unquoted field name"
              (lambda () (run "print 1 in [method = \"manual\"]\n")))
   (check-exn #rx"comparison cannot be chained"
              (lambda () (run "print 1 in [1] == true\n")))

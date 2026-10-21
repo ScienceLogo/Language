@@ -474,8 +474,7 @@ uses this equality rule in conditional interface requirements.
 `value in list` tests whether a value equals one whole item in a list.
 For example, `method in ["manual" "video"]` is the same condition as
 `method == "manual" or method == "video"`. The list can be named, accessed
-through a dotted path, or produced by a range. The right side must be a list;
-a known non-list value raises an error when the expression runs. Membership
+through a dotted path, or produced by a range. Membership
 works in assignments, procedure arguments and outputs, conditions, and
 interface requirements. `not (value in list)` negates it.
 
@@ -487,6 +486,21 @@ is false, it gives `false`. An empty list always gives `false`, including
 result, as can an operand the checker cannot establish.
 The [membership example](../examples/list-membership.rkt) uses a named list
 and an interface requirement.
+
+The same operator checks record field presence: `field in record`. For
+example, `period in [period = unknown]` is `true`, and
+`notes in [period = 2]` is `false`. The left word is the unquoted field name,
+even if a variable with that name exists; it need not be declared as a
+variable. With a list on the right, the left operand instead supplies a
+value, so `method in methods` uses the value of `method`.
+
+Field presence checks only immediate keys, regardless of their values.
+`unknown` and `false` values still count as present. Use a nested receiver,
+such as `notes in trial.details`, to check inside a record. Quoted text and
+other value expressions are not record field selectors. An unknown receiver
+gives `unknown`; a known receiver other than a list or record is an error
+when run. Both checks work in all expression positions. See the
+[field-presence example](../examples/field-presence.rkt).
 
 The range is an ordered sequence of exact numbers. It includes the end only
 when a whole number of steps lands on it. Its bounds and step can also be
