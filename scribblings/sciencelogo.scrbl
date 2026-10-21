@@ -71,6 +71,7 @@ page states what its forms currently do.
 
 @include-section["getting-started.scrbl"]
 @include-section["reference.scrbl"]
+@include-section["grammar.scrbl"]
 @include-section["values.scrbl"]
 @include-section["procedures.scrbl"]
 @include-section["stages.scrbl"]

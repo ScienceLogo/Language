@@ -1,0 +1,150 @@
+(* ScienceLogo compact grammar
+   Status: current compact forms, with the disambiguation and context rules
+   on the manual's Compact grammar page (scribblings/grammar.scrbl). Those
+   rules are part of this grammar.
+   No verbose forms or scientific assessment algorithms are defined here.
+
+   Notation: = defines; , sequences; | chooses; [ ] makes optional;
+   { } repeats zero or more times; ( ) groups; ? ... ? describes a condition.
+   Quoted strings are literal source text, with no escape processing in EBNF.
+   Thus "[" is a ScienceLogo bracket, but [ expression ] is EBNF notation.
+   EOF means end of file. Lexical rules work on characters. Reference, input,
+   and dotted-path rules also describe parts within word tokens: a dot is
+   attached to the following segment or bracket. Other rules work on tokens.
+   The expression rules also use the precedence rules in the manual.
+*)
+
+(* Files. A fragment's role is determined by the file that includes it. *)
+workflow-file = header, [ workflow-title ], { import }, { workflow-form }, EOF ;
+library-file = header, "library", text, "[", { library-form }, "]", EOF ;
+interface-file = header, interface, EOF ;
+workflow-fragment = header, { workflow-form }, EOF ;
+library-fragment = header, { procedure | interface | include }, EOF ;
+header = ? first line, trimmed, is exactly #lang sciencelogo ? ;
+workflow-title = "workflow", text ;
+workflow-form = procedure | interface | include | performer | resource
+              | proposition | obligation | file-provisions | command ;
+library-form = procedure | interface | include | import ;
+
+(* Words, names, numbers, and strings. *)
+word = word-character, { word-character } ;
+word-character = ? a non-whitespace character other than [ ] ( ) ; " # ? ;
+name = ? a word other than a reserved word, not beginning with : ? ;
+simple-name = ? a name containing no dot ? ;
+entry-name = ? a name not beginning with an optional sign and a digit ? ;
+segment = ? a nonempty dot-separated part of a word ? ;
+reference = simple-name, { ".", segment } ;
+input = ":", input-name ;
+input-name = ? a nonempty word with no dot, following : in the same token ? ;
+number = [ "+" | "-" ], digits, [ ".", digits ] ;
+digits = digit, { digit } ;
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+text = '"', { string-character | escape }, '"' ;
+string-character = ? any character except double quote and backslash ? ;
+escape = "\", ( "a" | "b" | "t" | "n" | "v" | "f" | "r" | "e"
+               | '"' | "'" | "\" | octal-escape | hex-escape | line-ending ) ;
+octal-escape = ? 1 to 3 octal digits, longest match, value 0 through 255 ? ;
+hex-escape = ? x then 1 to 2 hex digits; u then 1 to 4; U then 1 to 8;
+               longest match; a valid Unicode scalar, or a paired u escape
+               encoding a valid UTF-16 surrogate pair ? ;
+line-ending = ? LF, CR, or CR followed by LF ? ;
+
+(* Comments and whitespace are discarded between tokens, not inside text. *)
+line-comment = ";", { ? any character other than LF ? }, [ ? LF ? ] ;
+block-comment = "#|", { block-comment | block-comment-character }, "|#" ;
+block-comment-character = ? a character not starting #| or |# ? ;
+
+(* Expressions. Precedence and the stopping rules are defined in the manual.
+   A prefix operator can occur wherever an operand begins. *)
+expression = operand, { binary-operator, operand | "is", type-target } ;
+operand = "-", expression | "not", expression | primary, { suffix } ;
+primary = number | text | "true" | "false" | "unknown" | value-reference
+        | list | record | range | proposition | "(", expression, ")" ;
+value-reference = reference | input, { ".", segment } | proposition-collection ;
+binary-operator = "+" | "-" | "*" | "/" | "==" | "!=" | "<" | "<="
+                | ">" | ">=" | "in" | "and" | "xor" | "or" ;
+type-target = "number" | "text" | "boolean" | "list" | "record" | reference ;
+list = "[", { expression }, "]" ;
+record = "[", field, { field }, "]" ;
+field = field-name, "=", expression ;
+field-name = name | proposition-collection ;
+object = record | "[", "]" ;
+range = "range", expression, "to", expression, "step", expression ;
+suffix = ".", segment | ".", selection | ".", object | "u", uncertainty ;
+selection = "[", expression, { expression }, "]" ;
+
+(* Declarations and ordinary commands. Context rules restrict their placement. *)
+procedure = "to", simple-name, { input }, block ;
+block = "[", { command }, "]" ;
+command = assignment | dotted-update | call | state-call | "do", block
+        | "print", expression | "output", expression
+        | repeat | while | for-each | conditional | stage | mapping ;
+assignment = target, ( "=" | "+=" ), expression ;
+target = value-reference, { path-suffix } ;
+path-suffix = ".", segment | ".", selection ;
+dotted-update = target, ".", object ;
+call = "do", reference, { expression }, [ "as", simple-name ] ;
+repeat = "repeat", expression, block | "repeat", block, "until", expression ;
+while = "while", expression, block ;
+for-each = "for", "each", simple-name, "in", expression, block ;
+conditional = "if", expression, block,
+              { "else", "if", expression, block }, [ "else", block ] ;
+
+(* Stages. A paired stage has entry and exit state and location-based calls. *)
+stage = "stage", text
+      | "stage", text, [ "by", simple-name ], "from", state,
+        { command }, "end", "stage", "with", state ;
+state = "state", "[", { state-set }, "]" ;
+state-set = ( "information" | "environment" | "factors" ), "=", object ;
+state-call = "do", reference, [ "by", simple-name ],
+             [ "with", "[", { input-mapping }, "]" ], "into", location ;
+input-mapping = simple-name, "at", location ;
+location = ( "information" | "environment" | "factors" ), ".", segment,
+           { ".", segment | ".", "[", position, "]" } ;
+position = ? a positive integer literal or a stage control name ? ;
+performer = "performer", simple-name, object ;
+resource = "resource", simple-name, object ;
+
+(* Named propositions can occur as declarations or as values. *)
+proposition = proposition-type, simple-name, proposition-object ;
+proposition-type = "hypothesis" | "assumption" | "conclusion" ;
+proposition-collection = "hypotheses" | "assumptions" | "conclusions" ;
+proposition-object = "[", { proposition-field }, "]" ;
+proposition-field = "text", "=", expression
+                  | proposition-collection, "=", proposition-children ;
+proposition-children = "[", { simple-name, "=", proposition-object }, "]" ;
+
+(* Uncertainty source fields are open; only the two collection names are fixed. *)
+uncertainty = "[", { ( "declared" | "omitted" ), "=", sources }, "]" ;
+sources = "[", { name, "=", object }, "]" ;
+
+(* Interface bodies and nested parts share their entry rules. *)
+interface = "interface", text, "[", { interface-root-entry }, "]" ;
+interface-root-entry = "version", text | "extends", reference | interface-entry ;
+interface-body = "[", { interface-entry }, "]" ;
+interface-entry = field-declaration | required-group | interface-if
+                | interface-for-each | "affects", reference, reference ;
+field-declaration = entry-name, ( [ "=", default-value ]
+                              | "is", type-target | interface-body ) ;
+default-value = expression, [ unknown-type-suffix ] ;
+unknown-type-suffix = type-target ;
+required-group = "must", "[", required-entry, { required-entry }, "]" ;
+required-entry = field-declaration | value-requirement ;
+value-requirement = expression ;
+interface-if = "if", expression, interface-body,
+               { "else", "if", expression, interface-body },
+               [ "else", interface-body ] ;
+interface-for-each = "for", "each", simple-name, "in", expression, interface-body ;
+
+(* Mappings and top-level requirements on the written method. *)
+mapping = ( target | text ), "implement", ( reference | text ) ;
+obligation = "must", "do", reference
+           | "must", "stages", "in", "order", "[", text, text, { text }, "]" ;
+
+(* Older supported file-reference form; locators are text, not direct mappings. *)
+file-provisions = "implements", text, "as", name,
+                  "[", { "provide", name, "by", text }, "]" ;
+
+(* Source dependencies are separate from external data resource paths. *)
+import = "import", text, "at", text, "as", simple-name ;
+include = "include", text ;

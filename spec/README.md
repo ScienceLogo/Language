@@ -13,6 +13,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 
 | Document | Role and current status |
 | --- | --- |
+| [Compact grammar](compact.ebnf) | Current compact forms in one grammar; the [manual's grammar page](../scribblings/grammar.scrbl) supplies disambiguation, placement, and resolution rules and identifies reader limitations. |
 | [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
 | [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, value kinds and defaults, explicit unknown permissions, optional entries, nested protocol parts, conditional and per-item requirements, and shared structural checks. |
 | [Libraries](libraries.md) | Accepted layout, import, and include rules. |

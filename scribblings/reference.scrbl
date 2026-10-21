@@ -15,6 +15,10 @@ without defaults are optional. An @tt{is} constraint outside @tt{must},
 such as @tt{notes is text}, checks the field when supplied; see
 @secref["interfaces"].
 
+@secref["compact-grammar"] collects all compact forms and their parsing rules
+in one reference, with a standalone grammar for implementations in other
+languages.
+
 @section{How to read the forms}
 
 In a form such as @tt{to name :input [ ... ]}, command words such as @tt{to}
