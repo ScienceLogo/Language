@@ -109,6 +109,12 @@ pendulum.
   `(kind-test number ((result period)))`. Kind labels are not variable
   references. Preserve these forms through inheritance, imports, and nested
   requirements, with their source locations.
+  A named-interface unknown default uses the same form, for example
+  `(typed-default timing-tools.Timing ((literal unknown)))`. Preserve its
+  compulsory presence, default, explicit unknown permission, and resolved
+  interface reference as one field declaration. The suffix does not create
+  another required field. An existing object is checked without inserting
+  child defaults; an unavailable value stays distinct from explicit unknown.
   A named interface test retains its resolved reference, as in
   `(kind-test timing-tools.Timing ((result timing)))`. The Racket
   `interface-model` also retains `declarations`: the interface definitions

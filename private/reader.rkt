@@ -614,7 +614,6 @@
                      "an inline interface needs a name usable as a value"))
        (expect 'open "[ after the interface name")
        (define declaration (node 'interface name (parse-interface-body) command))
-       (validate-interface declaration source)
        declaration]
       ["performer"
        (unless (and definitions-allowed? (not in-procedure?)
@@ -852,12 +851,20 @@
                   (and (eq? (node-kind value) 'uncertain)
                        (unknown-default? (car (node-children value)))))))
        (define declared-default
-         (if (and (unknown-default? default)
-                  (eq? (token-kind (current)) 'word)
-                  (memq (string->symbol (token-value (current))) value-kind-names))
-             (let ([kind (advance!)])
-               (node 'typed-default (string->symbol (token-value kind)) (list default) kind))
-             default))
+         (cond
+           [(and (unknown-default? default) (eq? (token-kind (current)) 'word)
+                 (memq (string->symbol (token-value (current))) value-kind-names))
+            (define kind (advance!))
+            (node 'typed-default (string->symbol (token-value kind)) (list default) kind)]
+           [(and (unknown-default? default) (eq? (token-kind (current)) 'word)
+                 (andmap valid-inline-interface-name?
+                         (string-split (token-value (current)) "." #:trim? #f)))
+            ;; Keep parsing the following entry normally. Once includes and
+            ;; imports are known, a declared interface can identify this word
+            ;; as a suffix instead. Its token prevents crossing must groups.
+            (node 'pending-typed-default (string->symbol (token-value (current)))
+                  (list default) (current))]
+           [else default]))
        (node (if (or required? default) 'required-interface-field 'interface-field)
              (string->symbol name) (if declared-default (list declared-default) '()) command)]))
   (define (parse-required-entries)
@@ -992,7 +999,6 @@
           (unless (valid-inline-interface-name? title)
             (read-error source start
                         "an inline interface needs a name usable as a value"))
-          (validate-interface declaration source)
           (cons declaration (parse-to-eof #t #f)))
         forms))
   (unless (eq? (token-kind (current)) 'eof)
@@ -1016,21 +1022,24 @@
       [(workflow) (node 'workflow (if inline-first? #f title)
                            (append (resolve-imports imports)
                                    workflow-forms) start)]))
+  (define normalized-result
+    (if (memq (node-kind result) '(workflow interface))
+        (resolve-typed-defaults result) result))
   (cond
     [(memq (node-kind result) '(fragment workflow-fragment)) result]
     [(eq? (node-kind result) 'interface)
-     (validate-interface result source)
-     (for ([form (in-list (node-children result))]
+     (validate-interface normalized-result source)
+     (for ([form (in-list (node-children normalized-result))]
            #:when (eq? (node-kind form) 'extends))
        (read-error source (node-at form)
                    "standalone interfaces cannot extend a local interface"))
      (define name (string->symbol (node-value result)))
      (define resolved
-       (resolve-record-interfaces (hasheq name (map node->datum (node-children result)))))
-     (validate-kind-targets result resolved source)
+       (resolve-record-interfaces (hasheq name (map node->datum (node-children normalized-result)))))
+     (validate-kind-targets normalized-result resolved source)
      (validate-interface-guards
-      result (hash-ref resolved name) source)
-     result]
+      normalized-result (hash-ref resolved name) source)
+     normalized-result]
     [(and (eq? (node-kind result) 'library) (not expand-local?)) result]
     [(eq? (node-kind result) 'library)
      (define directory (path-only (path->complete-path source)))
@@ -1045,23 +1054,62 @@
                           (read-error source at (format "missing included file ~a" path)))
                         (file->string full))
                       (format "~a" source))]))
-     (check-direct-calls (node-children expanded) source)
      (define local-imports
        (filter (lambda (form) (eq? (node-kind form) 'import))
                (node-children expanded)))
-     (define checked
+     (define assembled
        (struct-copy node expanded
                     [children (append (resolve-imports local-imports)
                                       (filter (lambda (form)
                                                 (not (eq? (node-kind form) 'import)))
                                               (node-children expanded)))]))
+     (define names (interface-names-in assembled))
+     (define checked (resolve-typed-defaults assembled names))
+     (check-direct-calls (node-children (resolve-typed-defaults expanded names)) source)
      (validate-program checked source)
      checked]
     [else
      (when (eq? (node-kind result) 'workflow)
-       (check-direct-calls workflow-forms source))
-     (validate-program result source)
-     result]))
+       (check-direct-calls
+        (node-children
+         (resolve-typed-defaults (struct-copy node result [children workflow-forms])
+                                 (interface-names-in result))) source))
+     (validate-program normalized-result source)
+     normalized-result]))
+
+(define (interface-names-in tree)
+  (if (eq? (node-kind tree) 'interface) (list (string->symbol (node-value tree)))
+      (for/list ([form (in-list (node-children tree))] #:when (eq? (node-kind form) 'interface))
+        (string->symbol (node-value form)))))
+
+(define (resolve-typed-defaults tree [names (interface-names-in tree)])
+  (define interfaces (for/hasheq ([name (in-list names)]) (values name #t)))
+  (define (walk form)
+    (struct-copy node form [children (walk-forms (node-children form))]))
+  (define (walk-forms forms)
+    (cond
+      [(null? forms) '()]
+      [else
+       (define form (car forms))
+       (define pending
+         (and (memq (node-kind form) '(interface-field required-interface-field))
+              (pair? (node-children form))
+              (eq? (node-kind (car (node-children form))) 'pending-typed-default)
+              (car (node-children form))))
+       (cond
+         [pending
+          (define next (and (pair? (cdr forms)) (cadr forms)))
+          (define suffix?
+            (and next (memq (node-kind next) '(interface-field required-interface-field))
+                 (null? (node-children next)) (equal? (node-at next) (node-at pending))
+                 (interface-reference-root interfaces (node-value pending))))
+          (define default
+            (if suffix? (struct-copy node pending [kind 'typed-default])
+                (car (node-children pending))))
+          (cons (struct-copy node form [children (list (walk default))])
+                (walk-forms (if suffix? (cddr forms) (cdr forms))))]
+         [else (cons (walk form) (walk-forms (cdr forms)))])]))
+  (walk tree))
 
 (define (parse-program in source)
   (node->datum (parse-tree in source)))
@@ -1210,7 +1258,7 @@
   (define (qualify-value value)
     (cond
       [(not (node? value)) value]
-      [(eq? (node-kind value) 'kind-test)
+      [(memq (node-kind value) '(kind-test typed-default))
        (define target (node-value value))
        (define root
          (and (not (memq target value-kind-names))
@@ -1372,7 +1420,6 @@
                                      "-C" (path->string checkout) "show"
                                      (string-append commit ":" path)))
                        source-label)]))
-      (check-direct-calls (node-children expanded) source)
       (define local-imports
         (filter (lambda (form) (eq? (node-kind form) 'import))
                 (node-children expanded)))
@@ -1389,15 +1436,17 @@
                                 (string-prefix? (node-value form) alias-prefix)))
            (string->symbol
             (substring (node-value form) (string-length alias-prefix))))))
+      (define normalized-expanded (resolve-typed-defaults expanded interface-names))
+      (check-direct-calls (node-children normalized-expanded) source)
       (define local-definitions
         (map (lambda (form)
                (qualify-library-form
                 form qualified-alias interface-names
                 (map procedure-name
                      (filter (lambda (form) (eq? (node-kind form) 'to))
-                             (node-children expanded)))))
+                             (node-children normalized-expanded)))))
              (filter (lambda (form) (memq (node-kind form) '(to interface)))
-                     (node-children expanded))))
+                     (node-children normalized-expanded))))
       (define definitions (append dependencies local-definitions))
       (validate-program (struct-copy node expanded [children definitions]) source)
       (values (struct-copy node import
@@ -1447,7 +1496,7 @@
   (define (check-form form)
     (when (memq (node-kind form) '(result extends))
       (check-private-name (node-value form) (node-at form)))
-    (when (eq? (node-kind form) 'kind-test)
+    (when (memq (node-kind form) '(kind-test typed-default))
       (check-private-name (node-value form) (node-at form) #t))
     (case (node-kind form)
       [(implement)
@@ -1592,11 +1641,12 @@
   (define (walk value)
     (cond
       [(node? value)
-       (when (and (eq? (node-kind value) 'kind-test)
+       (when (and (memq (node-kind value) '(kind-test typed-default))
                   (not (memq (node-value value) value-kind-names))
                   (not (resolve-interface-reference interfaces (node-value value))))
          (read-error source (node-at value)
-                     (format "unknown interface ~a after is" (node-value value))))
+                     (format "unknown interface ~a after ~a" (node-value value)
+                             (if (eq? (node-kind value) 'kind-test) "is" "unknown default"))))
        (walk (node-value value))
        (walk (node-children value))]
       [(pair? value) (walk (car value)) (walk (cdr value))]))
@@ -1673,6 +1723,7 @@
     (define name (string->symbol (node-value form)))
     (when (hash-has-key? interfaces name)
       (read-error source (node-at form) (format "duplicate interface ~a" name)))
+    (validate-interface form source)
     (hash-set! interfaces name form))
   (define resolved-interfaces
     (resolve-record-interfaces

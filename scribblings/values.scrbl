@@ -226,6 +226,8 @@ interface names work here, including @tt{trial is timing-tools.Timing}.
 
 @secref["interfaces"] explains how interface defaults declare kinds and how
 @tt{period = unknown number} explicitly permits an unknown numeric field.
+The corresponding @tt{timing = unknown Timing} supplies and permits unknown
+while checking supplied objects against the named interface.
 
 @section{Operators and conditions}
 

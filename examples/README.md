@@ -38,6 +38,9 @@ The [nested-interface example](nested-interfaces.rkt) reuses `Timing` through
 `must [timing is Timing]` and checks the same interface in an `if` condition.
 The [optional-field example](optional-fields.rkt) uses `notes is text` and
 `review is Review` outside `must` to check fields only when supplied.
+The [interface-default example](interface-defaults.rkt) uses
+`timing = unknown Timing` for a required field that starts as unknown and
+later receives an object matching its interface.
 The [unknown-equality example](unknown-equality.rkt) uses `period == unknown`
 to require an explanation for a pending period and a positive value otherwise.
 

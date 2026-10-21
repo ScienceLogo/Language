@@ -361,6 +361,11 @@ with default `unknown`. The five kinds are `number`, `text`, `boolean`,
 apply during construction and interface checks, without attaching permanent
 kind restrictions to workflow variables. List and record kinds constrain
 their outer values; requirements on their contents remain separate.
+`must [timing = unknown Timing]` uses a named interface in the same suffix
+position. It supplies and permits unknown; a supplied object must satisfy
+`Timing` without having missing child defaults inserted. The field remains
+compulsory. Targets may be local, defined later, included, imported, or a
+nested interface group. See [named unknown defaults](interfaces.md#unknown-defaults-with-named-interfaces).
 See [value kinds](interfaces.md#value-kinds-and-defaults).
 Outside `must [...]`, `notes is text` makes `notes` optional and checks it
 when supplied. The same form can use a named interface, such as

@@ -54,9 +54,11 @@ A concrete default also declares the field's kind. Use these forms:
    (list (tt "must [period is number]") "Number required; no default")
    (list (tt "must [period = 2]") "Number required; default 2")
    (list (tt "must [period = unknown number]") "Number or explicit unknown; default unknown")
+   (list (tt "must [timing = unknown Timing]") "Object matching Timing or explicit unknown; default unknown")
    (list (tt "must [period = unknown]") "No kind restriction; default unknown")))
 
-The suffix after @tt{unknown} can use any of the five kinds. For example,
+The suffix after @tt{unknown} can use any of the five kinds or a declared
+interface reference. For example,
 @tt{must [measurements = unknown list]} permits a list or unknown.
 A concrete list or record default constrains the outer kind; requirements
 on its items or fields are declared separately. An attached @tt{u}
@@ -148,6 +150,45 @@ a circular test with no independent answer remains undetermined.
 
 The @hyperlink[(source-file-url "examples/nested-interfaces.rkt")]{runnable example}
 constructs a timing object and reuses its interface in an experiment.
+
+@subsection{Unknown defaults with named interfaces}
+
+Use @tt{field = unknown Interface} to supply and permit an unknown value
+while checking supplied objects against an interface:
+
+@verbatim|{
+interface "Timing" [
+  must [period is number unit = "seconds"]
+]
+
+interface "Experiment" [
+  must [timing = unknown Timing]
+]
+
+experiment = Experiment.[]
+experiment.timing = Timing.[period = 2]
+experiment implement Experiment
+}|
+
+The @tt{timing} field is compulsory. Construction supplies @tt{unknown}
+when it is omitted. An existing record must contain the field, and its
+value must be either @tt{unknown} or an object satisfying @tt{Timing}.
+The target interface's own field and value rules apply to supplied objects.
+Checking an object does not insert its missing defaults: supplying
+@tt{[period = 2]} fails this interface because @tt{unit} is absent.
+
+The target may be declared later, included, imported as
+@tt{timing-tools.Timing}, or name a nested group such as
+@tt{Protocol.timing}. Its name is unquoted. A following bare word is treated
+as a named suffix when it identifies a declared interface. Other names
+retain their ordinary field meaning. To declare a separate field with the
+same name as an interface after an unknown default, use a separate
+@tt{must [...]} group or put that field earlier.
+
+A further condition keeps its own meaning. For example, adding
+@tt{must [timing is Timing]} leaves an explicitly unknown timing
+undetermined, even though its default declaration permits unknown.
+See the @hyperlink[(source-file-url "examples/interface-defaults.rkt")]{runnable example}.
 
 @subsection{Constraints on optional fields}
 

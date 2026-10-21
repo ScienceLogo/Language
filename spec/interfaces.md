@@ -44,6 +44,7 @@ A record is an object with named fields, such as `[period = 2 unit = "seconds"]`
 | `must [period is number]` | Requires a number; supplies no default. |
 | `must [period = 2]` | Requires a number; defaults to `2`. |
 | `must [period = unknown number]` | Requires a number or explicit `unknown`; defaults to `unknown`. |
+| `must [timing = unknown Timing]` | Requires an object matching `Timing` or explicit `unknown`; defaults to `unknown`. |
 | `must [period = unknown]` | Supplies and permits `unknown`, with no kind restriction. |
 
 Concrete defaults infer only the outer kind: a list default requires a
@@ -53,7 +54,8 @@ separately. A qualified numeric default such as `2 u []` infers `number`.
 Other default expressions infer the kind of their default value, independently
 of an override. If a check cannot establish that kind, it remains undetermined.
 
-The suffix after an unknown default can use any of the five kind names.
+The suffix after an unknown default can use any of the five kind names
+or a declared interface reference.
 For example, `must [measurements = unknown list]` allows a list or explicit
 `unknown`. Without the suffix, `unknown` supplies no concrete kind.
 Kind names are recognized in this position and after `is`; they remain
@@ -173,6 +175,58 @@ expansion qualifies it, and interface models retain the declarations needed
 to interpret referenced interfaces. Checks use that retained definition
 context rather than fetching a new version of the interface.
 See the [runnable example](../examples/nested-interfaces.rkt).
+
+## Unknown defaults with named interfaces
+
+```text
+interface "Timing" [
+  must [period is number unit = "seconds"]
+]
+interface "Experiment" [
+  must [timing = unknown Timing]
+]
+
+experiment = Experiment.[]
+experiment.timing = Timing.[period = 2]
+experiment implement Experiment
+```
+
+`timing` is compulsory. Construction supplies and permits `unknown`.
+A supplied non-unknown value must satisfy `Timing`, including its field,
+kind, value, nested, conditional, and inherited requirements. Matching is
+structural, so plain records can match and extra fields are allowed.
+No child defaults are inserted during this check: `[period = 2]` fails
+because `unit` is missing. An existing record that omits `timing` also
+fails; permitting unknown does not permit absence.
+
+Targets use the same unquoted references as `is`: local and later
+definitions, included definitions, imported `alias.Interface` names, and
+nested groups such as `Protocol.timing`. Source dependency visibility is
+unchanged. Inheritance retains the default, named target, and permission;
+redeclaring the field replaces them. Conditional and per-item declarations
+use the same rule.
+
+The reader recognizes an immediately following bare interface reference
+using the assembled declarations, including imports and includes. This
+does not depend on capitalization. A word that does not identify an
+interface retains its ordinary entry meaning, so `must [period = unknown notes]`
+still declares two fields when `notes` is not an interface name.
+To name a separate field after an unknown default when it has the same
+name as an interface, put it in a separate `must [...]` group or before
+the default. A following entry with its own `=` or `is` is kept as a
+separate declaration or condition. A recognized reference to a missing
+nested group or to a value field is a reader error.
+
+An unavailable supplied value leaves the named check undetermined, unless
+another known failure settles it. A supplied `unknown` is accepted by this
+declaration. Additional conditions retain their own semantics:
+`must [timing = unknown Timing timing is Timing]` remains undetermined
+when `timing` is unknown.
+
+The model retains `(typed-default Timing ((literal unknown)))`, qualifying
+the target through library imports and retaining its definition context.
+It creates one required field, without a separate entry for the suffix.
+See the [runnable example](../examples/interface-defaults.rkt).
 
 ## Permit unknown explicitly
 

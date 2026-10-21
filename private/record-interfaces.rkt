@@ -451,10 +451,16 @@
                 (cond [(or (eq? kind 'undetermined) (eq? (plain-value found) 'undetermined)
                            (eq? found no-constant))
                        (set! pending (cons (string->symbol name) pending))]
-                      [(not (eq? (value-kind found) kind))
-                       (if (eq? status #t)
-                           (set! wrong-kind (cons (string->symbol name) wrong-kind))
-                           (set! pending (cons (string->symbol name) pending)))])]
+                      [else
+                       (define answer
+                         (if (memq kind value-kind-names) (eq? (value-kind found) kind)
+                             ((current-interface-test) kind (plain-value found))))
+                       (cond [(eq? answer #f)
+                              (if (eq? status #t)
+                                  (set! wrong-kind (cons (string->symbol name) wrong-kind))
+                                  (set! pending (cons (string->symbol name) pending)))]
+                             [(not (eq? answer #t))
+                              (set! pending (cons (string->symbol name) pending))])])]
                [(record-field-children field)
                 (cond [(memq found '(unknown undetermined))
                        (set! pending (cons (string->symbol name) pending))]
