@@ -118,7 +118,7 @@
   (remove-duplicates (map car (requirement-entry-reference-guards expression))))
 
 ;; Declarations map interface names to reader datums: (extends Parent) and
-;; (interface-field name default-or-#f required? children-or-#f), conditional
+;; (interface-field name default-or-#f required? children-or-#f [constraint]), conditional
 ;; branches, and (interface-requirement expression).
 ;; A named group has child declarations; a value field has #f children.
 (define (interface-reference-root declarations reference)
@@ -214,7 +214,9 @@
         (list (record-field (cadr part) (caddr part) (cadddr part)
                             (and (list-ref part 4) (declaration-fields (list-ref part 4)))
                             guard
-                            (if (list-ref part 4) (declaration-requirements (list-ref part 4)) '())))]
+                            (cond [(list-ref part 4) (declaration-requirements (list-ref part 4))]
+                                  [(> (length part) 5) (list (record-requirement (list-ref part 5) #f))]
+                                  [else '()])))]
        [(interface-if)
         (define branches (cadr part))
         (append*
@@ -570,13 +572,26 @@
                           [(and (eq? answer #t) (null? pending-values)) 'satisfied]
                           [else 'undetermined])]))
            (add prefix expression outcome missing)])))
-    (for ([field (in-list fields)] #:when (record-field-children field))
+    (for ([field (in-list fields)])
       (define found (path-value value (field-path field)))
       (define guard (record-field-guard field))
       (define active (and-status outer (if guard (evaluate guard value) #t)))
-      (when (and (hash? found) (not (eq? active #f)))
-        (walk (record-field-children field) (record-field-requirements field) found
-              (locate prefix (field-path field)) active))))
+      (unless (eq? active #f)
+        (cond
+          [(record-field-children field)
+           (when (hash? found)
+             (walk (record-field-children field) (record-field-requirements field) found
+                   (locate prefix (field-path field)) active))]
+          [(not (eq? found absent))
+           ;; Constraints on optional fields apply only when supplied. Unlike
+           ;; must, their references do not impose presence or reject unknown.
+           (for ([requirement (in-list (record-field-requirements field))])
+             (define expression (record-requirement-expression requirement))
+             (define answer (evaluate expression value))
+             (add (locate prefix (field-path field)) expression
+                  (cond [(eq? answer #t) 'satisfied]
+                        [(and (eq? answer #f) (eq? active #t)) 'violated]
+                        [else 'undetermined])))]))))
   (walk (record-interface-fields interface) (record-interface-requirements interface) record)
   (reverse results))
 

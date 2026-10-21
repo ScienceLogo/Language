@@ -464,7 +464,7 @@
   (define value-checks '())
   (define value-findings '())
   (for ([condition (in-list all-conditions)]
-        #:when (and (memq (condition-model-kind condition) '(value-requirement collection-requirement))
+        #:when (and (memq (condition-model-kind condition) '(value-requirement collection-requirement field-constraint))
                     (not (eq? (active? condition) #f))))
     (define expression (interface-condition-expression condition))
     (define answer
@@ -629,7 +629,7 @@
   (define conditions (interface-model-conditions interface))
   (define (requirements scope)
     (for/list ([condition (in-list conditions)]
-               #:when (and (memq (condition-model-kind condition) '(value-requirement collection-requirement))
+               #:when (and (memq (condition-model-kind condition) '(value-requirement collection-requirement field-constraint))
                            (equal? (condition-model-scope condition) scope)))
       (record-requirement (interface-condition-expression condition) (condition-model-guard condition))))
   (define (fields scope [prefix ""])

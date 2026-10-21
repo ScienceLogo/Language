@@ -830,6 +830,17 @@
        (advance!)
        (node (if required? 'required-interface-group 'interface-group)
              (string->symbol name) (parse-interface-body #t) command)]
+      [(and (eq? (token-kind (current)) 'word)
+            (string=? (token-value (current)) "is"))
+       (define operator (advance!))
+       (define target (named-word "a value kind or interface name after is"))
+       (define receiver
+         (if (string-contains? name ".") (dotted-value command name)
+             (node 'result (string->symbol name) '() command)))
+       (define constraint (node 'kind-test target (list receiver) operator))
+       (node (if required? 'required-interface-field 'interface-field)
+             (string->symbol name)
+             (list (node 'field-constraint #f (list constraint) command)) command)]
       [else
        (define default
          (and (eq? (token-kind (current)) 'word)
@@ -1636,7 +1647,10 @@
       (expression (record-field-guard field))
       (when binder (expression (record-field-default field)))
       (when (record-field-children field)
-        (check (record-field-children field) (record-field-requirements field))))
+        (check (record-field-children field) (record-field-requirements field)))
+      (unless (record-field-children field)
+        (for ([requirement (in-list (record-field-requirements field))])
+          (expression (record-requirement-expression requirement)))))
     (for ([requirement (in-list requirements)])
       (define value (record-requirement-expression requirement))
       (match value
@@ -2270,10 +2284,14 @@
     [(provide affects) (cons (node-kind form) (node-value form))]
     [(version extends) (list (node-kind form) (node-value form))]
     [(interface-field required-interface-field)
-     (list 'interface-field (node-value form)
-           (and (pair? (node-children form))
-                (node->datum (car (node-children form))))
-           (eq? (node-kind form) 'required-interface-field) #f)]
+     (define child (and (pair? (node-children form)) (car (node-children form))))
+     (define constrained? (and child (eq? (node-kind child) 'field-constraint)))
+     (append
+      (list 'interface-field (node-value form)
+            (and child (not constrained?) (node->datum child))
+            (eq? (node-kind form) 'required-interface-field) #f)
+      (if constrained? (list (node->datum child)) '()))]
+    [(field-constraint) (node->datum (car (node-children form)))]
     [(interface-group required-interface-group)
      (list 'interface-field (node-value form) #f
            (eq? (node-kind form) 'required-interface-group)

@@ -36,6 +36,8 @@ The [value-kind example](value-kinds.rkt) requires numeric measured periods
 and explicitly permits unknown numeric values for planned periods.
 The [nested-interface example](nested-interfaces.rkt) reuses `Timing` through
 `must [timing is Timing]` and checks the same interface in an `if` condition.
+The [optional-field example](optional-fields.rkt) uses `notes is text` and
+`review is Review` outside `must` to check fields only when supplied.
 The [unknown-equality example](unknown-equality.rkt) uses `period == unknown`
 to require an explanation for a pending period and a positive value otherwise.
 

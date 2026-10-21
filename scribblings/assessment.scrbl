@@ -206,6 +206,8 @@ subject is a stage, procedure, or value, its resolved reference or value path,
 the interface version and source revision, and the nested requirement path.
 Interface models also retain the declarations needed to interpret named
 @tt{is} tests, including resolved library definitions.
+An optional field's @tt{field-constraint} is scoped to its presence entry
+and is checked when that field is supplied.
 It also retains the declaration location and scope. Multiple mappings remain
 separate records.
 

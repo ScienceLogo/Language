@@ -362,7 +362,13 @@ apply during construction and interface checks, without attaching permanent
 kind restrictions to workflow variables. List and record kinds constrain
 their outer values; requirements on their contents remain separate.
 See [value kinds](interfaces.md#value-kinds-and-defaults).
-Optional fields can still be absent or unknown. A standalone interface file can be checked with
+Outside `must [...]`, `notes is text` makes `notes` optional and checks it
+when supplied. The same form can use a named interface, such as
+`review is Review`. It supplies no default and leaves absent fields absent.
+A supplied unknown value leaves this constraint undetermined. Bare optional
+fields without constraints can still be absent or unknown. See
+[optional field constraints](interfaces.md#constraints-on-optional-fields).
+A standalone interface file can be checked with
 `trial implement "relative/path.rkt"`. The assessor checks field
 presence and kinds from direct assignments and dotted updates. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and

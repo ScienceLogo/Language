@@ -719,6 +719,10 @@
          (define name (qualified prefix (node-value form)))
          (define child-id (element-id id 'field (node-at form)))
          (define group? (memq (node-kind form) '(interface-group required-interface-group)))
+         (define constraint
+           (and (not group?) (pair? (node-children form))
+                (eq? (node-kind (car (node-children form))) 'field-constraint)
+                (car (node-children form))))
          (set! conditions
                (cons (condition-model child-id
                                       (if (memq (node-kind form)
@@ -726,14 +730,22 @@
                                           'required-entry 'optional-entry)
                                       name scope 'interface
                                       (if group? 'nested-entries
-                                          (and (pair? (node-children form))
+                                          (and (not constraint) (pair? (node-children form))
                                                (node->datum (car (node-children form)))))
                                       (origin (node-at form)) guard)
                      conditions))
          (unless (equal? scope id)
            (set! relations (cons (relation-model 'contains scope child-id (origin (node-at form)))
                                  relations)))
-         (when group? (walk (node-children form) child-id (string-append (symbol->string name) ".")))]
+         (when group? (walk (node-children form) child-id (string-append (symbol->string name) ".")))
+         (when constraint
+           (define constraint-id (element-id id 'field-constraint (node-at constraint)))
+           (set! conditions
+                 (cons (condition-model constraint-id 'field-constraint name child-id
+                                        'interface (node->datum constraint) (origin (node-at constraint)) #f)
+                       conditions))
+           (set! relations
+                 (cons (relation-model 'contains child-id constraint-id (origin (node-at constraint))) relations)))]
         [(interface-requirement interface-for-each)
          (define iteration? (eq? (node-kind form) 'interface-for-each))
          (define expression (if iteration? (node->datum form) (node->datum (node-value form))))

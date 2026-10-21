@@ -117,6 +117,13 @@ pendulum.
   library revision. Include these definitions in the interface model's
   revision identity. Matching is a check; it does not construct an object
   or insert defaults.
+  An optional field constraint is separate from its presence and default:
+  `(interface-field notes #f #f #f (kind-test text ((result notes))))`.
+  The model retains an `optional-entry` and a `field-constraint` scoped to
+  it. Skip this constraint when the field is absent. Its references do not
+  create compulsory entries; supplied unknown values can leave the check
+  undetermined. Preserve its source location and enclosing conditional
+  guard through nested groups, list-item declarations, and inheritance.
   Preserve `.count` references in expressions. On a list, this is a read-only
   computed property, not a separately supplied field or protocol part.
   A count requirement identifies the list it reads and retains the full

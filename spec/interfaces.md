@@ -22,6 +22,8 @@ interface "Timing" [
   A concrete default also declares the field's broad value kind.
 - A bare entry outside `must [...]`, without a default, is optional and may
   be absent.
+- `field is kind-or-interface` outside `must [...]` is also optional. The
+  constraint applies when that field is supplied and supplies no default.
 
 Required data fields must be present and reject `unknown` by default. A
 default supplies a field when no override is given. A required field without
@@ -75,6 +77,50 @@ period even if another declaration permits that unknown. Use the compact
 `period = unknown number` declaration when unknown is an allowed field value.
 The [runnable example](../examples/value-kinds.rkt) shows measured and planned
 periods.
+
+## Constraints on optional fields
+
+```text
+interface "Timing" [
+  must [period is number]
+  notes is text
+]
+```
+
+`period` is compulsory. `notes` can be absent; when present, it is checked
+as text. The optional form accepts any of the five kinds or a named
+interface, such as `review is Review`. Local, included, imported, and
+nested-group interface references work as they do in required tests.
+
+| Form | Presence and check |
+| --- | --- |
+| `notes` | Optional, with no value constraint. |
+| `notes is text` | Optional; checks supplied values as text. |
+| `must [notes is text]` | Required; checks the supplied value as text. |
+| `must [notes = "default"]` | Required, with an overridable text default. |
+
+The optional `is` form supplies no default and inserts no field during
+construction. Constraints apply in their declared conditional branch and
+parent group. They also work in `for each`, where the field uses the local
+item name, such as `item.notes is text`. Inheritance retains the constraint;
+redeclaring the field replaces its complete declaration. Duplicate and
+conflicting inherited declarations follow the existing field rules.
+
+An absent optional field is skipped. A supplied value of the wrong kind or
+an object that fails its named interface gives a violation. A supplied
+`unknown` leaves the constraint undetermined, as an ordinary `is` test does.
+An unavailable value also remains undetermined. The constructor reports an
+undetermined value requirement if a supplied optional value cannot be
+checked. Bare optional fields without constraints can still contain unknown
+without a kind check. Required fields keep their existing unknown rules.
+
+The reader retains the constraint separately from the default and presence
+flag, as `(interface-field notes #f #f #f (kind-test text ((result notes))))`.
+The model has an `optional-entry` for presence and a `field-constraint`
+condition scoped to that entry. References inside this constraint do not
+create inferred required entries. Its source location, enclosing guard,
+and resolved interface target remain inspectable. See the
+[runnable example](../examples/optional-fields.rkt).
 
 ## Reuse an interface for a field
 

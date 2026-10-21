@@ -11,7 +11,8 @@ sketches in the @hyperlink[(source-file-url "spec/README.md")]{specification
 index} are marked separately and should not be treated as accepted syntax.
 Within an interface, @tt{must [...]} groups required entries and their
 defaults. @tt{name [...]} gives a part its own nested entries. Bare entries
-without defaults are optional; see
+without defaults are optional. An @tt{is} constraint outside @tt{must},
+such as @tt{notes is text}, checks the field when supplied; see
 @secref["interfaces"].
 
 @section{How to read the forms}

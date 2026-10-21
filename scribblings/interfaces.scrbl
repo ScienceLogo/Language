@@ -36,7 +36,9 @@ supplied default.
    (list (tt "must [duration unit]") "Both fields are required; neither has a default")
    (list (tt "must [duration unit = \"seconds\"]")
          "Both fields are required; unit has an overridable default")
-   (list (tt "notes") "Optional; may be absent")))
+   (list (tt "notes") "Optional; may be absent")
+   (list (tt "notes is text") "Optional; checks supplied values as text")
+   (list (tt "must [notes is text]") "Required; checks the supplied value as text")))
 
 @subsection{Value kinds and unknown defaults}
 
@@ -147,6 +149,42 @@ a circular test with no independent answer remains undetermined.
 The @hyperlink[(source-file-url "examples/nested-interfaces.rkt")]{runnable example}
 constructs a timing object and reuses its interface in an experiment.
 
+@subsection{Constraints on optional fields}
+
+Outside @tt{must [...]}, @tt{field is kind} leaves the field optional:
+
+@verbatim|{
+interface "Timing" [
+  must [period is number]
+  notes is text
+]
+
+trial = Timing.[period = 2]
+trial.notes = "Timed by hand"
+trial implement Timing
+}|
+
+The constructor leaves @tt{notes} absent until it is supplied. Once present,
+its value is checked as text. A number in @tt{notes} violates the constraint.
+An optional constraint supplies no default. Fields with defaults remain
+compulsory under the ordinary declaration rule.
+
+The target can also be a named interface: @tt{review is Review} checks a
+supplied review object against @tt{Review}. Local, included, imported, and
+nested interface references use the same rules as required @tt{is} tests.
+The optional form works in nested groups, conditional branches, and
+@tt{for each} declarations, such as @tt{item.notes is text}. Inheritance
+preserves the constraint; redeclaring the field replaces its declaration.
+
+An absent field is skipped. A supplied @tt{unknown}, or a value the checker
+cannot establish, leaves the constraint undetermined. A constructor reports
+that unresolved check. A plain record can retain the value for inspection.
+An unconstrained optional field, written simply @tt{notes}, can still
+contain @tt{unknown} without a kind check.
+
+The @hyperlink[(source-file-url "examples/optional-fields.rkt")]{runnable example}
+uses an optional text field and an optional object constrained by an interface.
+
 @section{Requirements on values}
 
 A @tt{must [...]} group can mix conditions and required entries:
@@ -239,6 +277,8 @@ the presence test alone does not constrain its value.
          "Declare required fields, their defaults, and optional fields")
    (list (tt "extends Parent")
          "Inherit fields from a local or imported record interface")
+   (list (tt "field is kind-or-interface")
+         "Outside must, check the field only when supplied")
    (list (tt "interface \"Name\" [version \"...\" must [name ...] optional-name affects source target ...]")
          "Declare required and optional workflow parts in a separate file")))
 
