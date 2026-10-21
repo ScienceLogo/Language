@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require racket/list racket/match racket/string "constant-values.rkt" "uncertain-values.rkt")
+(require racket/list racket/match racket/string "constant-values.rkt" "uncertain-values.rkt"
+         "value-kinds.rkt")
 
 (provide (struct-out record-interface)
          (struct-out record-field)
@@ -15,6 +16,7 @@
          missing-interface-fields
          undetermined-interface-fields
          unknown-interface-fields
+         wrong-kind-interface-fields
          interface-requirement-results
          requirement-references
          requirement-entry-references
@@ -251,6 +253,7 @@
           [else value]))
   (define (evaluate expression)
     (match expression
+      [`(typed-default ,_ (,value)) (evaluate value)]
       [`(list ,parts) (map evaluate parts)]
       [`(fields ,entries)
        (for/hasheq ([entry (in-list entries)]) (values (car entry) (evaluate (cadr entry))))]
@@ -293,7 +296,19 @@
   (match expression
     [`(literal unknown) #t]
     [`(uncertain ,base ,_) (unknown-default? base)]
+    [`(typed-default ,_ (,value)) (unknown-default? value)]
     [_ #f]))
+
+(define (record-field-kind field record [evaluate-default #f])
+  (define default (record-field-default field))
+  (match default
+    [`(typed-default ,kind ,_) kind]
+    [_
+     (and default (not (unknown-default? default))
+          (or (value-kind (constant-value default (lambda (_) no-constant) #t))
+              (value-kind (if evaluate-default (evaluate-default default)
+                              (interface-value default record)))
+              'undetermined))]))
 
 ;; A permission comes from the resolved declaration, including its guard.
 (define (unknown-permission fields path record evaluate)
@@ -340,12 +355,14 @@
            (set! pending (cons path pending))]))
   (values (reverse invalid) (reverse pending)))
 
-(define (interface-field-gaps interface record [evaluate-guard interface-guard-value])
+(define (interface-field-gaps interface record [evaluate-guard interface-guard-value]
+                              [evaluate-default #f])
   (unless (record-interface? interface)
     (raise-argument-error 'missing-interface-fields "record-interface?" interface))
   (define missing '())
   (define pending '())
   (define unknown '())
+  (define wrong-kind '())
   (define (walk fields value [prefix ""] [outer #t])
     (for ([field (in-list fields)])
        (define name (string-append prefix (symbol->string (record-field-name field))))
@@ -374,6 +391,16 @@
                      (not (unknown-default? (record-field-default field)))
                      (or (eq? (plain-value found) 'undetermined) (eq? found no-constant)))
                 (set! pending (cons (string->symbol name) pending))]
+               [(and (record-field-kind field value evaluate-default)
+                     (not (eq? (plain-value found) 'unknown)))
+                (define kind (record-field-kind field value evaluate-default))
+                (cond [(or (eq? kind 'undetermined) (eq? (plain-value found) 'undetermined)
+                           (eq? found no-constant))
+                       (set! pending (cons (string->symbol name) pending))]
+                      [(not (eq? (value-kind found) kind))
+                       (if (eq? status #t)
+                           (set! wrong-kind (cons (string->symbol name) wrong-kind))
+                           (set! pending (cons (string->symbol name) pending)))])]
                [(record-field-children field)
                 (cond [(memq found '(unknown undetermined))
                        (set! pending (cons (string->symbol name) pending))]
@@ -381,19 +408,31 @@
                        (walk (record-field-children field) found (string-append name ".") status)]
                       [else (gap)])]))))
   (walk (record-interface-fields interface) record)
-  (values (reverse missing) (reverse pending) (reverse unknown)))
+  (values (reverse missing) (reverse pending) (reverse unknown) (reverse wrong-kind)))
 
-(define (missing-interface-fields interface record [evaluate-guard interface-guard-value])
-  (define-values (missing _pending _unknown) (interface-field-gaps interface record evaluate-guard))
+(define (missing-interface-fields interface record [evaluate-guard interface-guard-value]
+                                  [evaluate-default #f])
+  (define-values (missing _pending _unknown _kind)
+    (interface-field-gaps interface record evaluate-guard evaluate-default))
   missing)
 
-(define (undetermined-interface-fields interface record [evaluate-guard interface-guard-value])
-  (define-values (_missing pending _unknown) (interface-field-gaps interface record evaluate-guard))
+(define (undetermined-interface-fields interface record [evaluate-guard interface-guard-value]
+                                       [evaluate-default #f])
+  (define-values (_missing pending _unknown _kind)
+    (interface-field-gaps interface record evaluate-guard evaluate-default))
   pending)
 
-(define (unknown-interface-fields interface record [evaluate-guard interface-guard-value])
-  (define-values (_missing _pending unknown) (interface-field-gaps interface record evaluate-guard))
+(define (unknown-interface-fields interface record [evaluate-guard interface-guard-value]
+                                  [evaluate-default #f])
+  (define-values (_missing _pending unknown _kind)
+    (interface-field-gaps interface record evaluate-guard evaluate-default))
   unknown)
+
+(define (wrong-kind-interface-fields interface record [evaluate-guard interface-guard-value]
+                                     [evaluate-default #f])
+  (define-values (_missing _pending _unknown wrong-kind)
+    (interface-field-gaps interface record evaluate-guard evaluate-default))
+  wrong-kind)
 
 (define (interface-requirement-results interface record [evaluate interface-guard-value])
   (define results '())
@@ -453,11 +492,12 @@
                 (define missing (missing-interface-fields template local evaluate))
                 (define pending (undetermined-interface-fields template local evaluate))
                 (define unknown (unknown-interface-fields template local evaluate))
+                (define wrong-kind (wrong-kind-interface-fields template local evaluate))
                 (unless (null? missing)
                   (add location expression (if (eq? active #t) 'violated 'undetermined)
                        (map (lambda (name) (relocate name binder location)) missing)))
                 (unless (null? pending) (add location expression 'undetermined))
-                (unless (null? unknown)
+                (unless (and (null? unknown) (null? wrong-kind))
                   (add location expression (if (eq? active #t) 'violated 'undetermined)))
                 (parameterize ([locations (hash-set (locations) binder location)])
                   (walk (record-interface-fields template) (record-interface-requirements template)
@@ -509,9 +549,7 @@
   (define (merge-records old changes)
     (for/fold ([result old]) ([(name value) (in-hash changes)])
       (define earlier (hash-ref result name #f))
-      (when (and (hash-has-key? result name)
-                 (hash? value) (not (hash? earlier)))
-        (error 'interface-record "nested update needs a record at ~a" name))
+      ;; A supplied value replaces a default; kind checks follow completion.
       (hash-set result name
                 (if (and (hash? earlier) (hash? value))
                     (merge-records earlier value)
@@ -604,7 +642,7 @@
   (define requirements (interface-requirement-results interface result evaluate-guard))
   (define missing
     (remove-duplicates
-     (append (missing-interface-fields interface result evaluate-guard)
+     (append (missing-interface-fields interface result evaluate-guard evaluate-default)
              (append* (map requirement-result-missing
                            (filter (lambda (check) (eq? (requirement-result-outcome check) 'violated)) requirements))))))
   (unless (null? missing)
@@ -612,12 +650,17 @@
            (record-interface-name interface)
            (if (= (length missing) 1) "" "s")
            (string-join (map symbol->string missing) ", ")))
-  (define unknown (unknown-interface-fields interface result evaluate-guard))
+  (define unknown (unknown-interface-fields interface result evaluate-guard evaluate-default))
   (unless (null? unknown)
     (error 'interface-record "~a does not allow unknown for field~a ~a; declare a default of unknown to permit it"
            (record-interface-name interface) (if (= (length unknown) 1) "" "s")
            (string-join (map symbol->string unknown) ", ")))
-  (define pending (undetermined-interface-fields interface result evaluate-guard))
+  (define wrong-kind (wrong-kind-interface-fields interface result evaluate-guard evaluate-default))
+  (unless (null? wrong-kind)
+    (error 'interface-record "~a has a value of the wrong kind for field~a ~a"
+           (record-interface-name interface) (if (= (length wrong-kind) 1) "" "s")
+           (string-join (map symbol->string wrong-kind) ", ")))
+  (define pending (undetermined-interface-fields interface result evaluate-guard evaluate-default))
   (unless (null? pending)
     (error 'interface-record "~a has undetermined conditional requirements: ~a"
            (record-interface-name interface)

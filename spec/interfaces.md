@@ -19,6 +19,7 @@ interface "Timing" [
   may span lines. For example, `must [duration unit]` requires both fields.
 - `field = value` supplies an overridable default. The field is compulsory
   and present even when a default is declared outside `must [...]`.
+  A concrete default also declares the field's broad value kind.
 - A bare entry outside `must [...]`, without a default, is optional and may
   be absent.
 
@@ -28,8 +29,52 @@ a default must be supplied when constructing the object. Required workflow
 parts must be provided through the existing mappings.
 
 In the example, both `duration` and `unit` must be present. `duration` has no
-default; `unit` defaults to `"seconds"`. Neither accepts an override of
-`unknown`. `notes` may be absent.
+default; `unit` defaults to `"seconds"` and accepts text values such as
+`"minutes"`. Neither accepts an override of `unknown`. `notes` may be absent.
+
+## Value kinds and defaults
+
+An interface can require a `number`, `text`, `boolean`, `list`, or `record`.
+A record is an object with named fields, such as `[period = 2 unit = "seconds"]`.
+
+| Declaration | Meaning |
+| --- | --- |
+| `must [period is number]` | Requires a number; supplies no default. |
+| `must [period = 2]` | Requires a number; defaults to `2`. |
+| `must [period = unknown number]` | Requires a number or explicit `unknown`; defaults to `unknown`. |
+| `must [period = unknown]` | Supplies and permits `unknown`, with no kind restriction. |
+
+Concrete defaults infer only the outer kind: a list default requires a
+list, and a record default requires a record. They do not constrain list
+items or require the default record's fields; declare those requirements
+separately. A qualified numeric default such as `2 u []` infers `number`.
+Other default expressions infer the kind of their default value, independently
+of an override. If a check cannot establish that kind, it remains undetermined.
+
+The suffix after an unknown default can use any of the five kind names.
+For example, `must [measurements = unknown list]` allows a list or explicit
+`unknown`. Without the suffix, `unknown` supplies no concrete kind.
+Kind names are recognized in this position and after `is`; they remain
+available as ordinary names elsewhere. In `period = unknown number`,
+`number` qualifies `period`; a separate entry named `number` belongs in
+another `must [...]` group or before that default.
+
+Kinds constrain interface construction and checks. They do not attach a
+permanent restriction to workflow variables. A later update can be inspected
+by checking the object against its interface again. Inheritance, imports,
+and includes preserve the default and explicit kind; redeclaring a field
+replaces its default, inferred kind, and unknown permission together.
+
+`value is kind` is also a Boolean expression, available in ordinary
+conditions, procedure inputs and outputs, and interface requirements.
+It examines only the outer value, ignoring an attached `u` description.
+Thus `[unknown] is list` is true, while `unknown is number` is unknown.
+It uses comparison precedence and cannot be chained with another comparison.
+An expression such as `period is number` remains undetermined for an unknown
+period even if another declaration permits that unknown. Use the compact
+`period = unknown number` declaration when unknown is an allowed field value.
+The [runnable example](../examples/value-kinds.rkt) shows measured and planned
+periods.
 
 ## Permit unknown explicitly
 
@@ -38,7 +83,7 @@ Declare a default of `unknown` to permit it for a required field:
 | Declaration | Meaning |
 | --- | --- |
 | `must [period]` | A value must be supplied; `unknown` is rejected. |
-| `must [period = 2]` | Defaults to `2`; an override cannot be `unknown`. |
+| `must [period = 2]` | Defaults to `2`; an override must be a number. |
 | `must [period = unknown]` | Permits `unknown` and supplies it as the default. |
 
 The field remains compulsory in all three cases. A check of an existing
@@ -105,7 +150,7 @@ defaults to `unknown`. Entries referenced by value requirements follow the
 same default rule, using any existing declaration's permission. A value
 condition can remain undetermined when it uses a permitted unknown value.
 
-Conditions use `==`, `!=`, `<`, `<=`, `>`, and `>=`, with the existing
+Conditions use `==`, `!=`, `<`, `<=`, `>`, `>=`, and `in`, with the existing
 arithmetic and Boolean operators. For example:
 
 ```text
@@ -145,6 +190,45 @@ check retains requirements on mapped values as undetermined when it cannot
 resolve those values. Applications can inspect the same expressions and
 data mappings. The [runnable example](../examples/value-requirements.rkt)
 uses the mixed form above.
+
+### Require one of several values
+
+List membership uses `in`:
+
+```text
+interface "Timing" [
+  must [method in ["manual" "video"]]
+]
+```
+
+This requires `method` to equal `"manual"` or `"video"` and supplies no
+default. The right side can also be a named list field, a dotted path, or
+another expression yielding a list. Names refer to entries of the surrounding
+interface part, so a reusable default list can be declared alongside the
+requirement:
+
+```text
+must [methods = ["manual" "video"] method in methods]
+```
+
+Both fields are required. Construction fills the `methods` default;
+checking an existing record requires that field to be present without
+inserting it. The same membership form works in conditional requirements,
+nested groups, and per-item requirements. Inheritance and imports preserve it.
+
+Membership has the meaning of equality comparisons joined with `or`, using
+whole items and the existing `==` rules. It can return true despite unknown
+list items when another item establishes a match. If every comparison is
+false, the result is false; an empty list always gives false. Otherwise an
+unresolved comparison leaves membership undetermined. The required-field
+rules still apply: an explicitly unknown required field is rejected unless
+its declaration permits it. Permitting an unknown does not establish a match.
+
+The reader preserves membership as `(compare in (value list-expression))`,
+including references to both operands. It uses comparison precedence and
+cannot be chained with another comparison. See the
+[general expression rules](first-slice.md#lists-ranges-loops-and-conditions)
+and the [runnable example](../examples/list-membership.rkt).
 
 ## Nested parts
 
@@ -395,7 +479,7 @@ The reader preserves each entry's name, requiredness, default if any, and
 source location. Named parts retain their hierarchy through child scopes
 and `contains` relations; conditions use complete dotted paths. It does not infer a different kind of interface from the
 presence of a requirement marker. A record check tests required field
-presence, unknown permissions, and value conditions; a stage or procedure
+presence, value kinds, unknown permissions, and value conditions; a stage or procedure
 mapping tests required mapping declarations.
 Optional entries may be supplied in either use without becoming compulsory.
 Constructing a record applies defaults; checking an existing record does

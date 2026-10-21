@@ -87,12 +87,22 @@ pendulum.
   defaults and presence requirements, including all referenced entry paths.
   Equality comparisons use `==`; assignment and default expressions retain
   their distinct `=` meaning.
+  List membership uses `(compare in (value list-expression))`. Preserve both
+  operands and their referenced entries, including a named or dotted list.
   A required data field rejects `unknown` unless its resolved declaration
   supplies a default of `unknown`. Preserve that default as both the missing
   value to insert during construction and the field's explicit permission.
   Keep an explicitly supplied unknown distinct from a value the checker
   cannot resolve from the method. Permission for a field does not waive
   conditions on its value or requirements on its children.
+  Concrete defaults also constrain the field's outer value kind. Preserve
+  the default expression from which that kind is determined. An explicitly
+  qualified unknown default is retained as, for example,
+  `(typed-default number ((literal unknown)))`; its unknown permission and
+  numeric kind apply together. A separate kind test is
+  `(kind-test number ((result period)))`. Kind labels are not variable
+  references. Preserve these forms through inheritance, imports, and nested
+  requirements, with their source locations.
   Preserve `.count` references in expressions. On a list, this is a read-only
   computed property, not a separately supplied field or protocol part.
   A count requirement identifies the list it reads and retains the full

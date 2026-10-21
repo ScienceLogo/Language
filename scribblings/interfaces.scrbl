@@ -25,6 +25,8 @@ interface "Timing" [
 @tt{duration} and @tt{unit} must both be present. When constructing a record,
 supply @tt{duration}; the interface supplies @tt{"seconds"} for @tt{unit}
 unless another value is provided. @tt{notes} may be absent.
+The concrete default makes @tt{unit} a text field; @tt{"minutes"} is an
+allowed replacement.
 Required fields reject @tt{unknown} by default, including overrides of a
 supplied default.
 
@@ -36,21 +38,48 @@ supplied default.
          "Both fields are required; unit has an overridable default")
    (list (tt "notes") "Optional; may be absent")))
 
-Declare a default of @tt{unknown} when a required field may contain it:
+@subsection{Value kinds and unknown defaults}
+
+An interface can require a @tt{number}, @tt{text}, @tt{boolean}, @tt{list},
+or @tt{record}. A record is an object with named fields, such as
+@tt{[period = 2 unit = "seconds"]}.
+
+A concrete default also declares the field's kind. Use these forms:
 
 @(tabular #:style 'boxed
   (list
    (list (bold "Declaration") (bold "Meaning"))
-   (list (tt "must [period]") "Must be supplied; unknown is rejected")
-   (list (tt "must [period = 2]") "Defaults to 2; an override cannot be unknown")
-   (list (tt "must [period = unknown]") "Unknown is permitted and supplied as the default")))
+   (list (tt "must [period is number]") "Number required; no default")
+   (list (tt "must [period = 2]") "Number required; default 2")
+   (list (tt "must [period = unknown number]") "Number or explicit unknown; default unknown")
+   (list (tt "must [period = unknown]") "No kind restriction; default unknown")))
+
+The suffix after @tt{unknown} can use any of the five kinds. For example,
+@tt{must [measurements = unknown list]} permits a list or unknown.
+A concrete list or record default constrains the outer kind; requirements
+on its items or fields are declared separately. An attached @tt{u}
+description does not change the underlying kind.
 
 The field remains required. Construction fills an omitted default; checking
 an existing record leaves it unchanged and still reports an absent field.
 The permission follows the field through inheritance and library imports.
-Redeclaring a field replaces its default and permission.
+Redeclaring a field replaces its default, kind, and permission.
 The @hyperlink[(source-file-url "examples/unknown-fields.rkt")]{runnable example}
 shows a supplied period and a period explicitly allowed to be unknown.
+The @hyperlink[(source-file-url "examples/value-kinds.rkt")]{value-kind example}
+uses a numeric requirement for measured periods and an unknown numeric
+default for planned periods.
+
+Kind checks apply during construction and interface checks. A later value
+update can be checked against the interface again. If a check cannot
+establish the default's kind or the supplied value, it remains undetermined.
+Ordinary variables do not acquire permanent kind restrictions.
+
+@tt{value is kind} also works in expressions, such as
+@tt{if period is number [...]}. On a known value it returns true or false;
+on @tt{unknown} it remains unknown. A permitted unknown therefore leaves an
+additional @tt{period is number} condition undetermined. The declaration
+@tt{period = unknown number} directly allows that unknown field value.
 
 A required list or record can contain unknown entries; requirements on
 those entries are checked separately. Optional fields can still be absent
@@ -110,6 +139,30 @@ an unresolved value requirement is reported as undetermined. The
 @hyperlink[(source-file-url "examples/value-requirements.rkt")]{runnable value-requirement example}
 constructs and checks a timing trial. @secref["assessment"] describes the
 current structural checker.
+
+Use @tt{in} to require one of several allowed values:
+
+@verbatim|{
+interface "Timing" [
+  must [method in ["manual" "video"]]
+]
+}|
+
+This requires @tt{method} to equal @tt{"manual"} or @tt{"video"}; it supplies
+no default. A named list is also possible. As with other interface
+expressions, its name refers to a field of the surrounding interface part:
+
+@verbatim|{
+must [methods = ["manual" "video"] method in methods]
+}|
+
+Construction supplies the @tt{methods} default; checking an existing record
+requires that field to be present. Membership uses the same rules in
+conditional branches, nested parts, and @tt{for each} requirements.
+Required fields still reject @tt{unknown} unless explicitly permitted.
+A permitted unknown value can leave membership undetermined; a known match
+can settle it even when another list item is unknown.
+@secref["values"] gives the expression rules.
 
 @section{Declaration forms}
 

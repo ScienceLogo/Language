@@ -9,7 +9,8 @@
          racket/string
          racket/system
          syntax/readerr
-         "record-interfaces.rkt")
+         "record-interfaces.rkt"
+         "value-kinds.rkt")
 
 (provide sciencelogo-read
          sciencelogo-read-syntax
@@ -96,7 +97,7 @@
                        "interface" "version" "require" "affects" "provide" "by"
                        "each" "in" "until" "range" "step" "true" "false"
                        "unknown" "=" "==" "+=" "!=" "<" "<=" ">" ">="
-                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement"
+                       "+" "-" "*" "/" "and" "or" "not" "xor" "of" "but" "implement" "is"
                        "extends" "hypotheses" "assumptions" "conclusions" "u")))
   (define (current) (vector-ref tokens index))
   (define (advance!)
@@ -121,7 +122,7 @@
                    (char=? (string-ref text 0) #\:)))
       (read-error source found (format "expected ~a" description)))
     (string->symbol text))
-  (define comparisons '("==" "!=" "<" "<=" ">" ">="))
+  (define comparisons '("==" "!=" "<" "<=" ">" ">=" "in" "is"))
   (define import-aliases '())
   (define (valid-inline-interface-name? name)
     (and (not (string=? name ""))
@@ -148,13 +149,19 @@
              (operator-precedence (token-value found))))
       (if (and operator (>= operator minimum))
           (begin
-            (when (and (= operator 40) (eq? (node-kind left) 'compare))
+            (when (and (= operator 40) (memq (node-kind left) '(compare kind-test)))
               (read-error source found "comparison cannot be chained; use and"))
             (advance!)
-            (let ([right (parse-value (add1 operator) stop-word)])
-              (loop (node (if (= operator 40) 'compare 'binary)
-                          (string->symbol (token-value found))
-                          (list left right) found))))
+            (if (string=? (token-value found) "is")
+                (let* ([kind-at (expect 'word "number, text, boolean, list, or record after is")]
+                       [kind (string->symbol (token-value kind-at))])
+                  (unless (memq kind value-kind-names)
+                    (read-error source kind-at "expected number, text, boolean, list, or record after is"))
+                  (loop (node 'kind-test kind (list left) found)))
+                (let ([right (parse-value (add1 operator) stop-word)])
+                  (loop (node (if (= operator 40) 'compare 'binary)
+                              (string->symbol (token-value found))
+                              (list left right) found)))))
           left)))
   (define (dotted-value found text)
     (define input? (string-prefix? text ":"))
@@ -831,8 +838,20 @@
          (and (eq? (token-kind (current)) 'word)
               (string=? (token-value (current)) "=")
               (begin (advance!) (parse-value))))
+       (define (unknown-default? value)
+         (and value
+              (or (and (eq? (node-kind value) 'literal) (eq? (node-value value) 'unknown))
+                  (and (eq? (node-kind value) 'uncertain)
+                       (unknown-default? (car (node-children value)))))))
+       (define declared-default
+         (if (and (unknown-default? default)
+                  (eq? (token-kind (current)) 'word)
+                  (memq (string->symbol (token-value (current))) value-kind-names))
+             (let ([kind (advance!)])
+               (node 'typed-default (string->symbol (token-value kind)) (list default) kind))
+             default))
        (node (if (or required? default) 'required-interface-field 'interface-field)
-             (string->symbol name) (if default (list default) '()) command)]))
+             (string->symbol name) (if declared-default (list declared-default) '()) command)]))
   (define (parse-required-entries)
     (expect 'open "[ after must in an interface")
     (let loop ([backward '()])
@@ -847,7 +866,7 @@
          (define start index)
          (define command (current))
          (define expression (parse-value))
-         (if (memq (node-kind expression) '(compare binary unary literal))
+         (if (memq (node-kind expression) '(compare kind-test binary unary literal))
              (loop (cons (node 'interface-requirement expression '() command) backward))
              (begin
                (set! index start)
@@ -1692,7 +1711,7 @@
   (check-stage-names (node-children program))
   (define (check-value value inputs results)
     (case (node-kind value)
-      [(list fields field-entry proposition-value uncertain range compare binary unary augment
+      [(list fields field-entry proposition-value uncertain range compare kind-test typed-default binary unary augment
              dot-update)
        (for ([part (in-list (node-children value))])
          (check-value part inputs results))]
@@ -2303,7 +2322,7 @@
            (node->datum (car (node-children form))))]
     [(dot-select dot-update)
      (list (node-kind form) (map node->datum (node-children form)))]
-    [(compare binary unary augment)
+    [(compare kind-test typed-default binary unary augment)
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
     [(literal parameter result) (list (node-kind form) (node-value form))]))

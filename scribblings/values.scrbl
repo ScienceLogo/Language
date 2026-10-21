@@ -132,12 +132,68 @@ for each length in lengths [print length]
 One named range can be reused in several loops. Range values may start at
 zero; the one-based rule applies only to list positions.
 
+@section{List membership}
+
+@tt{value in list} tests whether a value equals an item in a list:
+
+@verbatim|{
+methods = ["manual" "video"]
+method = "manual"
+accepted = method in methods
+if accepted [print method]
+}|
+
+The right side can be a literal list, a named list, a nested list field,
+or a range. It must evaluate to a list; a known non-list value raises an
+error when the expression runs. Membership compares whole items using
+the same equality as @tt{==}; it does not search inside an item's fields
+or nested lists. For example, @tt{1 in [[1 2]]} is @tt{false}.
+
+A known match returns @tt{true}; if every comparison is false, membership
+returns @tt{false}. An empty list always gives @tt{false}. If no known
+match exists and an unknown value prevents a comparison, the result is
+@tt{unknown}. For example, @tt{2 in [unknown 2]} is @tt{true}, while
+@tt{2 in [unknown 1]} is @tt{unknown}. An unknown list also gives an unknown
+result.
+
+Membership works wherever expressions are accepted, including procedure
+inputs and outputs, conditions, and interface requirements. Use
+@tt{not (method in methods)} to negate it. It has the same precedence as
+@tt{==}; comparisons cannot be chained. The
+@hyperlink[(source-file-url "examples/list-membership.rkt")]{runnable example}
+uses both a named list and an interface requirement.
+
+@section{Value kind tests}
+
+@tt{value is kind} checks the outer kind of a value:
+
+@verbatim|{
+period = 2
+numeric = period is number
+if numeric [print period]
+}|
+
+The available kinds are @tt{number}, @tt{text}, @tt{boolean}, @tt{list},
+and @tt{record}. A record is an object with named fields. These words name
+kinds after @tt{is}; they can still be ordinary names elsewhere.
+The @tt{is} operator is reserved and has comparison precedence.
+
+A known value gives @tt{true} or @tt{false}; @tt{unknown is number} gives
+@tt{unknown}. The test checks the outer value, so @tt{[unknown] is list}
+is @tt{true}. An attached @tt{u} description does not change the kind.
+Combine tests with @tt{and}, @tt{or}, and @tt{not}; comparisons cannot be
+chained. These expressions also work in procedure inputs and outputs,
+loops, and interface conditions.
+
+@secref["interfaces"] explains how interface defaults declare kinds and how
+@tt{period = unknown number} explicitly permits an unknown numeric field.
+
 @section{Operators and conditions}
 
 Arithmetic uses @tt{+}, @tt{-}, @tt{*}, and @tt{/} on exact numbers. Division
 by zero is an error. A quotient without a finite decimal form is displayed
-as a fraction. Comparisons use @tt{==}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>}, and
-@tt{>=}; ordered comparisons need numbers. Combine comparisons with
+as a fraction. Comparisons use @tt{==}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>},
+@tt{>=}, and @tt{in}; ordered comparisons need numbers. Combine comparisons with
 @tt{and} or @tt{or} rather than chaining them.
 @tt{=} supplies values in assignments, record entries, and interface defaults;
 it is not an equality comparison. For example, @tt{ready = count == 20}
@@ -158,7 +214,7 @@ From strongest to weakest, the reader groups operations in this order:
    (list "3" (tt "unary -"))
    (list "4" (tt "* /"))
    (list "5" (tt "+ -"))
-   (list "6" (tt "== != < <= > >="))
+   (list "6" (tt "== != < <= > >= in is"))
    (list "7" (tt "not"))
    (list "8" (tt "and"))
    (list "9" (tt "xor"))

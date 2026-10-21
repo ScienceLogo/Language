@@ -352,9 +352,19 @@ can also satisfy the interface. Required fields reject `unknown` unless
 their declaration explicitly defaults to it. `must [duration = unknown]`
 both permits an unknown duration and supplies it as the default. A supplied
 default such as `unit = "seconds"` does not permit an unknown override.
+Concrete defaults also declare the field's outer kind: `unit` accepts text,
+and `must [duration = 2]` requires a number with default `2`.
+Use `must [duration is number]` to require a number without a default, or
+`must [duration = unknown number]` to allow a number or explicit unknown
+with default `unknown`. The five kinds are `number`, `text`, `boolean`,
+`list`, and `record`; a record is an object with named fields. These checks
+apply during construction and interface checks, without attaching permanent
+kind restrictions to workflow variables. List and record kinds constrain
+their outer values; requirements on their contents remain separate.
+See [value kinds](interfaces.md#value-kinds-and-defaults).
 Optional fields can still be absent or unknown. A standalone interface file can be checked with
 `trial implement "relative/path.rkt"`. The assessor checks field
-presence from direct assignments and dotted updates. When the record depends on
+presence and kinds from direct assignments and dotted updates. When the record depends on
 a procedure result or control flow it reports undetermined. Both local and
 standalone interfaces may omit `version`; assessments retain the source
 revision hash.
@@ -452,6 +462,23 @@ Equality comparisons use `==` throughout expressions, including `if`, `while`,
 procedure, as in `do check count == 10`. Parentheses group expressions.
 `count = 10` after a call starts a new assignment.
 
+`value in list` tests whether a value equals one whole item in a list.
+For example, `method in ["manual" "video"]` is the same condition as
+`method == "manual" or method == "video"`. The list can be named, accessed
+through a dotted path, or produced by a range. The right side must be a list;
+a known non-list value raises an error when the expression runs. Membership
+works in assignments, procedure arguments and outputs, conditions, and
+interface requirements. `not (value in list)` negates it.
+
+Membership uses the existing equality rules without coercing values or
+searching inside nested items. A known match gives `true`; if every comparison
+is false, it gives `false`. An empty list always gives `false`, including
+`unknown in []`. With no known match, an unknown value needed for comparison
+leaves the result unknown. Thus `2 in [unknown 2]` is `true`, while
+`2 in [unknown 1]` is `unknown`. An unknown list also gives an unknown result.
+The [membership example](../examples/list-membership.rkt) uses a named list
+and an interface requirement.
+
 The range is an ordered sequence of exact numbers. It includes the end only
 when a whole number of steps lands on it. Its bounds and step can also be
 procedure inputs or previously named values. A zero step or a step moving away
@@ -507,8 +534,13 @@ arguments. For example, `do add 1 + 2 (3 * 4) as total` supplies two inputs.
 
 `if condition [ ... ] else if another-condition [ ... ] else [ ... ]` runs the
 first branch whose condition is true, or the optional `else` branch. Conditions
-can combine Boolean values and comparisons with `==`, `!=`, `<`, `<=`, `>`, or
-`>=`. Ordered comparisons require numbers. `not` reverses a Boolean value,
+can combine Boolean values and comparisons with `==`, `!=`, `<`, `<=`, `>`,
+`>=`, or `in`. `value is kind` checks one of the five outer value kinds and
+has comparison precedence. A known value produces a Boolean result; an
+unknown value leaves the result unknown. For instance, `[unknown] is list`
+is true, while `unknown is number` is unknown. Kind names are contextual
+after `is` and after an interface's unknown default; `is` is reserved.
+Ordered comparisons require numbers. `not` reverses a Boolean value,
 `and` needs both sides true, `or` needs either side true, and `xor` needs
 exactly one side true. Precedence from strongest to weakest is parentheses,
 unary `-`, `*` and `/`, `+` and `-`, comparisons, `not`, `and`, `xor`, then
@@ -517,8 +549,8 @@ Operators at one level associate left to
 right. Comparisons cannot be
 chained; combine them with `and`. `unknown` explicitly represents an
 undetermined value. `false and unknown` resolves to `false`, and `true or
-unknown` resolves to `true`; other uses of `unknown` remain undetermined. An
-undetermined or nonboolean condition raises an error rather than selecting
+unknown` resolves to `true`. An undetermined or nonboolean condition raises
+an error rather than selecting
 `else`. A branch
 has its own local scope. The runner stops `while` and `repeat ... until` loops
 after 10,000 iterations with a nontermination error. The static method model

@@ -328,7 +328,7 @@
                      (hash-ref proposition-ids key) (node-at value))]
       [else
        (case (node-kind value)
-         [(list fields field-entry proposition-value uncertain field-ref range compare
+         [(list fields field-entry proposition-value uncertain field-ref range compare kind-test typed-default
                 binary unary augment dot-update)
           (for ([part (in-list (node-children value))])
             (add-use activity-id part inputs scopes))]

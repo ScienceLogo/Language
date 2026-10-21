@@ -1,7 +1,9 @@
 #lang racket/base
 
 (require racket/list racket/match racket/string
-         "private/record-interfaces.rkt" "private/uncertain-values.rkt")
+         "private/record-interfaces.rkt" "private/uncertain-values.rkt"
+         "private/value-kinds.rkt"
+         (only-in "private/constant-values.rkt" list-membership no-constant))
 
 (provide (all-from-out racket/base) run-program)
 
@@ -307,6 +309,10 @@
      (define (value-of expression inputs scopes)
        (match expression
          [`(literal ,value) value]
+         [`(typed-default ,_ (,value)) (value-of value inputs scopes)]
+         [`(kind-test ,kind (,expression))
+          (define value (plain-value (value-of expression inputs scopes)))
+          (if (eq? value 'unknown) 'unknown (eq? (value-kind value) kind))]
          [`(uncertain ,base ,description)
           (uncertain-value (plain-value (value-of base inputs scopes))
                            (normalize-uncertainty
@@ -449,6 +455,11 @@
           (define a (plain-value (value-of left inputs scopes)))
           (define b (plain-value (value-of right inputs scopes)))
           (cond
+            [(eq? operator 'in)
+             (unless (or (list? b) (eq? b 'unknown))
+               (error 'run-program "in needs a list on its right"))
+             (define answer (list-membership a b))
+             (if (eq? answer no-constant) 'unknown answer)]
             [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]
             [(eq? operator '==) (equal? a b)]
             [(eq? operator '!=) (not (equal? a b))]

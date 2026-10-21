@@ -28,6 +28,10 @@ measurements.
 The [unknown-field example](unknown-fields.rkt) shows a required value that
 rejects `unknown` and a planning interface that explicitly permits it with
 `period = unknown`.
+The [list-membership example](list-membership.rkt) uses `value in list`
+in a condition and in an interface requirement for allowed timing methods.
+The [value-kind example](value-kinds.rkt) requires numeric measured periods
+and explicitly permits unknown numeric values for planned periods.
 
 The prose examples are **provisional research and language sketches**, not
 executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)

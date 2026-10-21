@@ -547,6 +547,7 @@
   ;; Only written, direct record constructions are known here. A procedure result
   ;; or an executable block can depend on information absent from the method.
   (match expression
+    [`(typed-default ,_ (,value)) (record-shape value environment templates)]
     [`(uncertain ,base ,_) (record-shape base environment templates)]
     [`(literal unknown) 'unknown]
     [`(fields ,entries)
@@ -753,11 +754,14 @@
        (if (hash? shape) (undetermined-interface-fields template shape) '()))
      (define disallowed-unknown
        (if (hash? shape) (unknown-interface-fields template shape) '()))
+     (define wrong-kind
+       (if (hash? shape) (wrong-kind-interface-fields template shape) '()))
      (define-values (outcome gap)
        (cond [(memq shape '(unknown undetermined)) (values 'undetermined 'unknown-record)]
              [(not (hash? shape)) (values 'violated 'not-a-record)]
              [(pair? missing) (values 'violated 'missing-field)]
              [(pair? disallowed-unknown) (values 'violated 'unknown-field)]
+             [(pair? wrong-kind) (values 'violated 'wrong-field-kind)]
              [(pair? failed-values) (values 'violated 'invalid-value)]
              [(pair? unknown-parts) (values 'undetermined 'unknown-record)]
              [(pair? pending) (values 'undetermined 'unknown-condition)]
@@ -769,6 +773,7 @@
              (if gap
                  (list (finding gap reference (cond [(pair? missing) missing]
                                                    [(pair? disallowed-unknown) disallowed-unknown]
+                                                   [(pair? wrong-kind) wrong-kind]
                                                    [(pair? pending) pending]
                                                    [else target])
                                 '() condition-id target outcome evidence))
@@ -895,6 +900,10 @@
                     (finding-interface issue))]
           [(unknown-field)
            (fprintf out "Record ~a has unknown field(s) ~a that ~a does not permit.\n"
+                    (finding-target issue) (finding-part issue)
+                    (finding-interface issue))]
+          [(wrong-field-kind)
+           (fprintf out "Record ~a has field(s) ~a with the wrong kind of value for ~a.\n"
                     (finding-target issue) (finding-part issue)
                     (finding-interface issue))]
           [(unknown-record)

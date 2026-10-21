@@ -1,6 +1,6 @@
 #lang racket/base
-(require racket/list racket/match "uncertain-values.rkt")
-(provide constant-value no-constant unresolved? contains-unresolved?)
+(require racket/list racket/match "uncertain-values.rkt" "value-kinds.rkt")
+(provide constant-value no-constant unresolved? contains-unresolved? list-membership)
 
 (define no-constant (gensym 'no-constant))
 
@@ -17,6 +17,18 @@
        (contains-unresolved? part))]
     [else #f]))
 
+;; Membership has the same result as equality tests joined with or.
+(define (list-membership value collection)
+  (define needle (plain-value value))
+  (define items (plain-value collection))
+  (define unknown-needle? (contains-unresolved? needle))
+  (if (not (list? items)) no-constant
+      (for/fold ([answer #f]) ([item (in-list items)] #:break (eq? answer #t))
+        (define candidate (plain-value item))
+        (cond [(or unknown-needle? (contains-unresolved? candidate)) no-constant]
+              [(equal? needle candidate) #t]
+              [else answer]))))
+
 (define (constant-value expression [lookup (lambda (_name) no-constant)] [partial? #f])
   (define (evaluate expression)
     (match expression
@@ -24,6 +36,10 @@
       [`(literal ,value) value]
       [`(uncertain ,base ,description)
        (uncertain-value (evaluate base) (evaluate description))]
+      [`(typed-default ,_ (,value)) (evaluate value)]
+      [`(kind-test ,kind (,value))
+       (define plain (plain-value (constant-value value lookup #t)))
+       (if (unresolved? plain) no-constant (eq? (value-kind plain) kind))]
       [`(list ,parts)
        (define values (map evaluate parts))
        (if (and (not partial?) (ormap contains-unresolved? values)) no-constant values)]
@@ -133,8 +149,12 @@
                 [else no-constant]))])]
       [`(compare ,operator (,left ,right))
        (define a (plain-value (evaluate left)))
-       (define b (plain-value (evaluate right)))
+       (define b
+         (plain-value (if (eq? operator 'in)
+                          (constant-value right lookup #t)
+                          (evaluate right))))
        (cond
+         [(eq? operator 'in) (list-membership a b)]
          [(or (contains-unresolved? a) (contains-unresolved? b)) no-constant]
          [(eq? operator '==) (equal? a b)]
          [(eq? operator '!=) (not (equal? a b))]

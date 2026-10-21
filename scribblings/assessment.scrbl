@@ -154,6 +154,13 @@ reported separately from a missing field. A value the checker cannot resolve
 from the written method remains undetermined. The permission and the default
 are preserved in the interface declaration; the field remains required.
 
+Concrete interface defaults also declare the field's outer value kind.
+For example, @tt{period = 2} requires a number; a known text value violates
+that requirement. @tt{period = unknown number} explicitly permits an unknown
+numeric field. The checker distinguishes a wrong kind from an absent or
+unknown field, and preserves the default or annotation needed to determine
+the kind. @secref["interfaces"] gives the declaration rules.
+
 An interface can use @tt{for each} to apply requirements to every item of
 a written list. The structural record check examines the known items and
 identifies missing fields by their positions, such as
