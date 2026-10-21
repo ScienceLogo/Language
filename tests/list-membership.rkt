@@ -30,14 +30,15 @@
                               "2 in []" "unknown in []"))])
     (check-equal? (run (string-append "print " expression "\n")) "false\n"))
 
-  ;; A known match settles the result; other unknown comparisons do not.
+  ;; Unknown is an explicit value, including when it is a list item.
   (for ([expression (in-list '("2 in [unknown 2]" "2 in [2 unknown]"
                               "2 in [[period = unknown] 2]"))])
     (check-equal? (run (string-append "print " expression "\n")) "true\n"))
   (for ([expression (in-list '("2 in [1 unknown]" "unknown in [1 2]"
-                              "unknown in [unknown]" "2 in unknown"
                               "[period = unknown] in [[period = 2]]"))])
-    (check-equal? (run (string-append "print " expression "\n")) "unknown\n"))
+    (check-equal? (run (string-append "print " expression "\n")) "false\n"))
+  (check-equal? (run "print unknown in [unknown]\n") "true\n")
+  (check-equal? (run "print 2 in unknown\n") "unknown\n")
 
   (check-equal? (run "methods = [\"manual\" \"video\"]\nmethod = \"manual\"\naccepted = method in methods\nprint accepted\nmethods = [\"video\"]\nprint method in methods\n")
                 "true\nfalse\n")
@@ -69,13 +70,13 @@
     (check-equal? (outcomes (string-append required "trial = [method = " method "]\ntrial implement Timing\n"))
                   (list expected)))
   (check-equal? (outcomes "interface \"Timing\" [must [method = unknown method in [\"manual\" \"video\"]]]\ntrial = [method = unknown]\ntrial implement Timing\n")
-                '(undetermined))
+                '(violated))
   (check-equal? (outcomes "interface \"Timing\" [must [method = unknown method in []]]\ntrial = [method = unknown]\ntrial implement Timing\n")
                 '(violated))
   (check-equal? (outcomes "interface \"Timing\" [must [method in [unknown \"manual\"]]]\ntrial = [method = \"manual\"]\ntrial implement Timing\n")
                 '(satisfied))
   (check-equal? (outcomes "interface \"Timing\" [must [method in [unknown \"manual\"]]]\ntrial = [method = \"video\"]\ntrial implement Timing\n")
-                '(undetermined))
+                '(violated))
   (check-equal? (run "interface \"Timing\" [must [methods = [\"manual\" \"video\"] method in methods]]\ntrial = Timing.[method = \"video\"]\nprint trial.method\n")
                 "video\n")
   (check-equal? (outcomes "interface \"Timing\" [must [method in methods]]\ntrial = [method = \"manual\" methods = [unknown \"manual\"]]\ntrial implement Timing\n")

@@ -104,8 +104,11 @@ can contain unknown entries; requirements on its contents are checked
 separately. Optional fields may still be absent or contain `unknown`.
 Additional value conditions keep their own meaning: permitting an unknown
 `period` does not establish `period > 0`. The comparison stays undetermined
-until its value can be established. Ordinary comparisons with `unknown`
-retain their existing behavior.
+until its value can be established. Equality and inequality compare the
+explicit marker: `unknown == unknown` is true, `unknown == 2` is false,
+and `unknown != 2` is true. The same rule applies within lists and records.
+An absent entry or a value the checker cannot establish is not implicitly
+an explicit `unknown`.
 
 An attached `u` description does not make an unknown underlying value
 known. The same permission rule applies to a qualified `unknown`;
@@ -217,10 +220,11 @@ inserting it. The same membership form works in conditional requirements,
 nested groups, and per-item requirements. Inheritance and imports preserve it.
 
 Membership has the meaning of equality comparisons joined with `or`, using
-whole items and the existing `==` rules. It can return true despite unknown
-list items when another item establishes a match. If every comparison is
-false, the result is false; an empty list always gives false. Otherwise an
-unresolved comparison leaves membership undetermined. The required-field
+whole items and the existing `==` rules. The marker is a comparable item:
+`unknown in [unknown]` is true, while `2 in [unknown 1]` is false.
+If every comparison is false, the result is false; an empty list always
+gives false. An unknown collection or an operand the checker cannot
+establish can leave membership undetermined. The required-field
 rules still apply: an explicitly unknown required field is rejected unless
 its declaration permits it. Permitting an unknown does not establish a match.
 
@@ -313,6 +317,11 @@ reports an undetermined conditional requirement. An ordinary record can
 still describe unknown values and be mapped to the interface for inspection.
 The structural record check reports such unresolved requirements as
 `undetermined`, rather than treating the condition as false.
+Equality with an explicitly supplied marker is resolved: an unknown
+`method` makes `method == "automatic"` false and `method == unknown` true.
+Use `if method == unknown [...]` to describe requirements for that case.
+The [unknown-equality example](../examples/unknown-equality.rkt) requires an
+explanation for a pending period and a positive number otherwise.
 
 The reader and workflow model retain the condition, requiredness, hierarchy,
 and source location. Inherited and imported interfaces preserve their

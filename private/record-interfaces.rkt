@@ -237,7 +237,7 @@
   (map string->symbol (string-split (symbol->string (record-field-name field)) ".")))
 (define (path-value record path)
   (cond [(null? path) record]
-        [(memq record '(unknown undetermined)) unknown-path]
+        [(or (memq record '(unknown undetermined)) (eq? record no-constant)) unknown-path]
         [else
          (define child (value-field record (car path) absent))
          (if (eq? child absent) absent (path-value child (cdr path)))]))
@@ -245,7 +245,7 @@
 ;; Unlike a Boolean test, a collection may contain known and unknown items.
 (define (interface-value expression record)
   (define (known value)
-    (cond [(memq value '(undetermined not-a-record)) 'unknown]
+    (cond [(memq value '(undetermined not-a-record)) no-constant]
           [(uncertain-value? value)
            (uncertain-value (known (plain-value value)) (known (uncertain-value-uncertainty value)))]
           [(hash? value) (for/hasheq ([(name part) (in-hash value)]) (values name (known part)))]
@@ -258,7 +258,7 @@
       [`(fields ,entries)
        (for/hasheq ([entry (in-list entries)]) (values (car entry) (evaluate (cadr entry))))]
       [`(uncertain ,base ,description) (uncertain-value (evaluate base) (evaluate description))]
-      [_ (constant-value expression (lambda (name) (known (hash-ref record name 'unknown))))]))
+      [_ (constant-value expression (lambda (name) (known (hash-ref record name no-constant))))]))
   (evaluate expression))
 
 (define (iteration-template body)

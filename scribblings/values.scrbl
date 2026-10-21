@@ -149,12 +149,12 @@ error when the expression runs. Membership compares whole items using
 the same equality as @tt{==}; it does not search inside an item's fields
 or nested lists. For example, @tt{1 in [[1 2]]} is @tt{false}.
 
-A known match returns @tt{true}; if every comparison is false, membership
-returns @tt{false}. An empty list always gives @tt{false}. If no known
-match exists and an unknown value prevents a comparison, the result is
-@tt{unknown}. For example, @tt{2 in [unknown 2]} is @tt{true}, while
-@tt{2 in [unknown 1]} is @tt{unknown}. An unknown list also gives an unknown
-result.
+A matching item returns @tt{true}; if every comparison is false, membership
+returns @tt{false}. An empty list always gives @tt{false}. The explicit
+@tt{unknown} marker is compared like other items: @tt{unknown in [unknown]}
+is @tt{true}, while @tt{2 in [unknown 1]} is @tt{false}.
+When the entire list is @tt{unknown}, membership remains @tt{unknown}.
+A checker unable to establish an operand can also leave the result undetermined.
 
 Membership works wherever expressions are accepted, including procedure
 inputs and outputs, conditions, and interface requirements. Use
@@ -198,6 +198,39 @@ as a fraction. Comparisons use @tt{==}, @tt{!=}, @tt{<}, @tt{<=}, @tt{>},
 @tt{=} supplies values in assignments, record entries, and interface defaults;
 it is not an equality comparison. For example, @tt{ready = count == 20}
 assigns the result of a comparison to @tt{ready}.
+
+@subsection{Equality and unknown}
+
+@tt{==} and @tt{!=} compare @tt{unknown} as an explicit value:
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Expression") (bold "Result"))
+   (list (tt "unknown == unknown") (tt "true"))
+   (list (tt "unknown == 2") (tt "false"))
+   (list (tt "2 != unknown") (tt "true"))
+   (list (tt "[unknown] == [unknown]") (tt "true"))))
+
+The same rule applies inside records and lists. Use the ordinary equality
+operators to choose a branch:
+
+@verbatim|{
+period = unknown
+if period == unknown [
+  print "Period not yet known"
+] else [
+  print period
+]
+}|
+
+The comparison tests the explicit marker. An absent field or a value the
+checker cannot establish is not automatically an explicit @tt{unknown}.
+Arithmetic, ordered comparisons, and kind tests using an unknown value can
+still return @tt{unknown}. The
+@hyperlink[(source-file-url "examples/unknown-equality.rkt")]{runnable example}
+uses equality in conditional interface requirements.
+
+@subsection{Boolean operators and precedence}
 
 @tt{not}, @tt{and}, @tt{or}, and @tt{xor} operate on Boolean values.
 @tt{false and unknown} is @tt{false}; @tt{true or unknown} is @tt{true}.

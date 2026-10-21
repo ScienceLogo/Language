@@ -153,6 +153,9 @@ their declaration defaults to @tt{unknown}. This is a violated requirement,
 reported separately from a missing field. A value the checker cannot resolve
 from the written method remains undetermined. The permission and the default
 are preserved in the interface declaration; the field remains required.
+Equality and inequality can resolve comparisons with explicit unknown
+markers, including inside records and lists. A value the checker cannot
+establish stays undetermined instead of being treated as an explicit marker.
 
 Concrete interface defaults also declare the field's outer value kind.
 For example, @tt{period = 2} requires a number; a known text value violates

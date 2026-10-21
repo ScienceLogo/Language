@@ -17,17 +17,29 @@
        (contains-unresolved? part))]
     [else #f]))
 
+;; The checker may lack a value even when the source did not supply unknown.
+(define (contains-unavailable? value)
+  (cond [(eq? value no-constant) #t]
+        [(uncertain-value? value)
+         (or (contains-unavailable? (uncertain-value-value value))
+             (contains-unavailable? (uncertain-value-uncertainty value)))]
+        [(list? value) (ormap contains-unavailable? value)]
+        [(hash? value) (for/or ([part (in-hash-values value)]) (contains-unavailable? part))]
+        [else #f]))
+
 ;; Membership has the same result as equality tests joined with or.
 (define (list-membership value collection)
   (define needle (plain-value value))
   (define items (plain-value collection))
-  (define unknown-needle? (contains-unresolved? needle))
-  (if (not (list? items)) no-constant
-      (for/fold ([answer #f]) ([item (in-list items)] #:break (eq? answer #t))
-        (define candidate (plain-value item))
-        (cond [(or unknown-needle? (contains-unresolved? candidate)) no-constant]
-              [(equal? needle candidate) #t]
-              [else answer]))))
+  (define unavailable-needle? (contains-unavailable? needle))
+  (cond [(eq? items 'unknown) 'unknown]
+        [(not (list? items)) no-constant]
+        [else
+         (for/fold ([answer #f]) ([item (in-list items)] #:break (eq? answer #t))
+           (define candidate (plain-value item))
+           (cond [(or unavailable-needle? (contains-unavailable? candidate)) no-constant]
+                 [(equal? needle candidate) #t]
+                 [else answer]))]))
 
 (define (constant-value expression [lookup (lambda (_name) no-constant)] [partial? #f])
   (define (evaluate expression)
@@ -39,7 +51,9 @@
       [`(typed-default ,_ (,value)) (evaluate value)]
       [`(kind-test ,kind (,value))
        (define plain (plain-value (constant-value value lookup #t)))
-       (if (unresolved? plain) no-constant (eq? (value-kind plain) kind))]
+       (cond [(eq? plain no-constant) no-constant]
+             [(eq? plain 'unknown) 'unknown]
+             [else (eq? (value-kind plain) kind)])]
       [`(list ,parts)
        (define values (map evaluate parts))
        (if (and (not partial?) (ormap contains-unresolved? values)) no-constant values)]
@@ -113,6 +127,7 @@
       [`(unary ,operator (,part))
        (define value (plain-value (evaluate part)))
        (cond
+         [(eq? value 'unknown) 'unknown]
          [(unresolved? value) no-constant]
          [(eq? operator 'not)
           (if (boolean? value) (not value) no-constant)]
@@ -122,42 +137,46 @@
       [`(binary ,operator (,left ,right))
        (define a (plain-value (evaluate left)))
        (define b (plain-value (evaluate right)))
+       (define (boolean-or-unknown? value)
+         (or (boolean? value) (eq? value 'unknown)))
        (case operator
          [(and)
           (cond [(eq? a #f) #f]
                 [(eq? b #f) #f]
                 [(and (eq? a #t) (eq? b #t)) #t]
+                [(and (boolean-or-unknown? a) (boolean-or-unknown? b)) 'unknown]
                 [else no-constant])]
          [(or)
           (cond [(eq? a #t) #t]
                 [(eq? b #t) #t]
                 [(and (eq? a #f) (eq? b #f)) #f]
+                [(and (boolean-or-unknown? a) (boolean-or-unknown? b)) 'unknown]
                 [else no-constant])]
          [(xor)
-          (if (and (boolean? a) (boolean? b))
-              (not (eq? a b)) no-constant)]
+          (cond [(and (boolean? a) (boolean? b)) (not (eq? a b))]
+                [(and (boolean-or-unknown? a) (boolean-or-unknown? b)) 'unknown]
+                [else no-constant])]
          [else
-          (if (or (unresolved? a) (unresolved? b)
-                  (not (and (real? a) (exact? a) (real? b) (exact? b)))
-                  (and (eq? operator '/) (zero? b)))
-              no-constant
-              (case operator
-                [(+) (+ a b)]
-                [(-) (- a b)]
-                [(*) (* a b)]
-                [(/) (/ a b)]
-                [else no-constant]))])]
+          (cond [(or (eq? a no-constant) (eq? b no-constant)) no-constant]
+                [(or (eq? a 'unknown) (eq? b 'unknown)) 'unknown]
+                [(or (not (and (real? a) (exact? a) (real? b) (exact? b)))
+                     (and (eq? operator '/) (zero? b))) no-constant]
+                [else
+                 (case operator
+                   [(+) (+ a b)]
+                   [(-) (- a b)]
+                   [(*) (* a b)]
+                   [(/) (/ a b)]
+                   [else no-constant])])])]
       [`(compare ,operator (,left ,right))
-       (define a (plain-value (evaluate left)))
-       (define b
-         (plain-value (if (eq? operator 'in)
-                          (constant-value right lookup #t)
-                          (evaluate right))))
+       (define a (plain-value (constant-value left lookup #t)))
+       (define b (plain-value (constant-value right lookup #t)))
        (cond
          [(eq? operator 'in) (list-membership a b)]
-         [(or (contains-unresolved? a) (contains-unresolved? b)) no-constant]
+         [(or (contains-unavailable? a) (contains-unavailable? b)) no-constant]
          [(eq? operator '==) (equal? a b)]
          [(eq? operator '!=) (not (equal? a b))]
+         [(or (contains-unresolved? a) (contains-unresolved? b)) 'unknown]
          [(not (and (real? a) (real? b))) no-constant]
          [else
           (case operator

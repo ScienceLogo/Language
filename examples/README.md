@@ -32,6 +32,8 @@ The [list-membership example](list-membership.rkt) uses `value in list`
 in a condition and in an interface requirement for allowed timing methods.
 The [value-kind example](value-kinds.rkt) requires numeric measured periods
 and explicitly permits unknown numeric values for planned periods.
+The [unknown-equality example](unknown-equality.rkt) uses `period == unknown`
+to require an explanation for a pending period and a positive value otherwise.
 
 The prose examples are **provisional research and language sketches**, not
 executable ScienceLogo programs. The [paired-stage syntax](../spec/stage-state.md)

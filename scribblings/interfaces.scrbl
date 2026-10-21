@@ -87,6 +87,10 @@ or contain @tt{unknown}. A permitted unknown value does not establish an
 additional condition such as @tt{period > 0}; that condition remains
 undetermined. A value the structural checker cannot resolve is also
 undetermined, rather than being treated as an explicitly supplied @tt{unknown}.
+Equality can directly test the explicit marker: @tt{period == unknown}
+is true when @tt{period} contains @tt{unknown}; @tt{period != unknown}
+tests the opposite. These expressions also work in interface conditions.
+They do not replace the field's declaration of permitted values.
 
 @tt{must} applies to every entry inside its brackets, whether they share a
 line or use separate lines. A field with a default is compulsory even if it
@@ -160,8 +164,9 @@ Construction supplies the @tt{methods} default; checking an existing record
 requires that field to be present. Membership uses the same rules in
 conditional branches, nested parts, and @tt{for each} requirements.
 Required fields still reject @tt{unknown} unless explicitly permitted.
-A permitted unknown value can leave membership undetermined; a known match
-can settle it even when another list item is unknown.
+The marker can match a list item: @tt{unknown in [unknown]} is true, while
+@tt{unknown in ["manual" "video"]} is false. An unknown list or values the
+checker cannot establish can leave membership undetermined.
 @secref["values"] gives the expression rules.
 
 @section{Declaration forms}
@@ -314,6 +319,11 @@ the applicable branch. To allow an unknown method, declare
 condition, construction reports an undetermined conditional requirement.
 Plain records can retain unknown values for inspection; the structural
 check reports unresolved requirements as @tt{undetermined}.
+An equality comparison with an explicit unknown is resolved: for example,
+@tt{method == "automatic"} is false when @tt{method} is @tt{unknown}.
+Use @tt{if method == unknown [...]} to state requirements for that case.
+The @hyperlink[(source-file-url "examples/unknown-equality.rkt")]{unknown-equality example}
+requires an explanation when a period is unknown and a positive number otherwise.
 
 For a workflow, the existing @tt{implement} form connects a value to the
 interface entry used by a condition:

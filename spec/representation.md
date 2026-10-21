@@ -95,6 +95,10 @@ pendulum.
   Keep an explicitly supplied unknown distinct from a value the checker
   cannot resolve from the method. Permission for a field does not waive
   conditions on its value or requirements on its children.
+  Equality and inequality compare explicit unknown markers normally,
+  including markers nested inside records and lists. Retain the distinction
+  between an explicit marker and unavailable information when checking those
+  expressions; unavailable information does not become an asserted unknown.
   Concrete defaults also constrain the field's outer value kind. Preserve
   the default expression from which that kind is determined. An explicitly
   qualified unknown default is retained as, for example,

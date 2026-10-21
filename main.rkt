@@ -460,9 +460,9 @@
                (error 'run-program "in needs a list on its right"))
              (define answer (list-membership a b))
              (if (eq? answer no-constant) 'unknown answer)]
-            [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]
             [(eq? operator '==) (equal? a b)]
             [(eq? operator '!=) (not (equal? a b))]
+            [(or (contains-unknown? a) (contains-unknown? b)) 'unknown]
             [else
              (unless (and (real? a) (real? b))
                (error 'run-program "ordered comparisons need numbers"))

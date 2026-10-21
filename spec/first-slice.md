@@ -462,6 +462,15 @@ Equality comparisons use `==` throughout expressions, including `if`, `while`,
 procedure, as in `do check count == 10`. Parentheses group expressions.
 `count = 10` after a call starts a new assignment.
 
+Equality compares `unknown` as an explicit value: `unknown == unknown` is
+`true`, `unknown == 2` is `false`, and `2 != unknown` is `true`. These rules
+also apply inside lists and records. `if period == unknown [...]` therefore
+directly tests the marker. A field that is absent, or a value the checker
+cannot establish, is not automatically an explicit unknown. Arithmetic,
+ordered comparisons, and kind tests can still return unknown when their
+inputs are unknown. The [runnable example](../examples/unknown-equality.rkt)
+uses this equality rule in conditional interface requirements.
+
 `value in list` tests whether a value equals one whole item in a list.
 For example, `method in ["manual" "video"]` is the same condition as
 `method == "manual" or method == "video"`. The list can be named, accessed
@@ -471,11 +480,11 @@ works in assignments, procedure arguments and outputs, conditions, and
 interface requirements. `not (value in list)` negates it.
 
 Membership uses the existing equality rules without coercing values or
-searching inside nested items. A known match gives `true`; if every comparison
+searching inside nested items. A matching item gives `true`; if every comparison
 is false, it gives `false`. An empty list always gives `false`, including
-`unknown in []`. With no known match, an unknown value needed for comparison
-leaves the result unknown. Thus `2 in [unknown 2]` is `true`, while
-`2 in [unknown 1]` is `unknown`. An unknown list also gives an unknown result.
+`unknown in []`. Unknown is a comparable item: `unknown in [unknown]` is
+`true`, while `2 in [unknown 1]` is `false`. An unknown list gives an unknown
+result, as can an operand the checker cannot establish.
 The [membership example](../examples/list-membership.rkt) uses a named list
 and an interface requirement.
 

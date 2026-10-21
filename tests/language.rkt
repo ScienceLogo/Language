@@ -645,11 +645,10 @@
      (output-of
       "#lang sciencelogo\nprint [height = 170].[height = 193 height = 194]\n")))
 
-  (check-exn
-   #rx"condition is undetermined"
-   (lambda ()
-     (output-of
-      "#lang sciencelogo\nif [value = unknown] == [value = unknown] [print \"same\"]\n")))
+  (check-equal?
+   (output-of
+    "#lang sciencelogo\nif [value = unknown] == [value = unknown] [print \"same\"]\n")
+   "same\n")
 
   (check-equal?
    (output-of
@@ -708,10 +707,9 @@
    (lambda () (output-of
                "#lang sciencelogo\nif unknown [print \"yes\"] else [print \"no\"]\n")))
 
-  (check-exn
-   #rx"condition is undetermined"
-   (lambda () (output-of
-               "#lang sciencelogo\nif unknown == false [print \"yes\"] else [print \"no\"]\n")))
+  (check-equal?
+   (output-of "#lang sciencelogo\nif unknown == false [print \"yes\"] else [print \"no\"]\n")
+   "no\n")
 
   (check-exn
    #rx"range step must not be zero"

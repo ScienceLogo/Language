@@ -64,7 +64,7 @@
              (lambda () (output-of (string-append simple "trial = Timing.[method = unknown]\n"))))
   (define open-method "interface \"Timing\" [must [method = unknown] if method == \"automatic\" [must [instrument]]]\n")
   (check-equal? (outcomes (string-append open-method "trial = [method = unknown]\ntrial implement Timing\n"))
-                '(undetermined))
+                '(satisfied))
   (check-equal? (outcomes (string-append open-method "trial = [method = unknown instrument = \"timer\"]\ntrial implement Timing\n"))
                 '(satisfied))
 
