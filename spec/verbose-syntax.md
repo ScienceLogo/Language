@@ -1,9 +1,9 @@
 # ScienceLogo verbose syntax
 
-**Status:** agreed language specification. Verbose parsing and source translation
-are awaiting implementation. The current reference reader accepts compact
-syntax. The examples of verbose and mixed syntax below define their intended
-spelling; they are not runnable with that reader yet.
+**Status:** accepted syntax. The reference implementation normalizes compact,
+verbose, and mixed source to compact form before parsing and language checks.
+The public normalization API preserves comments, groups, and original source
+locations. Compact-to-verbose generation remains to be implemented.
 
 ## Purpose and scope
 
@@ -520,8 +520,9 @@ Translation must preserve:
 Translate grammatical constructs rather than substituting matching words
 throughout a file. Text such as `"set period to 2"` stays exactly that string.
 The translator must retain comments and groups as source information.
-The current compact reader discards comments, so its existing tree alone is
-insufficient for this preservation requirement.
+The normalization API retains comments in its compact text and maps output
+characters to original source locations. The compact parser's tree omits comments;
+source translation therefore uses the preserved source information as well.
 
 A compact-to-verbose-to-compact round trip must retain the same workflow
 meaning and the preserved information above. The standalone field-update
@@ -535,9 +536,11 @@ resource access describes external data flow; an implementation mapping
 records a stated relationship. Their verbose spelling introduces no scientific
 execution, conformance verdict, or uncertainty calculation.
 
-## 9. Checks for a future implementation
+## 9. Implementation checks
 
-The implementation work must cover these cases with the same compact behavior:
+The normalization tests check verbose and mixed input against compact behavior
+in the cases below. Future reverse generation must satisfy the same preservation
+contract.
 
 1. Assignments and nested object fields, including identical field and outer
    variable names.
@@ -556,8 +559,8 @@ The implementation work must cover these cases with the same compact behavior:
    assignments under the existing constraints.
 9. Implementation mappings, `affects` direction, required calls, stage order,
    and the existing file-reference form.
-10. Comments, strings, descriptions, names, and nested parentheses across both
-    translation directions and mixed input.
+10. Comments, strings, descriptions, names, and nested parentheses through
+    normalization of verbose and mixed input.
 
 These are language-equivalence cases. The scientific judgments of independent
 assessment applications remain outside this syntax specification.

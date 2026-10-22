@@ -453,9 +453,9 @@
      "to echo :flag [output :flag]\n"))
    "true\n")
 
-  (check-exn
-   #rx"write name = value for assignment"
-   (lambda () (output-of "#lang sciencelogo\nset count to 1\n")))
+  (check-equal?
+   (output-of "#lang sciencelogo\nset count to 1\nprint count\n")
+   "1\n")
 
   (check-equal?
    (output-of
@@ -1274,9 +1274,9 @@
           a-url)))))))
 
 (module+ test
-  (check-exn exn:fail?
-             (lambda ()
-               (output-of "#lang sciencelogo\ntrial = [time = 1]\nprint time of trial\n")))
+  (check-equal?
+   (output-of "#lang sciencelogo\ntrial = [time = 1]\nprint time of trial\n")
+   "1\n")
   (check-exn exn:fail?
              (lambda ()
                (output-of "#lang sciencelogo\ntrials = [1 2]\nprint item 1 of trials\n")))

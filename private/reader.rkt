@@ -9,6 +9,7 @@
          racket/string
          racket/system
          syntax/readerr
+         "../normalize.rkt"
          "expression-groups.rkt"
          "record-interfaces.rkt"
          "value-kinds.rkt")
@@ -104,7 +105,23 @@
        (loop (cons (struct-copy token start [kind 'word] [value value]) backward))])))
 
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
-  (define tokens (list->vector (lex in source)))
+  ;; Normalize spelling before the compact grammar sees the source. Keep
+  ;; original locations even when a verbose access changes word order.
+  (port-count-lines! in)
+  (define-values (line column position) (port-next-location in))
+  (define normalized
+    (normalize-source (port->string in) #:source source
+                      #:line (or line 1) #:column (or column 0)
+                      #:position (or position 1)))
+  (define tokens
+    (list->vector
+     (for/list ([found (in-list (lex (open-input-string (normalized-source-text normalized) source) source))])
+       (define origin (normalized-source-origin normalized (token-position found)))
+       (struct-copy token found
+                    [line (source-origin-line origin)]
+                    [column (source-origin-column origin)]
+                    [position (source-origin-position origin)]
+                    [source (source-origin-source origin)]))))
   (define index 0)
   (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "hypothesis" "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set" "about"))
   (define reserved

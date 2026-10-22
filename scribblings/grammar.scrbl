@@ -13,8 +13,8 @@ applications to be written in Racket.
 
 The @hyperlink[(source-file-url "spec/compact.ebnf")]{standalone grammar file}
 is included verbatim below. The explanations linked from @secref["reference"]
-define the meaning of each form. Verbose syntax and its translation remain
-future work.
+define the meaning of each form. @secref["verbose-syntax"] describes the
+normalization of verbose and mixed spellings to this compact grammar.
 
 @section{Grammar notation}
 

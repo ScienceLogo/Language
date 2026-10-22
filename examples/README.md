@@ -9,6 +9,8 @@ syntax is listed in the [first-slice contract](../spec/first-slice.md).
 The [return-a-plan example](return-a-plan.rkt) shows a procedure returning a named
 result to its caller. The [pendulum method](pendulum-method.rkt) uses that syntax to
 print a timing plan; it does not perform a measurement.
+The [verbose method example](verbose-method.rkt) calculates a period using the
+equivalent word-based syntax. Compact and verbose forms can mix in one file.
 The [assessor self-description](meta-assessor/README.md) is also runnable. It shows
 the implemented structural interface check and its missing-part impact report.
 The [protocol mapping example](protocol-mapping.rkt) uses direct `implement`

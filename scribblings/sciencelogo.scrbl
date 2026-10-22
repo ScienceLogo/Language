@@ -40,6 +40,8 @@ is small, and broader scientific and AI constructs are still being designed.
 @(tabular #:style 'boxed
   (list
    (list (bold "Part") (bold "Current behavior"))
+   (list (secref "verbose-syntax")
+         "Compact, verbose, and mixed source normalize to the same compact grammar")
    (list (secref "values")
          "Values, records, expressions, and ranges run")
    (list (secref "uncertainty")
@@ -58,7 +60,7 @@ is small, and broader scientific and AI constructs are still being designed.
          "The assessor checks declared method structure and record fields")))
 
 Scientific adequacy, protocol conformance, bias and quantitative uncertainty analysis,
-records of observed runs, and the planned verbose syntax remain outside the
+records of observed runs, and compact-to-verbose generation remain outside the
 current implementation. The
 @hyperlink[(source-file-url "spec/README.md")]{specification index} identifies
 which design documents describe future work.
@@ -71,6 +73,7 @@ page states what its forms currently do.
 
 @include-section["getting-started.scrbl"]
 @include-section["reference.scrbl"]
+@include-section["verbose.scrbl"]
 @include-section["grammar.scrbl"]
 @include-section["values.scrbl"]
 @include-section["procedures.scrbl"]

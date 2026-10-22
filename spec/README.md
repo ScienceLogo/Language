@@ -14,7 +14,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | Document | Role and current status |
 | --- | --- |
 | [Compact grammar](compact.ebnf) | Current compact forms in one grammar; the [manual's grammar page](../scribblings/grammar.scrbl) supplies grouping, disambiguation, placement, and declaration-based resolution rules. |
-| [Verbose syntax](verbose-syntax.md) | Agreed equivalent spellings, mixed-source rules, and source-preserving translation requirements; verbose parsing and translation await implementation. |
+| [Verbose syntax](verbose-syntax.md) | Accepted equivalent spellings and mixed-source normalization to compact syntax, retaining source locations, comments, and groups; reverse generation remains future work. |
 | [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
 | [Descriptions](descriptions.md) | Accepted optional `about` Markdown for workflows, stages, and procedures; retained for inspection and external publication tools. |
 | [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, value kinds and defaults, explicit unknown permissions, optional entries, nested protocol parts, conditional and per-item requirements, and shared structural checks. |

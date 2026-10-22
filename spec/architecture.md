@@ -7,19 +7,21 @@ applications that use it.
 
 ## Compact and verbose syntax
 
-ScienceLogo will have two fully equivalent ways to write the same language:
-**compact** and **verbose** syntax. The forms accepted today are the compact
-syntax. It is the reference form for specifying and checking language behavior.
+ScienceLogo has two equivalent ways to write the same language:
+**compact** and **verbose** syntax. Compact syntax is the reference form for
+specifying and checking language behavior.
 The verbose syntax must express the same workflows and have the same meaning;
 it must not introduce separate semantics or separate scientific checks.
 
-A future translator will convert compact source to verbose source, verbose
-source to compact source, and source that mixes the two into either form.
-Verbose and mixed source will be converted to the compact form for the same
-language checks. The [verbose syntax specification](verbose-syntax.md) defines
-the agreed spellings, mixed-source rules, and translation requirements.
-Verbose parsing and source translation remain to be implemented; the current
-reader accepts the compact forms only.
+The normalizer converts verbose and mixed source to compact source before
+parsing, name resolution, and language checks. The reference reader uses this
+sequence for workflows, included files, and imported libraries. SDKs can use
+the same boundary and implement the compact parser and checks once.
+The [normalization API](../normalize.rkt) returns compact text and original
+source locations while retaining comments and explicit groups.
+The [verbose syntax specification](verbose-syntax.md) defines the equivalent
+spellings and preservation requirements. Compact-to-verbose generation remains
+future work.
 
 ## What the specification defines
 
@@ -71,8 +73,8 @@ language package; the language supplies the syntax and representation they need.
 - [Compact grammar](compact.ebnf) and its [context rules](../scribblings/grammar.scrbl)
   collect current forms, grouping, and name-resolution rules for implementations
   in any language.
-- [Verbose syntax](verbose-syntax.md) records the agreed equivalent spellings and
-  source-preserving translation rules; their implementation remains future work.
+- [Verbose syntax](verbose-syntax.md) records the accepted equivalent spellings
+  and normalization rules; reverse source generation remains future work.
 - [First runnable slice](first-slice.md) and [Libraries](libraries.md) describe
   accepted runnable forms and file rules.
 - [Paired stages and state locations](stage-state.md) describes accepted

@@ -19,6 +19,10 @@ such as @tt{notes is text}, checks the field when supplied; see
 in one reference, with a standalone grammar for implementations in other
 languages.
 
+@secref["verbose-syntax"] gives the accepted word-based equivalents and
+examples of mixed source. All spellings normalize to compact syntax before
+the same parsing and language checks.
+
 @section{How to read the forms}
 
 In a form such as @tt{to name :input [ ... ]}, command words such as @tt{to}
