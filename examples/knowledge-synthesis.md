@@ -1,10 +1,11 @@
 # Knowledge synthesis: LLMs with accountable roles
 
-This sketch asks whether published studies find that urban trees reduce summer air
+This earlier workflow sketch asks whether published studies find that urban trees reduce summer air
 temperature. The LLM suggests screening and extraction decisions; a human makes each final
 screening decision and verifies extracted findings. Named agent setups show what each model
-can read, which tools it can use, and how its memory is scoped. The syntax is provisional
-and cannot yet be run.
+can read, which tools it can use, and how its memory is scoped. The pseudo-code
+below is not ScienceLogo syntax or a planned language extension. See the
+[manual](../scribblings/sciencelogo.scrbl) for valid source.
 
 ```text
 workflow "Do urban trees reduce summer air temperature?"

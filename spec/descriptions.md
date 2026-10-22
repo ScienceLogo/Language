@@ -1,7 +1,7 @@
 # Descriptions of workflows, stages, and procedures
 
-**Status:** accepted compact syntax, preserved by the reader and workflow model.
-Descriptions do not affect execution or structural checks. Publication tools
+The reader and workflow model preserve `about` descriptions. Descriptions
+do not affect execution or structural checks. Publication tools
 can use them; the language package does not generate research booklets.
 
 ## Form and attachment

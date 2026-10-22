@@ -1,14 +1,14 @@
-# First runnable ScienceLogo slice
+# Language rules and reference behavior
 
-**Status:** accepted runnable syntax and current structural checks. The
-[manual](../scribblings/sciencelogo.scrbl) provides the learning path and form
-index; this page records the implemented contract. Broader examples and
-semantic designs remain proposals.
+This page defines source rules, executable forms, and structural checks.
+The [manual](../scribblings/sciencelogo.scrbl) provides the learning path and
+syntax index. The [compact grammar](compact.ebnf) and
+[verbose equivalences](verbose-syntax.md) define the two spellings of these
+rules; compact and verbose forms may be mixed in one file.
 
 The reader also accepts the [paired stage state and location-based call forms](stage-state.md),
 checks their declared structure, and retains them in the workflow model. The
-current interpreter does not execute the body of a paired state stage; the
-runnable forms described below keep their existing behavior.
+interpreter does not execute the body of a paired state stage.
 The [resource form](resources.md) names data sources and storage outside the
 workflow. Its assignments are represented in the model; the interpreter does
 not transfer data to or from them.
@@ -170,7 +170,7 @@ guaranteed result. The reader rejects an unknown procedure name. This check
 does not prove that a run took place or that the procedure did adequate
 scientific work. The declaration does not call the procedure.
 
-This first path check resolves literal booleans and comparisons, fixed counts,
+The path check resolves literal booleans and comparisons, fixed counts,
 and whether literal lists or valid literal ranges are empty. It follows nested
 blocks, procedure calls, and early `output`. Named values, procedure inputs,
 and procedure results remain unknown to this check, even when another line
@@ -623,7 +623,7 @@ after 10,000 iterations with a nontermination error. The static method model
 records loop bodies and alternative branches, but does not claim that they ran
 or that a particular condition was resolved.
 
-## Reader validation and current limits
+## Reader validation and execution boundaries
 
 The reader parses and validates the complete investigation before any command runs.
 Definitions may appear after their calls, including a call inside another procedure.
@@ -632,13 +632,15 @@ brackets, wrong input counts, unknown input or result names, calls requesting an
 output, unsupported commands, and recursive procedure calls are rejected before
 execution. A workflow file has at most one optional title line; a library file has one library
 declaration. `to` definitions belong directly in the workflow file or library block, or at the top of an
-included file. Recursion, domain-specific records and measurements,
-other `must` rules, standards beyond these structural checks, agents, and `any order` are not
-implemented yet.
+included file. Recursive calls are rejected. Domain-specific data models,
+measurements, and scientific assessment algorithms are supplied by libraries
+and independent applications. Paired stages and resource assignments describe
+scientific work and data flow without performing them.
 
-The [first runnable example](../examples/first-slice.rkt),
+The [procedure-call example](../examples/first-slice.rkt),
 [return-a-plan example](../examples/return-a-plan.rkt), and
-[pendulum planning example](../examples/pendulum-method.rkt), along with the
+[pendulum timing-plan example](../examples/pendulum-method.rkt), along with the
 [parameter sweep example](../examples/parameter-sweep.rkt), can be run from an
-installed package. The [pendulum period design case](../examples/pendulum-period.md)
-describes measurements and run checks beyond the current runnable slice.
+installed package. The [pendulum period case](../examples/pendulum-period.md)
+explains a research progression; its described measurements are distinct from
+running the example programs.

@@ -1,5 +1,5 @@
 (* ScienceLogo compact grammar
-   Status: current compact forms, with the disambiguation and context rules
+   Read together with the disambiguation and context rules
    on the manual's Compact grammar page (scribblings/grammar.scrbl). Those
    rules are part of this grammar.
    No verbose forms or scientific assessment algorithms are defined here.

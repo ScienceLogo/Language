@@ -1,7 +1,11 @@
-# LLM variation and context (draft)
+# Earlier design note: LLM variation and context
 
-**Status:** design contract for LLM activities, not adopted syntax or an executable policy.
-Read this with the [semantic core](core.md) and the [prompt and obligation design](prompts-and-obligations.md).
+This note retains earlier considerations about LLM activities, supplied
+context, replication, and control. It does not define language syntax,
+an executable policy, or a development roadmap. The related
+[method and run](core.md) and [prompt and obligation](prompts-and-obligations.md)
+notes are also exploratory. Use the [specification guide](README.md#language-specification)
+for the language rules.
 
 ## An LLM answer is an outcome under conditions
 

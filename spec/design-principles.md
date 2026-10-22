@@ -1,118 +1,94 @@
-# ScienceLogo design principles (draft)
+# ScienceLogo design principles
 
-**Status:** goals and tests for the language, not adopted syntax or a claim that the
-current reader implements them. The [semantic core](core.md) defines the shared
-workflow elements and distinguishes a method from other records when present; the
-[first runnable slice](first-slice.md) lists
-what works today.
+These principles explain the purpose and design rationale of ScienceLogo.
+The [specification](README.md#language-specification) and
+[manual](../scribblings/sciencelogo.scrbl) define the language rules.
+The principles guide readable workflow descriptions; they do not add syntax
+or requirements to individual workflows.
 
-## Scope of a scientific workflow
+## Humans first in AI science
 
-ScienceLogo should describe the whole investigation: its question, sources and datasets,
-transformations, analysis, choices, claims, and evidence. AI may help at many points,
-including search, screening, extraction, coding, interpretation, and writing. The same
-language must also work for investigations without AI. Its purpose is to let people
-inspect the method, test stated obligations, trace results to evidence and decisions,
-repeat or compare runs, and examine sensitivity, robustness, and possible bias under
-alternative choices. These capabilities support scrutiny; they do not establish that a
-scientific conclusion is true.
+ScienceLogo makes scientific methods understandable and inspectable by
+people. Its scope includes questions, data, procedures, assumptions,
+hypotheses, conclusions, and the conditions under which work is described.
+AI can participate in search, screening, extraction, analysis,
+interpretation, or writing. A workflow can also contain no AI at all.
+Human supervision depends on being able to inspect what information is
+available, who is designated to act, and what changes the method describes.
 
-Knowledge synthesis from unstructured sources is one demanding test case because it
-exposes selection, evidence, review, and bias. Modelling or another kind of analysis
-must also test the design, so review-specific assumptions do not become requirements
-for every workflow. A named [standard](core.md#standards-as-workflow-specifications)
-can express a research protocol, but a workflow need not start from a formal protocol
-or require preregistration. The scientist remains responsible for the question,
-criteria, method, and conclusions.
+The language supports assessment of scientific adequacy by making the
+relevant information expressible and accessible. It does not define
+scientific adequacy. Protocol conformance, bias analysis, quantitative
+uncertainty analysis, and judgments about evidence belong to independent
+applications and scientists.
 
-## Learn science through readable procedures
+## Learn through readable procedures
 
-ScienceLogo follows Logo's approachable words, small named procedures, interactivity,
-and vocabulary that learners can extend. It need not copy the exact syntax of an
-existing Logo dialect. Its Logo inspiration should be tested by whether a learner
-can read a command, try it, see its effect, and build larger methods from small parts. Scientific activities, obligations, evidence, and run records require meanings
-that ordinary turtle movement alone does not supply.
+ScienceLogo draws on Logo's approachable words, small named procedures, and
+vocabulary that learners can extend. It has its own syntax and scientific
+purpose. Turtle movement is an optional teaching example.
 
-The [young Galileo pendulum investigation](../examples/pendulum-period.md) is a
-progression test. A learner starts by timing swings at different lengths, then
-adds units, repeated trials, controlled release conditions, missing timings,
-uncertainty, and evidence behind a conclusion. The
-same language should later accommodate AI assistance without making the first lesson
-hard to read. A turtle may help teach what an action changes: `forward` changes its
-position, while `time ten swings` should create a timing record in an investigation.
-The turtle is an optional teaching example, not a required entity in ScienceLogo.
+The [young Galileo pendulum case](../examples/pendulum-period.md) starts with
+one question: does the period change as a pendulum's swing becomes smaller?
+A learner can describe a timing plan, add repeated observations and
+uncertainty, and relate a conclusion to a hypothesis. The following question
+can examine the effect of pendulum length. This progression keeps the first
+lesson approachable while allowing the method to become more detailed.
 
-Named, nested parts should give a larger investigation structure while keeping each
-small procedure understandable. This borrows the useful grouping idea from object
-oriented programming without requiring classes or inheritance. Procedure calls,
-stages, and scientific values must retain their distinct meanings; nesting alone must
-not turn a stage label into an executable procedure.
-Author-written names serve references and reuse; ordinary activities and values need not
-all carry one.
-The [abstract workflow core](core.md#workflow-as-the-abstract-core) defines the
-structural types that a method, standard, and assessor should share.
+A procedure is a reusable definition; a call invokes it. A stage is a
+checkpoint and section of the method. Values describe the information a
+method uses and produces. These roles remain distinct even when their
+source is nested. Interfaces provide reusable structures and requirements
+without a separate class system.
 
 ## Make relevant context visible
 
-The [context sets](context.md) distinguish the information made available to an
-activity, the environment in which it is specified to take place, and the
-factors considered when interpreting its results. These distinctions apply to
-human and AI activities. The reader checks stage state declarations and calls;
-interpreting an observed run remains separate.
+The [context sets](context.md) distinguish information designated as
+available, the relevant physical or digital environment, and possible
+influences considered when interpreting the work. They apply to human and
+AI activities. Paired stages declare entry and exit state; named input and
+return locations make described changes inspectable.
 
-People can sometimes resolve an underspecified instruction from shared experience.
-An AI activity cannot be assumed to share that context. Before it acts, the method
-should identify or elicit the criteria, sources, assumptions, units, and authority
-needed for the task. A short beginner program can remain short if the language asks
-for missing information; any default or interactive answer that supplies context
-must be visible in the specified method and observed run. Hidden context must not
-quietly change the scientific meaning of an activity.
+For an AI activity, information can include a prompt and supplied material.
+The environment can describe the model, settings, tools, and memory setup.
+Considered factors can include text order, truncated context, and variation
+between attempts. These are values and records supplied by the workflow or
+its libraries. The language does not impose a separate scientific data
+model for AI.
 
-An agent's working environment, sometimes called a harness in an implementation,
-is its permitted view of and access to the investigation. It includes the resolved
-model and settings, instructions, retrieval sources, available tools and permissions,
-memory scope, retry and stopping rules, and human handoffs. A simple call may need a
-small environment; a more autonomous agent needs a fuller one. A scientist should be
-able to inspect and explain it in ordinary language. The method records what an agent
-may use; the run records what it actually received, retrieved, inferred, and did.
-Material can retain its origin and status without treating a generated suggestion
-as accepted knowledge. Some evidence may require controlled access instead of open
-publication.
+A performer identifies who or what is designated to carry out a
+state-changing call. A resource identifies data outside the workflow.
+Naming either does not establish that an activity occurred or that data
+was transferred. A specified context and an observed context are distinct.
 
-## Preserve meaning across tools
+## Keep scientific meaning in workflows and libraries
 
-ScienceLogo should produce a machine-readable account that preserves scientific
-context, prescribed conditions, specified procedure, and observed events as distinct
-parts. It must represent loops, branches, exceptions, and human interventions; a
-simple acyclic step graph alone would lose some of that meaning. The current slice
-uses a typed method model; its broader shape and interchange format remain open.
-Tools must not turn an intended action into a claim that it
-happened or an unverified suggestion into a finding.
+The language supplies structure: procedures, stages, values, references,
+control flow, interfaces, propositions, and uncertainty descriptions.
+Libraries can define domain-specific objects and reusable pieces of a
+method. A protocol can be expressed through a versioned interface with
+nested requirements and mapped workflow parts.
 
-Racket is the current tool for implementing the reader, validator, and language
-semantics. That does not require scientists to write an entire analysis in Racket or
-future tools to use Racket internally. ScienceLogo is a language project in its own
-right.
+Declaring a requirement makes it available for inspection. A structural
+check can establish that a required field or mapping is present; a
+scientific assessment must examine its meaning and adequacy. A conclusion
+nested under a hypothesis records which hypothesis it answers without
+establishing that the conclusion is supported by evidence.
 
-## Tests for later semantic prototypes
+## Preserve meaning across spellings and tools
 
-Beyond the [current control-flow slice](first-slice.md), a prototype should be tested
-against both knowledge synthesis and modelling or analysis workflows. It should:
+Compact and verbose source express the same language, including when mixed.
+Normalization preserves comments, strings, explicit parentheses, and
+original source locations while producing compact source for parsing and
+checks.
 
-- let readers distinguish an obligation from an action and understand the purpose
-  of nested, named parts;
-- represent order, dependencies, branches, loops, permitted exceptions, and human
-  review without silently forcing every method into one sequence;
-- expose context that an AI activity needs, including how missing information was
-  resolved, and distinguish allowed access from actual access;
-- separate checks possible before execution from those needing run evidence or human
-  scientific judgment;
-- reject invalid ordering or missing obligations where the evidence allows, and
-  produce an inspectable link from each condition to the activities and events it
-  concerns; and
-- preserve the distinction between a method, an observed run, and a comparison of
-  alternative choices or runs.
+Readers preserve method structure, resolved references, conditions, and
+human explanations. A branch remains a branch, a call remains linked to its
+procedure, and a declared activity remains distinct from an observed event.
+Other tools can inspect these relationships without treating an intended
+activity as evidence that work happened.
 
-The wording and interpretation of these results should be tested with scientists and
-learners, not only with parser tests. The [semantic core's acceptance checks](core.md#acceptance-checks-for-a-later-semantic-prototype)
-give concrete pendulum and agent traces for this work.
+Racket provides the reference reader, interpreter, and structural assessor.
+The specification also supports readers and applications written in other
+languages. Scientific applications and publication tools are independent of
+the language package.

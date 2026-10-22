@@ -1,12 +1,13 @@
-# Prompts and obligations (draft)
+# Earlier design note: prompts and obligations
 
-**Status:** design proposal for broader obligations and AI requests. The
-current reader and structural assessor already support the narrower
-`must do`, `must stages in order`, and `record-name implement` forms
-described in the [accepted subset](first-slice.md), as well as comments and
-[`about` descriptions](descriptions.md). The broader obligation and AI request
-sketches here are not accepted syntax. This develops the [semantic core](core.md) using the
-[knowledge-synthesis example](../examples/knowledge-synthesis.md).
+This note retains earlier sketches of broader obligations and AI requests.
+Its code sketches are not language syntax or an implementation roadmap.
+The defined `must do`, `must stages in order`, and `subject implement`
+forms are described in [Language rules and reference behavior](first-slice.md);
+[`about` descriptions](descriptions.md) have their own contract. Use the
+[specification guide](README.md#language-specification) for the full language.
+This note relates to the earlier [method and run explorations](core.md) and
+[knowledge-synthesis sketch](../examples/knowledge-synthesis.md).
 
 ## Which words declare, and which words act?
 

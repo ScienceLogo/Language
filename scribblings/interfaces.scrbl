@@ -8,7 +8,7 @@ record, or the named parts a workflow may provide. Both use @tt{must [...]}
 to identify required entries. A record check treats the entries as fields;
 a workflow implementation declaration treats them as named workflow parts.
 The reader accepts @tt{must [...]} in workflows, libraries, and separate
-interface files. @secref["assessment"] explains the current structural checks.
+interface files. @secref["assessment"] explains the reference structural checks.
 
 @section{Required entries, defaults, and optional entries}
 
@@ -103,7 +103,7 @@ explicit and is the presentation used in this manual. Only an entry with
 neither @tt{must} nor a default is optional. These rules are shared by data
 interfaces and interfaces describing workflow parts. The
 @hyperlink[(source-file-url "spec/interfaces.md")]{interface specification}
-records the syntax and reader status.
+defines these declarations, constraints, and checks.
 
 @subsection{Reusing an interface for a field}
 
@@ -267,7 +267,7 @@ defaults, then checks applicable requirements. A false requirement fails;
 an unresolved value requirement is reported as undetermined. The
 @hyperlink[(source-file-url "examples/value-requirements.rkt")]{runnable value-requirement example}
 constructs and checks a timing trial. @secref["assessment"] describes the
-current structural checker.
+reference structural checker.
 
 Use @tt{in} to require one of several allowed values:
 
@@ -474,7 +474,7 @@ interface entry used by a condition:
 information.timing-method implement Timing-protocol.method
 }|
 
-The reader preserves the condition and mappings. The current mapping checker
+The reader preserves the condition and mappings. The reference mapping checker
 resolves literal conditions; conditions depending on mapped workflow values
 remain undetermined when required mappings are absent. Other applications
 can inspect those values and conditions to assess conformity.

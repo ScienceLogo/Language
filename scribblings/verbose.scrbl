@@ -162,13 +162,13 @@ reader diagnostics can refer to the original source.
 The
 @hyperlink[(source-file-url "spec/verbose-syntax.md")]{verbose syntax specification}
 gives the complete equivalences and preservation contract.
-Generating verbose source from compact source remains future work.
 
 @section{Normalization API for applications}
 
 @index["sciencelogo/normalize"]
 
-The Racket API is @tt{sciencelogo/normalize}. Other SDKs
+The Racket API is @tt{sciencelogo/normalize}. It converts source to compact
+form; it does not generate verbose source from compact source. Other SDKs
 can follow the same sequence: normalize source, parse compact syntax, then
 apply the language checks.
 

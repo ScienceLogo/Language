@@ -1,12 +1,12 @@
-# Workflow publication support (draft)
+# Earlier design note: workflow publication
 
-**Status:** publication design, not an implemented research booklet generator.
-The [`about` description form](descriptions.md) is implemented for workflows,
-stages, and procedures. The broader publication and run-record designs below
-remain future work. This describes information ScienceLogo must expose to
-external publication tools. The ScienceLogo language manual is maintained in
-this repository; templates for publishing
-particular research workflows are separate from the language specification.
+This note retains earlier ideas for external research booklets and
+method/run presentations. It is not part of the language specification or
+a roadmap for the language package. The
+[`about` description form](descriptions.md) defines the language's Markdown
+attachment for workflows, stages, and procedures. Publication templates and
+generators belong to independent applications. The ScienceLogo language
+manual is maintained in this repository.
 
 ## Two records for one investigation
 
@@ -83,7 +83,7 @@ block. This keeps the source readable and gives generated documentation a stable
 | Investigation | Recommended for a workflow intended to be shared: summarize its scientific purpose, scope, and important limits. The research question in its name remains separate. |
 | Named `stage` | Recommended for a section of work that gathers or changes evidence, delegates to AI, requires human judgment, or has several paths whose purpose needs explanation. The header provides a reference and checkpoint boundary; actors, actions, checks, and outputs come from the commands in that section. |
 | `to` procedure | Useful when the procedure is reused, shared, or has a non-obvious scientific purpose. `to` defines a reusable sequence, which may be called as an activity; it need not be a pure function. Inputs and returned results come from its header and `output`. |
-| Other named forms | Future design only; the current reader has no `about` attachment for agents, prompts, criteria, fields, or settings. |
+| Other named forms | The language has no `about` attachment for agents, prompts, criteria, fields, or settings. |
 | Anonymous `do`, `if`, `repeat`, or similar control block | Normally no `about`: the containing named part explains its purpose. Use a `;` comment for a local reading note. If a stretch of work is a distinct scientific stage that should appear in the generated account, start it with a `stage` header. |
 
 An `about` field describes its immediately containing named part, or the stage whose

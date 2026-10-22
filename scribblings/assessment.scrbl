@@ -3,8 +3,8 @@
 
 @title[#:style (page-style) #:tag "assessment"]{Assessment support}
 
-ScienceLogo lets an author declare a few requirements on a written method.
-The current assessor checks their @emph{structure}: required calls and stage
+ScienceLogo lets an author declare requirements on a written method.
+The reference assessor checks their @emph{structure}: required calls and stage
 order, supplied workflow parts, and record field presence and value requirements. These checks go
 beyond parsing syntax, but they do not show that the work happened or judge
 its scientific adequacy. Protocol conformance, bias analysis, uncertainty
@@ -17,7 +17,7 @@ and workflow parts.
 
 @(tabular #:style 'boxed
   (list
-   (list (bold "Form") (bold "What the current assessor checks"))
+   (list (bold "Form") (bold "What the reference assessor checks"))
    (list (tt "stage-name implement Protocol.part")
          "Maps a declared stage to an interface part")
    (list (tt "procedure implement Protocol.part")
@@ -88,7 +88,7 @@ required children apply. A stage or procedure can reference the whole
 interface. Several workflow parts may address the same requirement, and
 one part may address several requirements.
 
-The current command for inspecting these declarations is:
+Inspect these declarations with:
 
 @verbatim|{
 racket -l sciencelogo/assessor -- examples/protocol-mapping.rkt
@@ -179,7 +179,7 @@ explicitly permitted, its count is undetermined. It does not ask for a
 separate count field or mapping.
 
 For workflow mappings, the model retains the expressions and their guards.
-The current mapping checker resolves literal expressions; requirements
+The reference mapping checker resolves literal expressions; requirements
 depending on mapped workflow values remain undetermined. Other applications
 can use the recorded values and mappings to assess them.
 List requirements retain their local item name, collection expression,
@@ -187,7 +187,7 @@ guard, and a nested interface model of the body, including source locations.
 
 @section{Method information available to other tools}
 
-The implemented @hyperlink[(source-file-url "workflow-model.rkt")]{Racket workflow model}
+The @hyperlink[(source-file-url "workflow-model.rkt")]{Racket workflow model}
 records the written investigation as procedures, activities, named input and
 result slots, imports, performers, named data sources and destinations,
 interface mappings, @tt{must do}
@@ -229,12 +229,14 @@ remains supported for references written as text. The
 exercises that form and its missing-part reports. Direct @tt{implement}
 mappings identify workflow stages, procedures, and values themselves.
 
-The @hyperlink[(source-file-url "examples/pendulum-method.rkt")]{pendulum planning example}
+The @hyperlink[(source-file-url "examples/pendulum-method.rkt")]{pendulum timing-plan example}
 can be read into the same model. It returns and prints a timing plan; it does
 not time a pendulum. The
-@hyperlink[(source-file-url "examples/pendulum-period.md")]{young Galileo design case}
-describes measurements and observed run checks that the current language
-cannot yet record as run events. The
+@hyperlink[(source-file-url "examples/pendulum-period.md")]{young Galileo case}
+explains how a research question develops through observations and
+conclusions. Its prose account is distinct from the runnable timing plan
+and from evidence that measurements occurred. The
 @hyperlink[(source-file-url "spec/representation.md")]{shared representation
-contract} describes what readers in other languages should preserve; it does
-not make the Racket assessor an implementation of those future applications.
+contract} describes what readers in other languages must preserve.
+Independent applications use that method information for scientific
+assessment; the Racket assessor provides the structural checks described here.

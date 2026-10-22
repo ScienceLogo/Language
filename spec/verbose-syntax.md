@@ -1,9 +1,10 @@
 # ScienceLogo verbose syntax
 
-**Status:** accepted syntax. The reference implementation normalizes compact,
+The reference implementation normalizes compact,
 verbose, and mixed source to compact form before parsing and language checks.
 The public normalization API preserves comments, groups, and original source
-locations. Compact-to-verbose generation remains to be implemented.
+locations. The API converts source to compact form; it does not generate
+verbose source from compact source.
 
 ## Purpose and scope
 
@@ -539,8 +540,8 @@ execution, conformance verdict, or uncertainty calculation.
 ## 9. Implementation checks
 
 The normalization tests check verbose and mixed input against compact behavior
-in the cases below. Future reverse generation must satisfy the same preservation
-contract.
+in the cases below. A generator producing verbose source must satisfy the
+same preservation contract.
 
 1. Assignments and nested object fields, including identical field and outer
    variable names.

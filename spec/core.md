@@ -1,10 +1,13 @@
-# ScienceLogo semantic core (draft)
+# Earlier design note: method, runs, and findings
 
-**Status:** wider semantic design, including proposed run traces; it does not
-itself introduce accepted syntax. The [documentation map](README.md) separates
-current accepted forms from open design. The [design principles](design-principles.md)
-state the wider scope and learning tests; the [example workflows](../examples/README.md)
-explore readable wording.
+This note retains earlier semantic explorations, including observed-run
+traces. It is not part of the language specification or a development
+roadmap. Some terms and sketches predate the defined language. Use the
+[specification guide](README.md#language-specification) and
+[manual](../scribblings/sciencelogo.scrbl) for language rules and supported
+behavior. The [design principles](design-principles.md) explain the rationale;
+the [examples index](../examples/README.md) separates runnable programs from
+earlier sketches.
 
 ## What ScienceLogo must distinguish
 

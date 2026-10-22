@@ -1,7 +1,7 @@
 # Libraries
 
-This page defines the ScienceLogo library layout and import form implemented by the
-current `#lang sciencelogo` reader. Git must be available to resolve imports.
+This page defines the ScienceLogo library layout and import rules. The
+`#lang sciencelogo` reader uses Git to resolve imports.
 
 ## A hello-world library
 

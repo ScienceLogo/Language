@@ -9,13 +9,13 @@ The approximation is especially good for small swings
 ([OpenStax](https://openstax.org/books/university-physics-volume-1/pages/15-4-pendulums)).
 The question of how **length** affects the period can follow.
 
-The [runnable method](pendulum-method.rkt) currently prints a timing plan at
-different lengths using ScienceLogo syntax available today. It does not measure
+The [runnable method](pendulum-method.rkt) prints a timing plan at
+different lengths. It does not measure
 motion, calculate a period, or enact the fuller investigation below.
 
 ## The investigation across stages
 
-Each stage starts and ends with a complete proposed state. Its `information`,
+Each stage starts and ends with a complete declared state. Its `information`,
 `environment`, and `factors` sets show what was available and what changed. A
 `hypotheses` collection within `information` keeps claims distinct from
 observations without requiring a fourth set in every workflow. The findings
@@ -29,13 +29,13 @@ does not establish that the measurements took place.
 | Compare | A comparison refers to the recorded periods and reports no detectable shortening at the stated precision. The initial hypothesis is marked unsupported by these observations, not erased. | The setup used for the comparison remains identified. | Limits of the timing and angle measurements remain visible. |
 | Revise | A new hypothesis says the period is approximately constant as the swing diminishes within the observed range. It refers to the earlier claim and the comparison. A later investigation can ask how length affects the period. | The setup for the next test is stated anew. | Influences relevant to that next test are reconsidered. |
 
-In this design, a call to time swings reads its named inputs from locations
+In this investigation, a call to time swings reads its named inputs from locations
 such as `information.swing-count` and `environment.timer`, then returns a
 timing to a location such as `information.elapsed`. A period calculation reads
 that result and returns to `information.period`. A comparison reads the periods
 and returns its finding to a named location. Internal counters can remain
 local. The [stage-call syntax](../spec/stage-state.md#location-based-calls)
-lets the reader check these location mappings; the current interpreter does
+lets the reader check these location mappings; the interpreter does
 not perform the described measurements.
 
 ## A following question: pendulum length

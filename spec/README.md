@@ -1,57 +1,87 @@
-# ScienceLogo documentation map
+# ScienceLogo specification guide
 
-The [language manual](../scribblings/sciencelogo.scrbl) is the reading and
-lookup path. Its pages progress from a small investigation to values,
-procedures, stages, propositions, uncertainty descriptions, data sources and storage,
-interfaces, files, and structural
-checks. The Syntax page maps each accepted form to its main explanation. The website keeps these as
-one level of pages with headings within each page.
+The [language manual](../scribblings/sciencelogo.scrbl) provides the learning
+path and syntax lookup. It progresses from a small investigation to values,
+procedures, stages and state, propositions, uncertainty descriptions, data
+sources and storage, interfaces, libraries, and assessment support.
 
-This directory holds language contracts and design work. Read the **status**
-at the top of a document before using a form: an accepted reader form is not
-necessarily an executable command, and a design sketch is not accepted syntax.
+The documents below define the language rules and the behavior of the
+reference implementation. Design rationale and earlier exploratory notes
+have their own sections; they do not introduce additional language forms.
 
-| Document | Role and current status |
+## Language specification
+
+| Topic | Document and scope |
 | --- | --- |
-| [Compact grammar](compact.ebnf) | Current compact forms in one grammar; the [manual's grammar page](../scribblings/grammar.scrbl) supplies grouping, disambiguation, placement, and declaration-based resolution rules. |
-| [Verbose syntax](verbose-syntax.md) | Accepted equivalent spellings and mixed-source normalization to compact syntax, retaining source locations, comments, and groups; reverse generation remains future work. |
-| [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
-| [Descriptions](descriptions.md) | Accepted optional `about` Markdown for workflows, stages, and procedures; retained for inspection and external publication tools. |
-| [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, value kinds and defaults, explicit unknown permissions, optional entries, nested protocol parts, conditional and per-item requirements, and shared structural checks. |
-| [Libraries](libraries.md) | Accepted layout, import, and include rules. |
-| [Paired stages and state locations](stage-state.md) | Accepted reader syntax; checked as a written method but not executed. |
-| [Propositions](propositions.md) | Named hypotheses, assumptions, conclusions, and nested relationships. |
-| [Uncertainty descriptions](uncertainty.md) | Accepted compact `u` attachment and named source rules. |
-| [Data sources and storage](resources.md) | Accepted declarations and directional data paths; no external I/O. |
-| [Context sets](context.md) | Meaning and rationale for information, environment, and considered factors. |
-| [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications; compact and verbose syntax. |
-| [Shared representation](representation.md) | Design contract for what readers should preserve; portable format remains open. |
-| [Semantic core](core.md) | Wider semantic design and proposed run traces, beyond current accepted syntax. |
-| [Design principles](design-principles.md) | Goals and learning tests, not syntax. |
-| [Prompts and obligations](prompts-and-obligations.md) | Design of broader conditions and AI requests; its sketches are not accepted forms unless separately listed above. |
-| [LLM variation](llm-variation.md) | Design for attempts, context, replication, and control; not accepted syntax. |
-| [Workflow publication support](workflow-documentation.md) | Wider publication design; links to the implemented description form. No booklet format or generator is supplied. |
+| Compact syntax | [Compact grammar](compact.ebnf), together with the manual's [grouping, placement, and name-resolution rules](../scribblings/grammar.scrbl). |
+| Verbose and mixed syntax | [Equivalent spellings and normalization](verbose-syntax.md), including preservation of source locations, comments, and parentheses. |
+| Source and core behavior | [Language rules and reference behavior](first-slice.md): files, names, values, procedures, assignments, expressions, control flow, and structural checks. |
+| Human explanation | [Descriptions](descriptions.md): optional `about` Markdown attached to workflows, stages, and procedures. |
+| Interfaces | [Interface entries](interfaces.md): required and optional entries, defaults, value kinds, unknown permissions, nested parts, inheritance, conditions, and per-item requirements. |
+| Libraries and local files | [Libraries](libraries.md): repository layout, pinned imports, includes, and dependency rules. |
+| Stages and state | [Paired stages and state locations](stage-state.md): entry and exit state, performers, input and return locations, and declared changes. |
+| Context | [Context sets](context.md): the meaning of information, environment, and considered factors within stage state. |
+| Hypotheses, assumptions, and conclusions | [Propositions](propositions.md): names, nesting, references, and updates. |
+| Uncertainty | [Attached uncertainty descriptions](uncertainty.md): the `u` attachment and its declared and omitted sources. |
+| Data outside a workflow | [Data sources and storage](resources.md): `resource` declarations and directional data paths. |
+| Reader output | [Shared representation](representation.md): method information and relationships readers must preserve. |
+| Language and applications | [Language boundary](architecture.md): the specification, reader, core interpreter, structural assessor, and independent scientific applications. |
 
-## How pages are maintained
+## Reference implementation and tools
 
-For each accepted form, state its spelling, where it is allowed, what it
-means, what the reader checks, and whether it runs. Use a small example before
-the full constraints. Give the detailed rule one home and link to it from
-other pages. The manual can teach that rule without copying the entire
-contract. Keep scientific examples explicit about what is a written method,
-what is an observed event, and what is an assessor finding.
+The Racket reader accepts compact, verbose, and mixed source through one
+compact parsing and checking path. The core interpreter evaluates executable
+forms. Paired-stage bodies and resource assignments describe the method;
+the interpreter does not carry out those stages or transfer external data.
+The [assessment support manual](../scribblings/assessment.scrbl) describes
+the package's structural checks and the information available to independent
+assessment applications.
+
+The public [normalization API](../normalize.rkt) converts source to compact
+form. It does not generate verbose source from compact source. The
+[workflow model](../workflow-model.rkt) exposes Racket values; the package
+does not provide a language-neutral export format. These are tooling limits,
+not additional source-language rules. Scientific assessment algorithms and
+publication generators belong to independent applications.
+
+## Design rationale
+
+The [design principles](design-principles.md) explain the human-centered purpose,
+Logo inspiration, and scientific use cases behind the language. The
+specification above defines the syntax and behavior; rationale does not
+add requirements to a workflow.
+
+## Earlier design notes
+
+These notes retain earlier exploratory designs and examples. Their wording
+and code sketches are not language rules or a development roadmap. Use the
+specification and manual for valid source and supported behavior.
+
+| Note | Subject |
+| --- | --- |
+| [Method, runs, and findings](core.md) | Explorations of scientific context, observed events, and assessment records. |
+| [Prompts and obligations](prompts-and-obligations.md) | Earlier sketches of AI requests and broader conditions. |
+| [LLM variation and context](llm-variation.md) | Considerations about repeated attempts, supplied context, replication, and control. |
+| [Workflow publication](workflow-documentation.md) | Ideas for external research booklets and method/run presentations. The language's `about` form is defined in [Descriptions](descriptions.md). |
+
+## Documentation conventions
+
+For each language form, state its spelling, where it is allowed, what it
+means, what the reader checks, and how the reference interpreter handles it.
+Use a small example before the full constraints. Give each detailed rule one
+home and link to it from other pages. The manual uses one level of pages
+with headings within each page.
 
 Use familiar terms consistently: a **stage** is a checkpoint, a **procedure**
 is a reusable definition, a **call** invokes one, **state** names what a
 paired stage receives and leaves, and a **performer** is the named object
 designated to carry out a state-changing call. A **resource** declaration names
 data outside the workflow. A **proposition** is a named hypothesis,
-assumption, or conclusion; nesting records their relationships. The information, environment, and factors
-sets have distinct meanings. A written condition does not establish that it
-was satisfied. A structural check does not establish scientific adequacy.
+assumption, or conclusion; nesting records their relationships. Information,
+environment, and factors have distinct meanings.
 
-Proposed syntax remains in design documents with an explicit status. When a
-form becomes accepted, update its contract, manual page, examples, and tests
-together. Applications such as protocol or bias assessment may use the
-language, but their scientific algorithms do not become built-in language
-features merely because the design discusses them.
+A written method does not establish that its activities occurred or its
+conditions were satisfied. Structural checks do not establish scientific
+adequacy. Keep these boundaries explicit in examples and explanations.
+Update the specification, manual, examples, and tests together when a
+language rule changes.

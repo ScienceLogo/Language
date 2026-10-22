@@ -4,7 +4,7 @@
 
 @title[#:style (page-style) #:tag "compact-grammar"]{Compact grammar}
 
-This page collects the current compact syntax in one reference. The grammar
+This page collects the compact syntax in one reference. The grammar
 and the rules below must be read together: the brackets alone cannot decide
 which names are visible, whether a path can be updated, or whether a call
 has the right inputs. These rules describe the language's written forms.

@@ -32,44 +32,37 @@
 ScienceLogo is a Logo-inspired language for describing scientific workflows that people
 can read and inspect. It aims to keep the purpose, structure, assumptions,
 and conditions of a method understandable to people, including when AI
-participates. The language is under development: the current runnable subset
-is small, and broader scientific and AI constructs are still being designed.
+participates. Compact and verbose syntax express the same language and can
+be mixed in one file.
 
-@section{Current language status}
-
-@(tabular #:style 'boxed
-  (list
-   (list (bold "Part") (bold "Current behavior"))
-   (list (secref "verbose-syntax")
-         "Compact, verbose, and mixed source normalize to the same compact grammar")
-   (list (secref "values")
-         "Values, records, expressions, and ranges run")
-   (list (secref "uncertainty")
-         "Values can carry named uncertainty descriptions")
-   (list (secref "procedures")
-         "Procedures, assignments, branches, and loops run")
-   (list (secref "libraries")
-         "Includes and pinned Git library imports are resolved")
-   (list (secref "stages")
-         "Simple headers label commands; paired stages are read and checked as a written method")
-   (list (secref "propositions")
-         "Named hypotheses, assumptions, and conclusions can be nested")
-   (list (secref "resources")
-         "Data reads and writes are represented; no external data is transferred")
-   (list (secref "assessment")
-         "The assessor checks declared method structure and record fields")))
-
-Scientific adequacy, protocol conformance, bias and quantitative uncertainty analysis,
-records of observed runs, and compact-to-verbose generation remain outside the
-current implementation. The
-@hyperlink[(source-file-url "spec/README.md")]{specification index} identifies
-which design documents describe future work.
+@bold{Using this manual}
 
 Start with @secref["getting-started"], then use @secref["reference"] to find
 a form or naming rule. The remaining pages move from values and procedures to
 stages, propositions, uncertainty descriptions, data sources and storage,
-reusable definitions, and declared checks. Each
-page states what its forms currently do.
+reusable definitions, and declared checks. @secref["verbose-syntax"] explains
+the equivalent spellings; @secref["compact-grammar"] collects the reference
+grammar and parsing rules.
+
+The @hyperlink[(source-file-url "spec/README.md")]{specification index}
+groups the language contracts and separates them from design rationale and
+earlier notes. Those notes explain the project's development; they do not
+add language rules.
+
+@bold{Reference implementation}
+
+The Racket package provides a reader, a core interpreter, and a structural
+assessor. The reader validates source and preserves a model of the written
+method. The interpreter evaluates values, procedure calls, assignments,
+branches, and loops. Paired stages describe work and its entry and exit
+state; their bodies are read and checked without being executed. Data
+source and storage assignments describe transfers without performing them.
+
+The structural assessor checks declared calls, stage order, workflow parts,
+and record requirements. Scientific assessments of protocol conformance,
+bias, or uncertainty belong to independent applications using the language.
+@secref["assessment"] explains the information available to those applications
+and the scope of the package's structural checks.
 
 @include-section["getting-started.scrbl"]
 @include-section["reference.scrbl"]

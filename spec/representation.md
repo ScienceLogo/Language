@@ -1,22 +1,23 @@
 # Shared representation of a written workflow
 
-**Status:** design contract for a portable representation. The current Racket
-reader produces an inspectable Racket workflow model, including paired-stage
+This contract defines the method information readers must preserve. The
+Racket reader produces an inspectable workflow model, including paired-stage
 state, call locations, declared performers, named data sources and storage,
 and propositions with their updates. It also preserves optional `about`
 descriptions of workflows, stages, and procedures.
-A language-neutral exchange format and its versioning rules remain to be
-specified.
+The reference API exposes Racket values, not a language-neutral export
+format. This contract defines information and relationships, not a
+serialization format.
 This contract covers a **written method**. A record of what happened and an
 assessment of that record are separate things.
 
 ## Purpose
 
-A portable representation should let a program inspect ScienceLogo source
-without using Racket. It must preserve the meaning of the
-source, including control flow and references; it is not merely a list of words
-or a flat list of stages. A program may use it to explain a method or check a
-declared condition.
+A reader's representation lets applications inspect ScienceLogo source.
+Readers written in other languages must preserve the same meaning,
+including control flow and references. A list of words or a flat list of
+stages is insufficient. A program may use the representation to explain a
+method or check a declared condition.
 
 The representation makes no claim that a described action occurred. It does not
 contain a scientific assessment simply because the source declares a `must` rule
@@ -46,7 +47,8 @@ pendulum.
   and its revision, each included file, and each resolved library revision.
   Identify the source location of each declaration and command. Element
   identifiers must be unambiguous within the identified method revision;
-  their spelling and stability across revisions remain to be defined.
+  this contract does not standardize their spelling across implementations
+  or their stability across revisions.
 - **Definitions and structure.** Preserve the workflow title, procedure
   definitions and inputs, stage headers and paired-stage entry and exit state,
   performer declarations and named data sources and storage, record interfaces,
@@ -58,7 +60,7 @@ pendulum.
   stages, interfaces, and libraries. Quotes identify string values. Resolve
   stage references from declarations, with no inference from capitalization.
   A name that could refer both to a stage and to another visible value or
-  definition must be reported as ambiguous. The current Racket model stores
+  definition must be reported as ambiguous. The Racket model stores
   stage, interface, and library names as strings in their named fields; this
   storage choice does not make a quoted string a source-language identifier.
 - **Human explanation.** Preserve each optional `about` description as Markdown
@@ -179,7 +181,7 @@ branch or loop as such instead of reporting every command inside it as an
 unconditional action. A source map must let a tool point back to the text that
 gave rise to a represented part or relationship.
 
-The [first runnable slice](first-slice.md) supplies currently implemented
-examples. The [semantic core](core.md) describes wider goals. A portable schema,
-its compatibility rules, and conformance cases will make this contract
-testable by readers written in different languages.
+The [language rules and reference behavior](first-slice.md) define the source
+rules and structural checks. The [examples](../examples/README.md) illustrate
+them. Readers can be compared by the method information they preserve,
+without requiring the same internal data structures or an export format.

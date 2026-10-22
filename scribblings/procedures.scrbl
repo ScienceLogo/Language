@@ -45,8 +45,8 @@ to estimate-period :seconds :swings [
 Inputs are declared with @tt{:} in the @tt{to} header and referenced with
 @tt{:} inside that procedure, including in calls it makes. @tt{as period}
 names the result in the caller. A call using @tt{as} needs an @tt{output} in
-its procedure. Procedure names must be distinct; recursion is not supported
-by the current reader. @tt{print} is a teaching and display action, not a
+its procedure. Procedure names must be distinct; recursive calls are rejected.
+@tt{print} is a teaching and display action, not a
 scientific observation or evidence record.
 
 An optional @tt{about "Markdown text"} belongs first inside a procedure's

@@ -1,6 +1,6 @@
 # Data sources and storage
 
-**Status:** accepted syntax. The reader and workflow model record data flow
+The reader and workflow model record data flow
 through declared `resource` paths. Ordinary code treats incoming data as
 `unknown` and does not access storage; paired-stage bodies remain declarations.
 

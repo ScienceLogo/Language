@@ -1,6 +1,6 @@
 # Paired stages and state locations
 
-**Status:** accepted reader syntax. The reader validates the written method and
+The reader validates the written method and
 retains the stage and calls in its model. The interpreter does not execute a
 paired stage's body or produce an observed run. See the [manual page](../scribblings/stages.scrbl)
 for a guided explanation and [context sets](context.md) for the scientific
@@ -9,7 +9,8 @@ distinction among information, environment, and considered factors.
 ## Boundaries
 
 `stage name from state [ ... ]` begins a paired stage. `end stage with state
-[ ... ]` closes it; no separate `start` command exists. Both state objects are
+[ ... ]` closes it. The verbose opening is `start stage name from state
+[ ... ]`; the closing form is shared. Both state objects are
 mandatory, including when empty (`state []`). A paired stage is a section and
 checkpoint, not a callable procedure or a new variable scope. Its unquoted
 identifier must be distinct among stage names in the assembled workflow.

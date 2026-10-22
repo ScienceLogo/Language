@@ -1,7 +1,7 @@
 # Attached uncertainty descriptions
 
-**Status:** accepted compact syntax. The reader checks the shape described
-here, and the current interpreter retains and reads the attached description.
+The reader checks the shape described here, and the interpreter retains and
+reads the attached description.
 Scientific uncertainty calculations and judgments belong to applications and
 libraries, not to the language core.
 
@@ -78,6 +78,6 @@ workflow, any scientific propagation method and its justification must be
 supplied by the author or an external application.
 
 The workflow model retains the `u` expression and its source location for
-inspection. The current interpreter runs ordinary value operations and reads
+inspection. The reference interpreter runs ordinary value operations and reads
 the description; it does not estimate uncertainty or assess whether the
 listed sources are adequate.

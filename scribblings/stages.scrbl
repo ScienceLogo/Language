@@ -6,7 +6,7 @@
 A stage is a named section and checkpoint of a written method. The simple
 @tt{stage name} header labels following commands; it creates no local
 scope and does not itself perform work. A paired stage states what enters and
-leaves it. The reader accepts and checks that declaration, but the current
+leaves it. The reader accepts and checks that declaration, but the reference
 interpreter does not execute a paired stage's body. Neither form records an
 observed run.
 
@@ -44,7 +44,7 @@ sets are available for human and AI activities. A hypothesis can be a named
 field within @tt{information}; it is not a compulsory fourth set. The
 @secref["propositions"] page shows how a named proposition can be carried in
 @tt{information} across stages. The
-@hyperlink[(source-file-url "spec/context.md")]{context design notes} explain
+@hyperlink[(source-file-url "spec/context.md")]{context set definitions} explain
 why these distinctions matter.
 
 @section{Declare entry and exit}

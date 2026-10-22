@@ -1,9 +1,7 @@
 # Interface entries
 
-**Status:** accepted compact syntax. The reader, record constructors, and
-structural checks use the same compulsory and optional entry rules. The
-earlier `require` notation is rejected; `must [...]` is the interface
-requirement form.
+The reader, record constructors, and structural checks use the same required
+and optional entry rules. `must [...]` groups required interface entries.
 
 An interface can describe fields of a structured data object or named parts
 of a workflow. Both uses share the following declaration rule:
@@ -679,5 +677,5 @@ as with existing default conflicts. Child declarations replace inherited
 declarations of the same entry. Local and imported interfaces support
 inheritance; a standalone interface file cannot extend a local interface.
 
-The current `affects source target` form links two compulsory entries. It
+The `affects source target` form links two compulsory entries. It
 does not change which entries are required.

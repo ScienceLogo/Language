@@ -1,9 +1,9 @@
 # Context sets in a scientific method
 
-**Status:** meaning and design rationale for the three sets. The adopted
-[paired-stage syntax and constraints](stage-state.md) are documented separately;
-the [manual page](../scribblings/stages.scrbl) teaches their use. This page
-does not define how an assessment application analyzes the sets.
+This page defines the meaning of the information, environment, and factors
+sets. The [paired-stage syntax and constraints](stage-state.md) specify how
+they appear in source; the [manual page](../scribblings/stages.scrbl) teaches
+their use. Applications decide how to assess their contents.
 
 ## What context covers
 
@@ -70,7 +70,7 @@ context, or earlier conversation as possible influences on a suggestion. These
 are considered relative to that screening activity; another investigation may
 give them different roles.
 
-## What the language needs to preserve
+## What the language preserves
 
 The three labels distinguish named collections of ordinary values, records, and
 references; they do not impose fixed scientific fields. Each set needs an
@@ -85,7 +85,7 @@ those events occurred.
 
 ## How the sets appear in the language
 
-The adopted [paired-stage form](stage-state.md) names the incoming and
+The [paired-stage form](stage-state.md) names the incoming and
 outgoing sets and gives each procedure input and return a location in them.
 The reader checks names, locations, and declared flow. It does not execute
 the paired stage's body, establish that work happened, or judge whether a

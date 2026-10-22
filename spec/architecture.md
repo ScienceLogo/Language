@@ -2,7 +2,7 @@
 
 ScienceLogo is a language for specifying scientific workflows. Its specification is
 the authority for valid source and its meaning. Racket is the language of the
-current reference implementation, not a requirement for ScienceLogo source or for
+reference implementation, not a requirement for ScienceLogo source or for
 applications that use it.
 
 ## Compact and verbose syntax
@@ -10,8 +10,8 @@ applications that use it.
 ScienceLogo has two equivalent ways to write the same language:
 **compact** and **verbose** syntax. Compact syntax is the reference form for
 specifying and checking language behavior.
-The verbose syntax must express the same workflows and have the same meaning;
-it must not introduce separate semantics or separate scientific checks.
+The verbose syntax expresses the same workflows with the same meaning;
+both spellings use the same semantics and scientific boundaries.
 
 The normalizer converts verbose and mixed source to compact source before
 parsing, name resolution, and language checks. The reference reader uses this
@@ -20,8 +20,8 @@ the same boundary and implement the compact parser and checks once.
 The [normalization API](../normalize.rkt) returns compact text and original
 source locations while retaining comments and explicit groups.
 The [verbose syntax specification](verbose-syntax.md) defines the equivalent
-spellings and preservation requirements. Compact-to-verbose generation remains
-future work.
+spellings and preservation requirements. The API converts source to compact
+form; it does not generate verbose source from compact source.
 
 ## What the specification defines
 
@@ -31,7 +31,9 @@ and loops work, and what a condition requires. It also defines the information
 a reader gives to other programs about a written workflow. For example, that
 information says which procedure a `do` command calls and which later command
 uses its result. A reader written in any language must be able to provide the
-same information. The file format for sharing it has not yet been selected.
+same information. This contract defines the information to preserve, not a
+file format for exchanging it. The reference API exposes Racket values and
+does not provide a language-neutral export format.
 
 This information must be sufficient for an application to find
 the workflow parts and relationships that the source states. In particular, it
@@ -48,14 +50,14 @@ protocol conformance, bias, and uncertainty, and how to report their findings.
 ## What software does
 
 A **reader** recognizes ScienceLogo source, resolves its references, reports
-invalid source, and produces the shared representation. The existing Racket reader
+invalid source, and produces the shared representation. The Racket reader
 is one implementation of this responsibility. An application may instead use a
 reader written in another language.
 
 A **core interpreter** gives effect to ScienceLogo's own executable forms, such as
 procedure calls, assignments, branches, and loops. It does not carry out the
 scientific work described by a workflow merely because that work is named in the
-source. The current Racket code includes an interpreter; its behavior must follow
+source. The Racket code includes an interpreter; its behavior must follow
 the language specification.
 
 **Tests** check an implementation against specified behavior. Shared conformance
@@ -68,28 +70,15 @@ publication generators are separate projects. They may use any programming
 language. Their scientific rules and algorithms do not belong in the ScienceLogo
 language package; the language supplies the syntax and representation they need.
 
-## Current documents
+## Reference documents
 
-- [Compact grammar](compact.ebnf) and its [context rules](../scribblings/grammar.scrbl)
-  collect current forms, grouping, and name-resolution rules for implementations
-  in any language.
-- [Verbose syntax](verbose-syntax.md) records the accepted equivalent spellings
-  and normalization rules; reverse source generation remains future work.
-- [First runnable slice](first-slice.md) and [Libraries](libraries.md) describe
-  accepted runnable forms and file rules.
-- [Paired stages and state locations](stage-state.md) describes accepted
-  reader syntax that is checked as a method but not executed.
-- [Data sources and storage](resources.md) describes accepted `resource`
-  declarations and data-flow syntax; the interpreter performs no external I/O.
-- [Propositions](propositions.md) describes accepted named hypotheses,
-  assumptions, conclusions, and their updates.
-- [Semantic core](core.md), [Design principles](design-principles.md),
-  [Context sets](context.md), [Prompts and obligations](prompts-and-obligations.md),
-  [LLM variation](llm-variation.md), and
-  [Workflow publication support](workflow-documentation.md) develop meaning
-  and future capabilities.
+The [specification guide](README.md#language-specification) groups the grammar,
+language rules, and individual feature contracts. The
+[shared representation contract](representation.md) defines what readers
+must preserve. The [manual](../scribblings/sciencelogo.scrbl) provides the
+learning path and syntax lookup.
 
-The [shared representation contract](representation.md) states what a reader
-must preserve. Its portable schema remains to be defined. This page sets the
-boundary without choosing a file format or adding new ScienceLogo syntax.
-The [documentation map](README.md) gives each document's status and purpose.
+[Design rationale](README.md#design-rationale) and
+[earlier design notes](README.md#earlier-design-notes) are separate from the
+language rules. Their exploratory examples do not add source forms, reader
+requirements, or implementation commitments.

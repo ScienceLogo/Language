@@ -62,12 +62,12 @@ assignments record the intended flow; the paired stage body is not executed.
 If the stage names a performer, the workflow model links that performer to
 its data assignments.
 
-@section{What the current implementation does}
+@section{Reader, model, and interpreter}
 
 The reader checks @tt{resource} declarations, names, and stage locations. The
 workflow model preserves the declaration and each assignment, with
 @tt{reads-from} or @tt{writes-to} links to the named data source or destination.
-The full dotted address remains in the assignment. The current interpreter treats an inbound
+The full dotted address remains in the assignment. The interpreter treats an inbound
 data value as @tt{unknown} and performs no external read or write. The
 model describes the written method; it does not show that data was transferred
 in a particular run. The @hyperlink[(source-file-url "spec/resources.md")]{data

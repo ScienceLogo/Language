@@ -3,12 +3,12 @@
 
 @title[#:style (page-style) #:tag "reference"]{Syntax}
 
-This page is the map of forms accepted by @tt{#lang sciencelogo}. Read
+This page is the syntax map for @tt{#lang sciencelogo}. Read
 @secref["getting-started"] to learn the basic pattern; follow the links below
 for each form's full rule. Most forms run. Paired stages and their location
-calls are read and checked as a written method but are not executed. Design
-sketches in the @hyperlink[(source-file-url "spec/README.md")]{specification
-index} are marked separately and should not be treated as accepted syntax.
+calls are read and checked as a written method but are not executed. The
+@hyperlink[(source-file-url "spec/README.md")]{specification guide} links
+the language contracts separately from rationale and earlier design notes.
 Within an interface, @tt{must [...]} groups required entries and their
 defaults. @tt{name [...]} gives a part its own nested entries. Bare entries
 without defaults are optional. An @tt{is} constraint outside @tt{must},
@@ -210,7 +210,7 @@ records these rules and the workflow model accessors.
 
 @(tabular #:style 'boxed
   (list
-   (list (bold "Topic") (bold "Forms covered") (bold "Current behavior"))
+   (list (bold "Topic") (bold "Forms covered") (bold "Purpose and behavior"))
    (list (secref "descriptions")
          (tt "about \"Markdown text\"")
          "Optional explanation attached to a workflow, stage, or procedure")
@@ -268,7 +268,7 @@ a requested result from a procedure without @tt{output}, recursive procedure
 calls, invalid interface inheritance, and misplaced file-level forms.
 For state stages it also checks named input locations, compulsory return
 locations, resource paths, and the declared exit state. A state stage is read
-and checked, but its body is not executed by the current interpreter.
+and checked, but its body is not executed by the reference interpreter.
 Reading or writing data outside the workflow requires a declared
 @tt{resource}; see @secref["resources"].
 Proposition declarations use named collections. The reader catches repeated

@@ -1,7 +1,7 @@
 # Propositions
 
-**Status:** accepted compact syntax. The reader preserves named propositions
-and later changes in the workflow model. The interpreter checks their shape
+The reader preserves named propositions and later changes in the workflow
+model. The interpreter checks their shape
 and applies runnable changes. Scientific judgment belongs to applications
 using the language.
 

@@ -1,8 +1,10 @@
 # Rainfall modelling: proposals, evaluation, and alternatives
 
-This sketch asks whether rainfall can predict next-day river flow. The LLM proposes extra
-predictors, while fitting and evaluation remain explicit parts of the workflow. The syntax
-is provisional and cannot yet be run.
+This earlier workflow sketch asks whether rainfall can predict next-day river flow.
+The LLM proposes extra predictors, while fitting and evaluation remain explicit
+parts of the workflow. The pseudo-code below is not ScienceLogo syntax or a
+planned language extension. See the [manual](../scribblings/sciencelogo.scrbl)
+for valid source.
 
 ```text
 workflow "Can rainfall predict tomorrow's river flow?"
