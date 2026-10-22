@@ -5,7 +5,7 @@
 
 (define-runtime-path example "../examples/list-requirements.rkt")
 (define declaration
-  (string-append "interface \"Timing-series\" [must [measurements] "
+  (string-append "interface Timing-series [must [measurements] "
                  "for each measurement in measurements [must [measurement.period measurement.period.u]]]\n"))
 
 (define (with-source body use)
@@ -42,7 +42,7 @@
 
   ;; Reuse value comparisons, including on scalar items and surrounding entries.
   (define compared
-    (string-append "interface \"Counts\" [must [counts minimum] "
+    (string-append "interface Counts [must [counts minimum] "
                    "for each count in counts [must [count > minimum]]]\n"))
   (check-equal? (outcomes (string-append compared "series = [counts = [11 20] minimum = 10]\nseries implement Counts\n"))
                 '(satisfied))
@@ -70,7 +70,7 @@
 
   ;; The existing conditional syntax can choose per-item requirements.
   (define conditional
-    (string-append "interface \"Methods\" [must [measurements] for each m in measurements ["
+    (string-append "interface Methods [must [measurements] for each m in measurements ["
                    "must [m.method] if m.method == \"automatic\" [must [m.instrument]] "
                    "else if m.method == \"video\" [must [m.frame-rate >= 25]] "
                    "else [must [m.observer]]]]\n"))
@@ -83,21 +83,21 @@
   (check-equal? (outcomes (string-append conditional
                                         "series = [measurements = [[method = unknown]]]\nseries implement Methods\n"))
                 '(violated))
-  (check-equal? (run (string-append "interface \"Conditional-default\" [must [measurements] "
+  (check-equal? (run (string-append "interface Conditional-default [must [measurements] "
                                    "for each m in measurements [must [m.method] "
                                    "if m.method == \"automatic\" [must [m.unit = \"seconds\"]]]]\n"
                                    "series = Conditional-default.[measurements = [[method = \"automatic\"] [method = \"manual\"]]]\n"
                                    "print series.measurements.[1].unit\n"))
                 "seconds\n")
   (check-equal? (outcomes
-                 (string-append "interface \"Optional\" [must [enabled] measurements "
+                 (string-append "interface Optional [must [enabled] measurements "
                                 "if enabled [for each m in measurements [must [m.period]]]]\n"
                                 "series = [enabled = false]\nseries implement Optional\n"))
                 '(satisfied))
 
   ;; Defaults complete the corresponding list items during construction only.
   (define defaulted
-    (string-append "interface \"Defaulted\" [must [measurements] for each m in measurements ["
+    (string-append "interface Defaulted [must [measurements] for each m in measurements ["
                    "must [m.period m.unit = \"seconds\"]]]\n"))
   (check-equal? (run (string-append defaulted
                                    "series = Defaulted.[measurements = [[period = 2] [period = 3 unit = \"minutes\"]]]\n"
@@ -106,13 +106,13 @@
   (check-equal? (outcomes (string-append defaulted
                                         "series = [measurements = [[period = 2]]]\nseries implement Defaulted\n"))
                 '(violated))
-  (check-equal? (run (string-append "interface \"Indexed\" [must [groups] for each m in groups.[1] [must [m.unit = \"seconds\"]]]\n"
+  (check-equal? (run (string-append "interface Indexed [must [groups] for each m in groups.[1] [must [m.unit = \"seconds\"]]]\n"
                                    "series = Indexed.[groups = [[[period = 2]]]]\nprint series.groups.[1].[1].unit\n"))
                 "seconds\n")
 
   ;; Nested lists retain both item bindings.
   (define nested
-    (string-append "interface \"Groups\" [must [groups] for each group in groups [must [group.limit group.values] "
+    (string-append "interface Groups [must [groups] for each group in groups [must [group.limit group.values] "
                    "for each value in group.values [must [value > group.limit]]]]\n"))
   (check-equal? (outcomes (string-append nested
                                         "series = [groups = [[limit = 10 values = [11 20]] [limit = 20 values = [21]]]]\nseries implement Groups\n"))
@@ -120,20 +120,20 @@
   (check-equal? (outcomes (string-append nested
                                         "series = [groups = [[limit = 10 values = [11 9]]]]\nseries implement Groups\n"))
                 '(violated))
-  (check-equal? (run (string-append "interface \"Nested-default\" [must [groups] for each g in groups ["
+  (check-equal? (run (string-append "interface Nested-default [must [groups] for each g in groups ["
                                    "must [g.measurements] for each m in g.measurements [must [m.unit = \"seconds\"]]]]\n"
                                    "series = Nested-default.[groups = [[measurements = [[period = 2]]]]]\n"
                                    "print series.groups.[1].measurements.[1].unit\n"))
                 "seconds\n")
-  (check-equal? (outcomes (string-append "interface \"Nested-part\" [must [session [must [measurements] "
+  (check-equal? (outcomes (string-append "interface Nested-part [must [session [must [measurements] "
                                         "for each m in measurements [must [m.period > 0]]]]]\n"
                                         "series = [session = [measurements = [[period = 2]]]]\nseries implement Nested-part\n"))
                 '(satisfied))
-  (check-equal? (outcomes (string-append "interface \"Optional-part\" [must [measurements] "
+  (check-equal? (outcomes (string-append "interface Optional-part [must [measurements] "
                                         "for each m in measurements [m.details [must [note]]]]\n"
                                         "series = [measurements = [[details = unknown]]]\nseries implement Optional-part\n"))
                 '(undetermined))
-  (check-equal? (outcomes (string-append "interface \"Range\" [for each n in range 1 to 3 step 1 [must [n > 0]]]\n"
+  (check-equal? (outcomes (string-append "interface Range [for each n in range 1 to 3 step 1 [must [n > 0]]]\n"
                                         "series = [note = \"plan\"]\nseries implement Range\n"))
                 '(satisfied))
   (check-equal? (outcomes (string-append declaration "items = [[period = 2 u []]]\n"
@@ -151,7 +151,7 @@
   ;; The loop and its body retain their source locations without making the
   ;; item name a workflow-level requirement or an execution activity.
   (with-source
-   (string-append declaration "stage \"Measure\"\n\"Measure\" implement Timing-series\n")
+   (string-append declaration "stage Measure\nMeasure implement Timing-series\n")
    (lambda (file)
      (define method (read-workflow-model file))
      (define interface (mapping-model-interface (first (workflow-model-mappings method))))
@@ -171,17 +171,17 @@
   ;; Inheritance preserves the loop once through a diamond; existing imports,
   ;; includes, and standalone interface files preserve the same requirements.
   (with-source
-   (string-append declaration "interface \"Left\" [extends Timing-series]\n"
-                  "interface \"Right\" [extends Timing-series]\n"
-                  "interface \"Combined\" [extends Left extends Right]\n"
+   (string-append declaration "interface Left [extends Timing-series]\n"
+                  "interface Right [extends Timing-series]\n"
+                  "interface Combined [extends Left extends Right]\n"
                   "series = Combined.[measurements = [[period = 2 u []]]]\nseries implement Combined\n")
    (lambda (file)
      (check-equal? (map condition-check-outcome (assessment-checks (assess-file file))) '(satisfied))))
   (with-source
-   (string-append declaration "interface \"Left\" [extends Timing-series]\n"
-                  "interface \"Right\" [extends Timing-series]\n"
-                  "interface \"Combined\" [extends Left extends Right]\n"
-                  "stage \"Measure\"\n\"Measure\" implement Combined\n")
+   (string-append declaration "interface Left [extends Timing-series]\n"
+                  "interface Right [extends Timing-series]\n"
+                  "interface Combined [extends Left extends Right]\n"
+                  "stage Measure\nMeasure implement Combined\n")
    (lambda (file)
      (define model (read-workflow-model file))
      (define interface (mapping-model-interface (first (workflow-model-mappings model))))
@@ -192,7 +192,7 @@
     void
     (lambda ()
       (display-to-file (string-append "#lang sciencelogo\n" declaration) (build-path directory "series.rkt"))
-      (display-to-file (string-append "#lang sciencelogo\nlibrary \"timing\" [" declaration "]\n")
+      (display-to-file (string-append "#lang sciencelogo\nlibrary timing [" declaration "]\n")
                        (build-path directory "library.rkt"))
       (define (git . args)
         (define code (parameterize ([current-output-port (open-output-string)]
@@ -223,11 +223,11 @@
     (lambda () (delete-directory/files directory)))
 
   (for ([invalid (in-list
-                  (list "interface \"Bad\" [must [measurements] for each m in measurements [must [m.period m.period]]]\n"
-                        "interface \"Bad\" [must [measurements] for each m.x in measurements [must [m.period]]]\n"
-                        "interface \"Bad\" [must [measurements] for each m in measurements [must [period]]]\n"
-                        "interface \"Bad\" [must [measurements] for each m in measurements [must [m.period > missing]]]\n"
-                        "interface \"Bad\" [must [measurements] for each m in :measurements [must [m.period]]]\n"
-                        "interface \"Bad\" [must [measurements] for each m in measurements [version \"1\"]]\n"
-                        "interface \"Bad\" [must [measurements] for each m in measurements [extends Other]]\n"))])
+                  (list "interface Bad [must [measurements] for each m in measurements [must [m.period m.period]]]\n"
+                        "interface Bad [must [measurements] for each m.x in measurements [must [m.period]]]\n"
+                        "interface Bad [must [measurements] for each m in measurements [must [period]]]\n"
+                        "interface Bad [must [measurements] for each m in measurements [must [m.period > missing]]]\n"
+                        "interface Bad [must [measurements] for each m in :measurements [must [m.period]]]\n"
+                        "interface Bad [must [measurements] for each m in measurements [version \"1\"]]\n"
+                        "interface Bad [must [measurements] for each m in measurements [extends Other]]\n"))])
     (with-source invalid (lambda (file) (check-exn exn:fail:read? (lambda () (read-workflow-model file)))))))

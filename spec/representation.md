@@ -27,10 +27,10 @@ For example, consider this short method:
 ```text
 #lang sciencelogo
 workflow "Review a timing plan"
-stage "Prepare"
+stage Prepare
 do make-plan as plan
 to make-plan [output "Time ten swings as the swing gets smaller."]
-stage "Review"
+stage Review
 print plan
 ```
 
@@ -54,6 +54,13 @@ pendulum.
   imports, and includes. A stage remains a label and
   checkpoint, not a procedure call or variable scope. A procedure definition
   does not count as a call.
+  Declarations and references use unquoted identifiers in source, including
+  stages, interfaces, and libraries. Quotes identify string values. Resolve
+  stage references from declarations, with no inference from capitalization.
+  A name that could refer both to a stage and to another visible value or
+  definition must be reported as ambiguous. The current Racket model stores
+  stage, interface, and library names as strings in their named fields; this
+  storage choice does not make a quoted string a source-language identifier.
 - **Human explanation.** Preserve each optional `about` description as Markdown
   text after ordinary string decoding, with its owning workflow, stage, or
   procedure and its own source location. Keep absent and empty descriptions

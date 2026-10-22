@@ -2,7 +2,7 @@
 
 workflow "Describe a series of pendulum measurements"
 
-interface "Timing-series" [
+interface Timing-series [
   must [measurements.count >= 3]
 
   for each measurement in measurements [

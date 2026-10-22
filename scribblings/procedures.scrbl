@@ -92,7 +92,7 @@ surrounding workflow. Stages are labels, not variable scopes.
 
 @section{Sequence and stage headers}
 
-@tt{do [ commands ]} runs a block once, in order. @tt{stage "title"} labels
+@tt{do [ commands ]} runs a block once, in order. @tt{stage name} labels
 following commands until another stage at the same nesting level or the
 block's end. A stage is a checkpoint for the written method; it is neither
 a procedure nor a command to call. Stage names must be distinct across the
@@ -101,9 +101,9 @@ stage headers remains available throughout its enclosing workflow.
 
 @verbatim|{
 workflow "Review a timing plan"
-stage "Prepare"
+stage Prepare
 do make-plan as plan
-stage "Review"
+stage Review
 print plan
 to make-plan [output "Time ten swings as the swing gets smaller."]
 }|

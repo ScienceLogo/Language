@@ -5,7 +5,7 @@
 
 (define-runtime-path example "../examples/value-requirements.rkt")
 (define declaration
-  "interface \"Timing\" [must [swing-count > 10 swing-height unit == \"seconds\"]]\n")
+  "interface Timing [must [swing-count > 10 swing-height unit == \"seconds\"]]\n")
 
 (define (with-source body use)
   (define file (make-temporary-file "sciencelogo-values-~a.rkt"))
@@ -54,45 +54,45 @@
 
   ;; Boolean expressions and adjacent bare entries share the same must group.
   (check-equal?
-   (run (string-append "interface \"Range\" [must [count > 10 and count < 100 note not rejected]]\n"
+   (run (string-append "interface Range [must [count > 10 and count < 100 note not rejected]]\n"
                         "trial = Range.[count = 20 note = \"hand timed\" rejected = false]\nprint trial.count\n"))
    "20\n")
   (check-equal?
-   (run "interface \"Approved\" [must [status == \"reviewed\" or status == \"published\"]]\ntrial = Approved.[status = \"reviewed\"]\nprint trial.status\n")
+   (run "interface Approved [must [status == \"reviewed\" or status == \"published\"]]\ntrial = Approved.[status = \"reviewed\"]\nprint trial.status\n")
    "reviewed\n")
   (check-equal?
-   (run "interface \"Answer\" [must [answer == [result = \"yes\"]]]\ntrial = Answer.[answer = [result = \"yes\"]]\nprint trial.answer.result\n")
+   (run "interface Answer [must [answer == [result = \"yes\"]]]\ntrial = Answer.[answer = [result = \"yes\"]]\nprint trial.answer.result\n")
    "yes\n")
   (check-exn #rx"missing field.*limit"
-             (lambda () (run "interface \"Bounded\" [must [count > limit]]\ntrial = Bounded.[count = 20]\n")))
+             (lambda () (run "interface Bounded [must [count > limit]]\ntrial = Bounded.[count = 20]\n")))
 
   ;; Defaults remain overridable; an equality requirement supplies no default.
-  (check-equal? (run "interface \"Defaults\" [must [unit = \"seconds\"]]\ntrial = Defaults.[unit = \"minutes\"]\nprint trial.unit\n")
+  (check-equal? (run "interface Defaults [must [unit = \"seconds\"]]\ntrial = Defaults.[unit = \"minutes\"]\nprint trial.unit\n")
                 "minutes\n")
   (check-equal?
-   (run (string-append "interface \"Base\" [must [unit = \"seconds\"]]\n"
-                        "interface \"Fixed\" [extends Base must [unit == \"seconds\"]]\n"
+   (run (string-append "interface Base [must [unit = \"seconds\"]]\n"
+                        "interface Fixed [extends Base must [unit == \"seconds\"]]\n"
                         "trial = Fixed.[]\nprint trial.unit\n"))
    "seconds\n")
   (check-exn #rx"does not satisfy value requirement"
-             (lambda () (run (string-append "interface \"Base\" [must [unit = \"seconds\"]]\n"
-                                            "interface \"Fixed\" [extends Base must [unit == \"seconds\"]]\n"
+             (lambda () (run (string-append "interface Base [must [unit = \"seconds\"]]\n"
+                                            "interface Fixed [extends Base must [unit == \"seconds\"]]\n"
                                             "trial = Fixed.[unit = \"minutes\"]\n"))))
 
   ;; Nested requirements use local field names and the existing dotted paths.
   (check-equal?
-   (run (string-append "interface \"Nested\" [must [timing [must [count > 10 unit == \"seconds\"]]]]\n"
+   (run (string-append "interface Nested [must [timing [must [count > 10 unit == \"seconds\"]]]]\n"
                         "trial = Nested.[timing = [count = 20 unit = \"seconds\"]]\n"
                         "part = Nested.timing.[count = 30 unit = \"seconds\"]\nprint part.count\n"))
    "30\n")
   (check-equal?
-   (run (string-append "interface \"Nested\" [must [timing.count > 10]]\n"
+   (run (string-append "interface Nested [must [timing.count > 10]]\n"
                         "trial = Nested.[timing = [count = 20]]\nprint trial.timing.count\n"))
    "20\n")
 
   ;; The established conditional syntax governs value requirements as well.
   (define conditional
-    (string-append "interface \"Conditional\" [must [method] "
+    (string-append "interface Conditional [must [method] "
                    "if method == \"automatic\" [must [count > 10]] "
                    "else if method == \"video\" [must [frame-rate >= 25]] "
                    "else [must [observer]]]\n"))
@@ -114,7 +114,7 @@
   (check-exn exn:fail:read? (lambda () (run "if 1 = 1 [print true]\n")))
 
   (with-source
-   (string-append declaration "stage \"Measure\"\n\"Measure\" implement Timing\n")
+   (string-append declaration "stage Measure\nMeasure implement Timing\n")
    (lambda (file)
      (define model (read-workflow-model file))
      (define interface (mapping-model-interface (first (workflow-model-mappings model))))
@@ -135,10 +135,10 @@
                    'swing-count)))
   ;; Combining interfaces retains requirements inherited through both paths.
   (with-source
-   (string-append "interface \"Base\" [must [count > 10]]\n"
-                  "interface \"Left\" [extends Base]\ninterface \"Right\" [extends Base]\n"
-                  "interface \"Combined\" [extends Left extends Right must [count < 100]]\n"
-                  "stage \"Measure\"\n\"Measure\" implement Combined\n")
+   (string-append "interface Base [must [count > 10]]\n"
+                  "interface Left [extends Base]\ninterface Right [extends Base]\n"
+                  "interface Combined [extends Left extends Right must [count < 100]]\n"
+                  "stage Measure\nMeasure implement Combined\n")
    (lambda (file)
      (define method (read-workflow-model file))
      (define interface (mapping-model-interface (first (workflow-model-mappings method))))
@@ -154,7 +154,7 @@
     (lambda ()
       (display-to-file (string-append "#lang sciencelogo\n" declaration) (build-path directory "requirement.rkt"))
       (display-to-file
-       (string-append "#lang sciencelogo\nlibrary \"timing\" [" declaration "]\n")
+       (string-append "#lang sciencelogo\nlibrary timing [" declaration "]\n")
        (build-path directory "library.rkt"))
       (define (git . args)
         (define code (parameterize ([current-output-port (open-output-string)]

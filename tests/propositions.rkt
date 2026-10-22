@@ -21,7 +21,7 @@
    "hypothesis shorter-swing [text = \"A shorter swing has a shorter period\"]\n"
    "assumption hand-timing [text = \"Hand timing is comparable\"]\n"
    "conclusion regular-period [text = \"The period was nearly constant\"]\n"
-   "stage \"Review\"\n"
+   "stage Review\n"
    "hypotheses.shorter-swing += conclusion not-supported [text = \"Measurements did not support it\"]\n"
    "hypotheses.shorter-swing.conclusions.not-supported.text = \"Revised finding\"\n"
    "print conclusions.regular-period.text\n"
@@ -67,7 +67,7 @@
    (string-append
     "#lang sciencelogo\n"
     "hypothesis shorter-swing [text = \"Shorter\"]\n"
-    "stage \"Compare\" from state [information = [claim = hypotheses.shorter-swing]]\n"
+    "stage Compare from state [information = [claim = hypotheses.shorter-swing]]\n"
     "end stage with state [information = [claim = hypotheses.shorter-swing]]\n")
    (lambda (path)
      (check-equal? (length (workflow-model-stages (read-workflow-model path))) 1)))
@@ -81,7 +81,7 @@
     "  revised += conclusion not-supported [text = \"No shortening detected\"]\n"
     "  output revised\n"
     "]\n"
-    "stage \"Conclude\" by researcher from state [information = [claim = hypotheses.shorter-swing]]\n"
+    "stage Conclude by researcher from state [information = [claim = hypotheses.shorter-swing]]\n"
     "do revise with [claim at information.claim] into information.claim\n"
     "end stage with state [information = [claim = unknown]]\n")
    (lambda (path)

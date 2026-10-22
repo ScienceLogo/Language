@@ -49,21 +49,21 @@
 
   (define shape
     (string-append
-     "interface \"timing_shape\" [must [period = (unknown) number unit = (\"seconds\") ((period == unknown) or (period > 0))]]\n"
+     "interface timing_shape [must [period = (unknown) number unit = (\"seconds\") ((period == unknown) or (period > 0))]]\n"
      "trial = (timing_shape.[])\ntrial implement timing_shape\n"))
   (check-equal? (run (string-append shape "print trial.period\nprint trial.unit\n")) "unknown\nseconds\n")
   (check-equal? (outcomes shape) '(satisfied))
   (check-equal?
-   (run "interface \"First\" [must [unit = (\"seconds\")]]\ninterface \"Second\" [must [unit = \"seconds\"]]\ninterface \"Combined\" [extends First extends Second]\ntrial = Combined.[]\nprint trial.unit\n")
+   (run "interface First [must [unit = (\"seconds\")]]\ninterface Second [must [unit = \"seconds\"]]\ninterface Combined [extends First extends Second]\ntrial = Combined.[]\nprint trial.unit\n")
    "seconds\n")
   (check-equal?
-   (outcomes "interface \"Series\" [must [measurements] for each item in measurements [must [item.period > 0]]]\ntrial = [measurements = [[period = 1]]]\ntrial.measurements.[((1))].period = (2)\ntrial implement Series\n")
+   (outcomes "interface Series [must [measurements] for each item in measurements [must [item.period > 0]]]\ntrial = [measurements = [[period = 1]]]\ntrial.measurements.[((1))].period = (2)\ntrial implement Series\n")
    '(satisfied))
   (check-equal?
-   (outcomes "interface \"Trial\" [must [details] if ((notes)) in ((details)) [must [reviewer]]]\ntrial = ([details = ([notes = unknown]) reviewer = (\"human\")])\ntrial implement Trial\n")
+   (outcomes "interface Trial [must [details] if ((notes)) in ((details)) [must [reviewer]]]\ntrial = ([details = ([notes = unknown]) reviewer = (\"human\")])\ntrial implement Trial\n")
    '(satisfied))
   (check-equal?
-   (run "interface \"Series\" [must [measurements] for each measurement in (measurements) [must [(measurement.period > 0) measurement.unit = (\"seconds\")]]]\nseries = Series.[measurements = ([( [period = (2)] )])]\nprint series.measurements.[1].unit\n")
+   (run "interface Series [must [measurements] for each measurement in (measurements) [must [(measurement.period > 0) measurement.unit = (\"seconds\")]]]\nseries = Series.[measurements = ([( [period = (2)] )])]\nprint series.measurements.[1].unit\n")
    "seconds\n")
   (check-equal? (run "period = (2) u ([declared = ([timing = ([estimate = (0.1)])])])\nprint ((period)).u.declared.timing.estimate\n") "0.1\n")
   (check-exn #rx"only one u description" (lambda () (run "value = (2 u []) u []")))
@@ -79,7 +79,7 @@
     (string-append
      "performer observer ([kind = (\"human\")])\n"
      "to inspect :period [repeat (1) [output ((:period))]]\n"
-     "stage \"Inspect\" by observer from state ([information = ([periods = ([2 3])])])\n"
+     "stage Inspect by observer from state ([information = ([periods = ([2 3])])])\n"
      "position = (1)\nrepeat (1) [do inspect with [period at information.periods.[(position)]] into information.periods.[((1))]]\n"
      "end stage with state [information = [periods = [2 3]]]\n"))
   (with-source staged

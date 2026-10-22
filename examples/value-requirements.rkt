@@ -2,7 +2,7 @@
 
 workflow "Describe a pendulum timing trial"
 
-interface "Timing-trial" [
+interface Timing-trial [
   must [swing-count > 10 swing-height unit == "seconds"]
 ]
 

@@ -2,11 +2,11 @@
 
 workflow "Describe supplied and pending pendulum periods"
 
-interface "Timing" [
+interface Timing [
   must [period unit = "seconds"]
 ]
 
-interface "Timing-plan" [
+interface Timing-plan [
   must [period = unknown unit = "seconds"]
 ]
 

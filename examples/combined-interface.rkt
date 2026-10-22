@@ -1,13 +1,13 @@
 #lang sciencelogo
 
 workflow "Describe a pendulum trial"
-interface "Timed-observation" [
+interface Timed-observation [
   extends Timing
   extends Location
   must [observation unit = "minutes"]
 ]
-interface "Timing" [must [duration unit = "seconds"]]
-interface "Location" [must [place]]
+interface Timing [must [duration unit = "seconds"]]
+interface Location [must [place]]
 
 trial = Timed-observation.[
   duration = 2

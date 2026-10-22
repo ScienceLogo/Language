@@ -3,7 +3,7 @@ workflow "Select a timing method"
 
 methods = ["manual" "video"]
 
-interface "Timing" [
+interface Timing [
   must [method in ["manual" "video"]]
 ]
 

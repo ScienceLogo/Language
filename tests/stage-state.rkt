@@ -13,7 +13,7 @@
    "#lang sciencelogo\n"
    "to calculate-period :duration :count [output :duration / :count]\n"
    "performer researcher [kind = \"human\" role = \"scientist\"]\n"
-   "stage \"Analyze\" by researcher from state [information = [elapsed = unknown swing-count = 10]]\n"))
+   "stage Analyze by researcher from state [information = [elapsed = unknown swing-count = 10]]\n"))
 
 (define suffix
   "end stage with state [information = [elapsed = unknown swing-count = 10 period = unknown]]\n")
@@ -81,7 +81,7 @@
   "performer researcher [kind = \"human\"]\n"
   "performer assistant [kind = \"AI\" role = \"suggest explanations\"]\n"
   "to ready [output true]\n"
-  "stage \"Check\" by researcher from state [information = []]\n"
+  "stage Check by researcher from state [information = []]\n"
   "do ready by assistant into information.suggestion\n"
   "end stage with state [information = [suggestion = unknown]]\n")
  (lambda (path)
@@ -107,7 +107,7 @@
   (string-append
    "#lang sciencelogo\n"
    "to ready [output true]\n"
-   "stage \"Check\" from state [information = []]\n"
+   "stage Check from state [information = []]\n"
    "do ready by checker into information.ready\n"
    "end stage with state [information = [ready = unknown]]\n"
    "performer checker []\n")))
@@ -128,8 +128,8 @@
  (string-append
   "#lang sciencelogo\n"
   "must do calculate-period\n"
-  "must stages in order [\"Prepare\" \"Analyze\"]\n"
-  "stage \"Prepare\" from state []\n"
+  "must stages in order [Prepare Analyze]\n"
+  "stage Prepare from state []\n"
   "end stage with state []\n"
   (substring prefix (string-length "#lang sciencelogo\n"))
   valid-call suffix)
@@ -145,7 +145,7 @@
    "#lang sciencelogo\n"
    "to ready [output true]\n"
    "performer checker []\n"
-   "stage \"Check\" by checker from state [information = []]\n"
+   "stage Check by checker from state [information = []]\n"
    "do ready into information.ready\n"
    "end stage with state [information = [ready = unknown]]\n")))
 
@@ -186,7 +186,7 @@
 (reject #rx"closing state changes information.swing-count"
         (string-append
          "#lang sciencelogo\n"
-         "stage \"Analyze\" from state [information = [swing-count = 10]]\n"
+         "stage Analyze from state [information = [swing-count = 10]]\n"
          "end stage with state [information = [swing-count = 9]]\n"))
 (reject #rx"only for integer counters or positions"
         (string-append prefix
@@ -212,7 +212,7 @@
          "#lang sciencelogo\n"
          "to maybe :duration :count [if true [output :duration / :count]]\n"
          "performer researcher []\n"
-         "stage \"Analyze\" by researcher from state [information = [elapsed = 2 count = 1]]\n"
+         "stage Analyze by researcher from state [information = [elapsed = 2 count = 1]]\n"
          "do maybe with [duration at information.elapsed count at information.count] "
          "into information.period\n"
          "end stage with state [information = [elapsed = 2 count = 1 period = unknown]]\n"))
@@ -231,7 +231,7 @@
         "#lang sciencelogo\nend stage with state []\n")
 
 (check-equal?
- (let ([method (read-method "#lang sciencelogo\nstage \"Old\"\n")])
+ (let ([method (read-method "#lang sciencelogo\nstage Old\n")])
    (first (third method)))
  '(stage "Old"))
 
@@ -241,7 +241,7 @@
    "#lang sciencelogo\n"
    "to ready [output 3]\n"
    "performer researcher []\n"
-   "stage \"Check\" by researcher from state [information = [trials = [1 2]]]\n"
+   "stage Check by researcher from state [information = [trials = [1 2]]]\n"
    "for each position in [1 2] [do ready into information.trials.[position]]\n"
    "end stage with state [information = [trials = [1 2]]]\n")))
 
@@ -249,5 +249,5 @@
  (read-method
   (string-append
    "#lang sciencelogo\n"
-   "stage \"Check\" from state [information.clock.time = \"12:00\"]\n"
+   "stage Check from state [information.clock.time = \"12:00\"]\n"
    "end stage with state [information.clock.time = \"12:00\"]\n")))

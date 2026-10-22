@@ -31,7 +31,7 @@ validator checks that the name resolves in the containing scope or an imported l
 and reports missing or ambiguous names before execution. This does not let a step read
 an `as` result that has not yet been produced.
 
-The implemented `stage "name"` form is a header for the following executable commands, up to the next stage
+The implemented `stage name` form is a header for the following executable commands, up to the next stage
 header at the same bracket depth or the end of that enclosing block. It labels a section
 for documentation and references without defining or calling a procedure, changing name
 visibility, or adding a check. Its end can be a checkpoint for a separately declared
@@ -72,12 +72,12 @@ The language also needs a way to say that several activities are required but ma
 in any order. A candidate form is:
 
 ```text
-stage "Prepare"
+stage Prepare
 any order [
   do measure-length as length
   do calibrate-timer as calibration
 ]
-stage "Time"
+stage Time
 do time-swings length calibration as timing
 ```
 
@@ -187,7 +187,7 @@ without making them a language requirement.
 ### A small vocabulary for conditions
 
 These forms have different jobs. The runnable slice currently implements
-`must do name` and `must stages in order ["First" "Second" ...]` as structural
+`must do name` and `must stages in order [First Second ...]` as structural
 obligations checked against the written method. The broader forms below are
 still design work, and a prototype
 should preserve their distinctions:
@@ -252,7 +252,7 @@ The proposed `must` form may also contain a nested group of such rules. A simple
 rule remains one line: `must record a time unit for every duration`.
 
 A list can make a standard's structure easier to read. The implemented
-`must stages in order ["Observe" "Compare"]` checks top-level stage presence and
+`must stages in order [Observe Compare]` checks top-level stage presence and
 source order in one workflow file; it does not assess a run or a separate standard.
 `must all [ ... ]` remains a candidate for independent required conditions whose
 order is irrelevant.

@@ -1,7 +1,7 @@
 #lang sciencelogo
 
 workflow "Document a pendulum measurement"
-interface "Pendulum-protocol" [
+interface Pendulum-protocol [
   version "1"
   must [
     measurement
@@ -12,9 +12,9 @@ interface "Pendulum-protocol" [
 
 performer researcher [kind = "human"]
 
-"Timing" implement Pendulum-protocol.measurement
+Timing implement Pendulum-protocol.measurement
 
-stage "Timing" by researcher from state [
+stage Timing by researcher from state [
   information = [period = 2 u [declared = [timing = [estimate = 0.1 unit = "seconds"]]]]
 ]
   information.period.u implement Pendulum-protocol.documentation.uncertainty

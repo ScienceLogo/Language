@@ -18,7 +18,7 @@ and workflow parts.
 @(tabular #:style 'boxed
   (list
    (list (bold "Form") (bold "What the current assessor checks"))
-   (list (tt "\"Stage title\" implement Protocol.part")
+   (list (tt "stage-name implement Protocol.part")
          "Maps a declared stage to an interface part")
    (list (tt "procedure implement Protocol.part")
          "Maps a procedure to an interface part")
@@ -26,8 +26,8 @@ and workflow parts.
          "Identifies the state value addressing a particular requirement")
    (list (tt "must do procedure")
          "Requires a call along the written method's established paths")
-   (list (tt "must stages in order [\"First\" \"Second\" ...]")
-         "Requires at least two distinct stage titles in order")
+   (list (tt "must stages in order [First Second ...]")
+         "Requires at least two distinct stage names in order")
    (list (tt "record-name implement Interface")
          "Checks a written record against a named interface")
    (list (tt "record-name implement \"relative/file.rkt\"")
@@ -57,16 +57,16 @@ part, and the uncertainty description addresses its nested documentation require
 #lang sciencelogo
 
 workflow "Document a pendulum measurement"
-interface "Pendulum-protocol" [
+interface Pendulum-protocol [
   version "1"
   must [measurement documentation [must [uncertainty] notes]]
   additional-measurements
 ]
 performer researcher [kind = "human"]
 
-"Timing" implement Pendulum-protocol.measurement
+Timing implement Pendulum-protocol.measurement
 
-stage "Timing" by researcher from state [
+stage Timing by researcher from state [
   information = [period = 2 u [declared = [timing = [estimate = 0.1 unit = "seconds"]]]]
 ]
   information.period.u implement Pendulum-protocol.documentation.uncertainty
@@ -125,7 +125,7 @@ run the procedure or establish that the work happened.
 
 @section{Require an order of stages}
 
-@tt{must stages in order ["Prepare" "Measure"]} requires the named top-level
+@tt{must stages in order [Prepare Measure]} requires the named top-level
 stages to appear in that order in the written workflow. At least two
 distinct titles are required. Other stages may appear between them. The
 assessor reports a missing stage or wrong order; a stage inside a procedure

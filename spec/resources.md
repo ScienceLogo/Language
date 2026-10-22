@@ -51,7 +51,7 @@ the reader cannot verify an external field or its contents.
 
 ```text
 resource timings [path = "data/timings.csv"]
-stage "Inspect" from state [information = [elapsed = unknown]]
+stage Inspect from state [information = [elapsed = unknown]]
 information.elapsed = timings.elapsed
 timings.checked = information.elapsed
 end stage with state [information = [elapsed = unknown]]

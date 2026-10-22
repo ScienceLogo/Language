@@ -31,7 +31,7 @@
       (make-directory library)
       (call-with-output-file (build-path library "library.rkt")
         (lambda (out)
-          (display "#lang sciencelogo\nlibrary \"timing\" [to plan [stage \"Prepare\" output \"Time ten swings.\"]]\n"
+          (display "#lang sciencelogo\nlibrary timing [to plan [stage Prepare output \"Time ten swings.\"]]\n"
                    out)))
       (define (git . args)
         (define status
@@ -72,10 +72,10 @@
            (string-append
             "#lang sciencelogo\n"
             "workflow \"Stage links\"\n"
-            "  stage \"Prepare\"\n"
+            "  stage Prepare\n"
             "  do make-plan as plan\n"
             "  to make-plan [output \"ready\"]\n"
-            "  stage \"Review\"\n"
+            "  stage Review\n"
             "  print plan\n"
             "  bundle = [summary = plan]\n"
             "  revised = bundle.[summary = plan]\n"

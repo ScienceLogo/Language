@@ -7,7 +7,7 @@
 
 (define protocol
   (string-append
-   "interface \"Protocol\" [version \"1\" must [measurement documentation [must [uncertainty] notes]] "
+   "interface Protocol [version \"1\" must [measurement documentation [must [uncertainty] notes]] "
    "appendix [must [reason] notes]]\n"))
 
 (define (with-workflow body use)
@@ -33,9 +33,9 @@
 (module+ test
   ;; A parent mapping covers required children; optional branches remain absent.
   (with-workflow
-   (string-append "\"Timing\" implement Protocol.measurement\n"
-                  "\"Report\" implement Protocol.documentation\n"
-                  "stage \"Timing\"\nstage \"Report\"\n")
+   (string-append "Timing implement Protocol.measurement\n"
+                  "Report implement Protocol.documentation\n"
+                  "stage Timing\nstage Report\n")
    (lambda (file)
      (define method (read-workflow-model file))
      (define mappings (workflow-model-mappings method))
@@ -56,11 +56,11 @@
 
   ;; Several stages can address the same part, and one stage can address several.
   (with-workflow
-   (string-append "stage \"First\"\nstage \"Second\"\n"
-                  "\"First\" implement Protocol.measurement\n"
-                  "\"Second\" implement Protocol.measurement\n"
-                  "\"First\" implement Protocol.documentation\n"
-                  "\"Second\" implement Protocol.documentation\n")
+   (string-append "stage First\nstage Second\n"
+                  "First implement Protocol.measurement\n"
+                  "Second implement Protocol.measurement\n"
+                  "First implement Protocol.documentation\n"
+                  "Second implement Protocol.documentation\n")
    (lambda (file)
      (define result (assess-file file))
      (check-equal? (assessment-findings result) '())
@@ -69,17 +69,17 @@
                         (assessment-checks result)) '(2 2 2))))
 
   (with-workflow
-   "stage \"All\"\n\"All\" implement Protocol\n"
+   "stage All\nAll implement Protocol\n"
    (lambda (file)
      (check-equal? (assessment-findings (assess-file file)) '())
      (check-equal? (outcomes (assess-file file)) '(satisfied satisfied satisfied))))
 
   ;; Existing interface extension also preserves inherited protocol targets.
   (with-workflow
-   (string-append "interface \"Extended\" [extends Protocol must [review]]\n"
-                  "stage \"All\"\n\"All\" implement Extended.measurement\n"
-                  "\"All\" implement Extended.documentation\n"
-                  "\"All\" implement Extended.review\n")
+   (string-append "interface Extended [extends Protocol must [review]]\n"
+                  "stage All\nAll implement Extended.measurement\n"
+                  "All implement Extended.documentation\n"
+                  "All implement Extended.review\n")
    (lambda (file)
      (check-equal? (assessment-findings (assess-file file)) '())
      (check-equal? (outcomes (assess-file file)) '(satisfied satisfied satisfied satisfied))))
@@ -87,9 +87,9 @@
   ;; A specific child does not claim its siblings. An optional group, if present,
   ;; still has its own requirements.
   (with-workflow
-   (string-append "stage \"Timing\"\n\"Timing\" implement Protocol.measurement\n"
-                  "\"Timing\" implement Protocol.documentation.notes\n"
-                  "\"Timing\" implement Protocol.appendix.notes\n")
+   (string-append "stage Timing\nTiming implement Protocol.measurement\n"
+                  "Timing implement Protocol.documentation.notes\n"
+                  "Timing implement Protocol.appendix.notes\n")
    (lambda (file)
      (check-equal? (map finding-part (assessment-findings (assess-file file)))
                    '(documentation.uncertainty appendix.reason))))
@@ -99,7 +99,7 @@
    (string-append
     "performer researcher []\nto measure :value [output :value]\n"
     "measure implement Protocol.measurement\n"
-    "stage \"Timing\" by researcher from state [information = [period = 2 u [declared = [timing = [estimate = 0.1]]]]]\n"
+    "stage Timing by researcher from state [information = [period = 2 u [declared = [timing = [estimate = 0.1]]]]]\n"
     "information.period.u implement Protocol.documentation.uncertainty\n"
     "end stage with state [information = [period = 2 u [declared = [timing = [estimate = 0.1]]]]]\n")
    (lambda (file)
@@ -116,8 +116,8 @@
      (check-equal? (with-output-to-string (lambda () (dynamic-require file #f))) "")))
 
   (for ([invalid (in-list
-                  (list (cons "\"Missing\" implement Protocol.measurement\n" #rx"unknown stage")
-                        (cons "stage \"Timing\"\n\"Timing\" implement Protocol.absent\n"
+                  (list (cons "Missing implement Protocol.measurement\n" #rx"unknown result Missing")
+                        (cons "stage Timing\nTiming implement Protocol.absent\n"
                               #rx"unknown interface or requirement")
                         (cons "absent implement Protocol.measurement\n" #rx"unknown result")
                         (cons "trial = []\nmust trial implement Protocol\n" #rx"without a must prefix")))])
@@ -149,8 +149,8 @@
       (make-directory library)
       (display-to-file
        (string-append
-        "#lang sciencelogo\nlibrary \"protocols\" [\n" protocol
-        "to inspect [stage \"Inspect\" \"Inspect\" implement Protocol.documentation]\n"
+        "#lang sciencelogo\nlibrary protocols [\n" protocol
+        "to inspect [stage Inspect Inspect implement Protocol.documentation]\n"
         "to measure [output 2]\n"
         "to plan [measure implement Protocol.measurement output true]\n"
         "to local-record :value [:value implement Protocol.documentation.uncertainty output :value]\n"
@@ -171,8 +171,8 @@
       (define file (build-path directory "workflow.rkt"))
       (display-to-file
        (format (string-append "#lang sciencelogo\nimport ~s at \"v1\" as prot\n"
-                              "stage \"Timing\"\n\"Timing\" implement prot.Protocol.measurement\n"
-                              "\"Timing\" implement prot.Protocol.documentation.uncertainty\n")
+                              "stage Timing\nTiming implement prot.Protocol.measurement\n"
+                              "Timing implement prot.Protocol.documentation.uncertainty\n")
                (format "file://~a" library)) file)
       (define result (assess-file file))
       (check-equal? (assessment-findings result) '())

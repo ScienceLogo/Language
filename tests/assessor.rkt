@@ -40,9 +40,9 @@
    ""
    (string-append
     "#lang sciencelogo\nworkflow \"Combined checks\"\n"
-    "interface \"Combined\" [extends Timing extends Site must [note]]\n"
-    "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
-    "interface \"Site\" [must [place]]\n"
+    "interface Combined [extends Timing extends Site must [note]]\n"
+    "interface Timing [must [duration unit = \"seconds\"]]\n"
+    "interface Site [must [place]]\n"
     "complete = Combined.[duration = 2 place = \"lab\" note = \"planned\"]\n"
     "complete implement Combined\n"
     "complete implement Timing\n"
@@ -61,10 +61,10 @@
   (check-equal? (assessment-findings (assess-file combined-example)) '())
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Timing\" [must [duration unit = \"seconds\"]]\n"
+   "#lang sciencelogo\ninterface Timing [must [duration unit = \"seconds\"]]\n"
    (string-append
     "#lang sciencelogo\nworkflow \"Check timing\"\n"
-    "interface \"Timing\" [must [duration unit = \"seconds\"]]\n"
+    "interface Timing [must [duration unit = \"seconds\"]]\n"
     "trial = Timing.[duration = 2]\n"
     "trial implement Timing\n"
     "trial implement \"requirement.rkt\"\n"
@@ -83,7 +83,7 @@
                    (interface-model-revision (read-interface-model interface)))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Timing\" [must [duration unit]]\n"
+   "#lang sciencelogo\ninterface Timing [must [duration unit]]\n"
    (string-append
     "#lang sciencelogo\nworkflow \"Check dynamic record\"\n"
     "to make-record [output [duration = 2 unit = \"seconds\"]]\n"
@@ -97,7 +97,7 @@
                    '(unknown-record))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [must [review]]\n"
+   "#lang sciencelogo\ninterface Parts [must [review]]\n"
    (string-append
     "#lang sciencelogo\n"
     "trial = [review = unknown]\n"
@@ -184,7 +184,7 @@
   (with-sources
    (string-append
     "#lang sciencelogo\n"
-    "interface \"Chain\" [version \"1\" must [first second third] "
+    "interface Chain [version \"1\" must [first second third] "
     "affects first second affects second third]\n")
    (string-append
     "#lang sciencelogo\n"
@@ -197,7 +197,7 @@
      (check-not-false (member '(first second third) (map finding-chain findings)))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [version \"1\" must [a]]\n"
+   "#lang sciencelogo\ninterface Parts [version \"1\" must [a]]\n"
    (string-append
     "#lang sciencelogo\n"
     "workflow \"Parts check\"\nimplements \"requirement.rkt\" as p "
@@ -208,7 +208,7 @@
                    '(duplicate-part unknown-part))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [version \"1\" must [measure] review]\n"
+   "#lang sciencelogo\ninterface Parts [version \"1\" must [measure] review]\n"
    (string-append
     "#lang sciencelogo\n"
     "workflow \"Optional review\"\n"
@@ -222,7 +222,7 @@
      (check-equal? (length (assessment-checks result)) 1)))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [must [measure] review]\n"
+   "#lang sciencelogo\ninterface Parts [must [measure] review]\n"
    (string-append
     "#lang sciencelogo\n"
     "workflow \"Optional review\"\n"
@@ -234,14 +234,14 @@
      (check-equal? (length (assessment-checks result)) 1)))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [must [review] review]\n"
+   "#lang sciencelogo\ninterface Parts [must [review] review]\n"
    "#lang sciencelogo\nworkflow \"Invalid\"\n"
    (lambda (interface _method)
      (check-exn #rx"duplicate interface field review"
                 (lambda () (parse-sciencelogo-file interface)))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [version \"1\" must [a]]\n"
+   "#lang sciencelogo\ninterface Parts [version \"1\" must [a]]\n"
    (string-append
     "#lang sciencelogo\n"
     "workflow \"Missing file\"\nimplements \"absent.rkt\" as p []\n")
@@ -250,7 +250,7 @@
                    '(missing-interface-file))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [must [a]]\n"
+   "#lang sciencelogo\ninterface Parts [must [a]]\n"
    "#lang sciencelogo\nworkflow \"Invalid\"\n\n"
    (lambda (interface _method)
      (check-not-exn (lambda () (parse-sciencelogo-file interface)))))
@@ -258,14 +258,14 @@
   (with-sources
    (string-append
     "#lang sciencelogo\n"
-    "interface \"Parts\" [version \"1\" must [a] affects a absent]\n")
+    "interface Parts [version \"1\" must [a] affects a absent]\n")
    "#lang sciencelogo\nworkflow \"Invalid\"\n\n"
    (lambda (interface _method)
      (check-exn #rx"impact references unknown part"
                 (lambda () (parse-sciencelogo-file interface)))))
 
   (with-sources
-   "#lang sciencelogo\ninterface \"Parts\" [version \"1\" must [a]]\n"
+   "#lang sciencelogo\ninterface Parts [version \"1\" must [a]]\n"
    (string-append
     "#lang sciencelogo\n"
     "workflow \"Invalid\"\nimplements \"/absolute.rkt\" as p []\n")
@@ -279,7 +279,7 @@
     "#lang sciencelogo\n"
     "workflow \"Pendulum method\"\n"
     "  must do compare-periods\n"
-    "  stage \"Prepare\"\n"
+    "  stage Prepare\n"
     "  do [do prepare]\n"
     "  to prepare [do compare-periods]\n"
     "  to compare-periods []\n"
@@ -338,10 +338,10 @@
    (string-append
     "#lang sciencelogo\n"
     "workflow \"Stage requirement\"\n"
-    "must stages in order [\"Prepare\" \"Time\"]\n"
-    "stage \"Prepare\"\n"
-    "stage \"Optional\"\n"
-    "stage \"Time\"\n")
+    "must stages in order [Prepare Time]\n"
+    "stage Prepare\n"
+    "stage Optional\n"
+    "stage Time\n")
    (lambda (_interface method)
      (define result (assess-file method))
      (check-equal? (map condition-check-outcome (assessment-checks result))
@@ -354,9 +354,9 @@
    ""
    (string-append
     "#lang sciencelogo\n"
-    "must stages in order [\"Prepare\" \"Time\"]\n"
-    "stage \"Time\"\n"
-    "stage \"Prepare\"\n")
+    "must stages in order [Prepare Time]\n"
+    "stage Time\n"
+    "stage Prepare\n")
    (lambda (_interface method)
      (define result (assess-file method))
      (check-equal? (map finding-kind (assessment-findings result))
@@ -368,9 +368,9 @@
    ""
    (string-append
     "#lang sciencelogo\n"
-    "must stages in order [\"Prepare\" \"Time\"]\n"
-    "stage \"Prepare\"\n"
-    "do [stage \"Time\"]\n")
+    "must stages in order [Prepare Time]\n"
+    "stage Prepare\n"
+    "do [stage Time]\n")
    (lambda (_interface method)
      (define result (assess-file method))
      (check-equal? (map finding-kind (assessment-findings result))
@@ -383,9 +383,9 @@
    ""
    (string-append
     "#lang sciencelogo\n"
-    "must stages in order [\"Prepare\" \"Time\"]\n"
-    "stage \"Prepare\"\n"
-    "stage \"Time\"\n")
+    "must stages in order [Prepare Time]\n"
+    "stage Prepare\n"
+    "stage Time\n")
    (lambda (_interface method)
      (define model (read-workflow-model method))
      (define prepare (first (workflow-model-stages model)))

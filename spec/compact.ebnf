@@ -16,7 +16,7 @@
 
 (* Files. A fragment's role is determined by the file that includes it. *)
 workflow-file = header, [ workflow-title ], [ description ], { import }, { workflow-form }, EOF ;
-library-file = header, "library", text, "[", { library-form }, "]", EOF ;
+library-file = header, "library", declaration-name, "[", { library-form }, "]", EOF ;
 interface-file = header, interface, EOF ;
 workflow-fragment = header, { workflow-form }, EOF ;
 library-fragment = header, { procedure | interface | include }, EOF ;
@@ -33,6 +33,7 @@ word = word-character, { word-character } ;
 word-character = ? a non-whitespace character other than [ ] ( ) ; " # ? ;
 name = ? a word other than a reserved word, not beginning with : ? ;
 simple-name = ? a name containing no dot ? ;
+declaration-name = ? an unquoted simple name not beginning with an optional sign and a digit ? ;
 entry-name = ? a name not beginning with an optional sign and a digit ? ;
 segment = ? a nonempty dot-separated part of a word ? ;
 reference = simple-name, { ".", segment } ;
@@ -95,8 +96,8 @@ conditional = "if", expression, block,
               { "else", "if", expression, block }, [ "else", block ] ;
 
 (* Stages. A paired stage has entry and exit state and location-based calls. *)
-stage = "stage", text, [ description ]
-      | "stage", text, [ "by", simple-name ], "from", state,
+stage = "stage", declaration-name, [ description ]
+      | "stage", declaration-name, [ "by", simple-name ], "from", state,
         [ description ], { command }, "end", "stage", "with", state ;
 state = "state", state-object ;
 state-object = "[", { state-set }, "]" | "(", state-object, ")" ;
@@ -128,7 +129,7 @@ uncertainty = "[", { ( "declared" | "omitted" ), "=", sources }, "]"
 sources = "[", { name, "=", object }, "]" | "(", sources, ")" ;
 
 (* Interface bodies and nested parts share their entry rules. *)
-interface = "interface", text, "[", { interface-root-entry }, "]" ;
+interface = "interface", declaration-name, "[", { interface-root-entry }, "]" ;
 interface-root-entry = "version", text | "extends", reference | interface-entry ;
 interface-body = "[", { interface-entry }, "]" ;
 interface-entry = field-declaration | required-group | interface-if
@@ -146,9 +147,9 @@ interface-if = "if", expression, interface-body,
 interface-for-each = "for", "each", simple-name, "in", expression, interface-body ;
 
 (* Mappings and top-level requirements on the written method. *)
-mapping = ( target | text ), "implement", ( reference | text ) ;
+mapping = target, "implement", ( reference | text ) ;
 obligation = "must", "do", reference
-           | "must", "stages", "in", "order", "[", text, text, { text }, "]" ;
+           | "must", "stages", "in", "order", "[", reference, reference, { reference }, "]" ;
 
 (* Older supported file-reference form; locators are text, not direct mappings. *)
 file-provisions = "implements", text, "as", name,

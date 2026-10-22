@@ -1,11 +1,11 @@
 #lang sciencelogo
 workflow "Reuse a timing interface"
 
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
 
-interface "Experiment" [
+interface Experiment [
   must [timing is Timing]
 ]
 

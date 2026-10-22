@@ -48,7 +48,13 @@ measurement or evidence record. Empty blocks are allowed. Whitespace is flexible
 commands may share a line. `;` ends a line comment, and
 `#| ... |#` is a block comment that may nest.
 
-`stage "name"` labels the following executable commands in the same block until the
+Names are unquoted identifiers. Stages, interfaces, and libraries follow the
+same rule as procedures. Quoted strings supply values, including the
+workflow's descriptive title, `about` prose, paths, URLs, and versions.
+Stage, interface, and library identifiers have no dots or spaces and do not
+begin with a number. Case and hyphenation conventions remain optional.
+
+`stage name` labels the following executable commands in the same block until the
 next stage header or the block's end. A stage is a section and checkpoint, not an
 activity or callable procedure. It does not change result visibility or create a new
 scope. A `to` definition placed between stage headers remains available throughout
@@ -57,10 +63,10 @@ For example:
 
 ```text
 workflow "Review a timing plan"
-stage "Prepare"
+stage Prepare
 do make-plan as plan
 to make-plan [output "Time ten swings as the swing gets smaller."]
-stage "Review"
+stage Review
 print plan
 ```
 
@@ -81,7 +87,7 @@ do hello.greeting as message print message
 
 Replace the example URL with the absolute path to a local Git repository. It must
 have a `main` branch and a
-root `library.rkt` with a `library "name" [ ... ]` declaration. It holds top-level
+root `library.rkt` with a `library name [ ... ]` declaration. It holds top-level
 `to` definitions, record `interface` declarations, `include "relative/path.rkt"`
 declarations, or library imports,
 with no executable
@@ -122,7 +128,7 @@ outside, without defaults, are optional.
 A separate `#lang sciencelogo` file can declare an interface for parts of a method:
 
 ```text
-interface "Assessment-process" [
+interface Assessment-process [
   version "1"
   must [collect review report]
   supplementary-notes
@@ -177,13 +183,13 @@ The workflow can require an ordered set of top-level stage headers:
 
 ```text
 workflow "How will we time a pendulum?"
-must stages in order ["Prepare" "Time" "Review"]
-stage "Prepare"
-stage "Time"
-stage "Review"
+must stages in order [Prepare Time Review]
+stage Prepare
+stage Time
+stage Review
 ```
 
-The list needs at least two distinct quoted names. The assessor checks that each
+The list needs at least two distinct unquoted stage names. The assessor checks that each
 name matches exactly one top-level stage header and that those headers occur in the
 listed order. Unlisted stages may appear between them. A missing, repeated, or
 out-of-order named stage produces a finding. A stage inside a procedure or `do [ ... ]`
@@ -196,16 +202,19 @@ references. It uses the existing `include` rule for a local interface:
 ```text
 workflow "How will we review the data?"
 include "requirements/review.rkt"
-"Collect" implement Assessment-process.collect
-"Review" implement Assessment-process.review
-"Report" implement Assessment-process.report
-stage "Collect"
-stage "Review"
-stage "Report"
+Collect implement Assessment-process.collect
+Review implement Assessment-process.review
+Report implement Assessment-process.report
+stage Collect
+stage Review
+stage Report
 ```
 
-The quoted name identifies a stage. A procedure uses its unquoted name, and
-a value uses its name or dotted path. For example, inside a state stage,
+Stages and procedures use their unquoted names; a value uses its name or
+dotted path. The reader resolves stages from their declarations, including
+later declarations and imported qualified names. It reports a mapping target
+that could identify both a stage and another visible value or definition as
+ambiguous. For example, inside a state stage,
 `information.period.u implement Pendulum-protocol.documentation.uncertainty`
 identifies the data addressing that nested requirement. Imported interfaces
 use the existing library alias, as in `prot.Pendulum-protocol.measurement`.
@@ -343,7 +352,7 @@ structural obligations that can be checked independently with `implement`.
 A record interface may be declared directly in a workflow:
 
 ```text
-interface "Timing" [must [duration unit = "seconds"] notes]
+interface Timing [must [duration unit = "seconds"] notes]
 trial = Timing.[duration = 2]
 trial implement Timing
 ```
@@ -426,13 +435,13 @@ with a duplicate-name check for that child collection.
 Record interfaces can inherit and combine other record interfaces:
 
 ```text
-interface "Timed-observation" [
+interface Timed-observation [
   extends Timing
   extends Location
   must [observation unit = "minutes"]
 ]
-interface "Timing" [must [duration unit = "seconds"]]
-interface "Location" [must [place]]
+interface Timing [must [duration unit = "seconds"]]
+interface Location [must [place]]
 ```
 
 One `extends` inherits one parent; repeated `extends` combines their fields.

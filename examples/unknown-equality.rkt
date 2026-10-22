@@ -1,7 +1,7 @@
 #lang sciencelogo
 workflow "Describe known and unknown pendulum periods"
 
-interface "Timing" [
+interface Timing [
   must [period = unknown number]
   if period == unknown [
     must [reason]

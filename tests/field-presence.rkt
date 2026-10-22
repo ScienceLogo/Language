@@ -51,7 +51,7 @@
   (check-eq? (constant-value presence) no-constant)
   (check-equal? (constant-value presence (lambda (_) 'unknown)) 'unknown)
 
-  (define requirement "interface \"Noted\" [must [notes in details]]\n")
+  (define requirement "interface Noted [must [notes in details]]\n")
   (for ([details (in-list '("[notes = unknown]" "[notes = false]" "[period = 2]"))]
         [expected (in-list '(satisfied satisfied violated))])
     (check-equal? (outcomes (string-append requirement "trial = [details = " details "]\ntrial implement Noted\n"))
@@ -64,23 +64,23 @@
                 '(satisfied))
   (check-equal? (outcomes (string-append requirement "trial = [details = [\"manual\"]]\ntrial implement Noted\n"))
                 '(violated))
-  (check-equal? (outcomes "interface \"Noted\" [must [details = unknown notes in details]]\ntrial = [details = unknown]\ntrial implement Noted\n")
+  (check-equal? (outcomes "interface Noted [must [details = unknown notes in details]]\ntrial = [details = unknown]\ntrial implement Noted\n")
                 '(undetermined))
   (check-equal? (outcomes (string-append requirement "to describe [output [notes = unknown]]\ndo describe as details\ntrial = [details = details]\ntrial implement Noted\n"))
                 '(undetermined))
 
   ;; An optional key is not made compulsory by testing for its presence.
   (define conditional
-    "interface \"Trial\" [details [notes] if notes in details [must [reviewer]] else [must [reason]]]\n")
+    "interface Trial [details [notes] if notes in details [must [reviewer]] else [must [reason]]]\n")
   (check-equal? (run (string-append conditional "trial = Trial.[details = [period = 2] reason = \"no notes\"]\nprint trial.reason\n"))
                 "no notes\n")
   (check-equal? (outcomes (string-append conditional "trial = [details = [notes = unknown] reviewer = \"human\"]\ntrial implement Trial\n"))
                 '(satisfied))
   (check-equal? (outcomes (string-append conditional "trial = [details = [notes = unknown]]\ntrial implement Trial\n"))
                 '(violated))
-  (check-equal? (outcomes "interface \"Series\" [for each entry in trials [must [notes in entry]]]\nseries = [trials = [[notes = unknown] [notes = false]]]\nseries implement Series\n")
+  (check-equal? (outcomes "interface Series [for each entry in trials [must [notes in entry]]]\nseries = [trials = [[notes = unknown] [notes = false]]]\nseries implement Series\n")
                 '(satisfied))
-  (check-equal? (outcomes "interface \"Series\" [for each entry in trials [must [notes in entry]]]\nseries = [trials = [[notes = unknown] [period = 2]]]\nseries implement Series\n")
+  (check-equal? (outcomes "interface Series [for each entry in trials [must [notes in entry]]]\nseries = [trials = [[notes = unknown] [period = 2]]]\nseries implement Series\n")
                 '(violated))
 
   ;; The model preserves the expression and makes value dependencies
@@ -101,7 +101,7 @@
                (workflow-model-relations model)))
       (check-true (guarded-relation-model? use))
       (check-equal? (guarded-relation-model-guard use) '(kind-test list ((result trial))))))
-  (with-source (string-append requirement "stage \"Record\"\n\"Record\" implement Noted\n")
+  (with-source (string-append requirement "stage Record\nRecord implement Noted\n")
     (lambda (file)
       (define model (read-workflow-model file))
       (define interface (mapping-model-interface (first (workflow-model-mappings model))))
@@ -111,7 +111,7 @@
       (check-equal? (condition-model-guard selector) '(kind-test list ((result details))))))
   (with-source "trial = [notes = unknown]\nif notes in trial [print \"present\"]\n"
     (lambda (file) (check-not-exn (lambda () (read-workflow-model file)))))
-  (with-source "performer researcher []\nto keep :value [output :value]\nstage \"Inspect\" by researcher from state [information = [trial = [notes = unknown]]]\nif notes in information.trial [do keep with [value at information.trial] into information.trial]\nend stage with state [information = [trial = [notes = unknown]]]\n"
+  (with-source "performer researcher []\nto keep :value [output :value]\nstage Inspect by researcher from state [information = [trial = [notes = unknown]]]\nif notes in information.trial [do keep with [value at information.trial] into information.trial]\nend stage with state [information = [trial = [notes = unknown]]]\n"
     (lambda (file) (check-not-exn (lambda () (read-workflow-model file)))))
 
   (check-equal? (with-output-to-string (lambda () (dynamic-require example #f)))

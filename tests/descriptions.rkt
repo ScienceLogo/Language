@@ -20,11 +20,11 @@
   (define method
     (string-append
      "workflow \"Review a timing plan\"\nabout \"" summary "\"\n"
-     "stage \"Prepare\"\n; Comments do not interrupt attachment.\nabout \"Prepare the timing plan.\"\n"
+     "stage Prepare\n; Comments do not interrupt attachment.\nabout \"Prepare the timing plan.\"\n"
      "do make-plan as plan\n"
      "to make-plan [\n  about \"Return a timing plan, with its **purpose**.\"\n"
      "  output \"Time ten swings as the swing gets smaller.\"\n]\n"
-     "stage \"Review\" about \"Read the plan.\"\nprint plan\n"))
+     "stage Review about \"Read the plan.\"\nprint plan\n"))
   (check-equal? (run method) "Time ten swings as the swing gets smaller.\n")
   (with-source method
     (lambda (path)
@@ -47,20 +47,20 @@
                     '(stage "Prepare" (about "Prepare the timing plan.")))))
 
   ;; Descriptions are optional, may be empty, and do not introduce a scope.
-  (with-source "to identity :value [output :value]\nstage \"Read\"\nvalue = 2\n"
+  (with-source "to identity :value [output :value]\nstage Read\nvalue = 2\n"
     (lambda (path)
       (define model (read-workflow-model path))
       (check-false (workflow-model-description model))
       (check-false (procedure-model-description (first (workflow-model-procedures model))))
       (check-false (stage-model-description (first (workflow-model-stages model))))))
-  (with-source "about \"\"\nto empty [about \"\"]\nstage \"Empty\" about \"\"\ndo empty\n"
+  (with-source "about \"\"\nto empty [about \"\"]\nstage Empty about \"\"\ndo empty\n"
     (lambda (path)
       (define model (read-workflow-model path))
       (for ([description (list (workflow-model-description model)
                               (procedure-model-description (first (workflow-model-procedures model)))
                               (stage-model-description (first (workflow-model-stages model))))])
         (check-equal? (description-model-text description) ""))))
-  (check-equal? (run "about \"A \\\"quote\\\" and a \\\\ path.\"\nstage \"First\" about \"First.\"\nvalue = 2\nstage \"Second\" about \"Second.\"\nprint value\n")
+  (check-equal? (run "about \"A \\\"quote\\\" and a \\\\ path.\"\nstage First about \"First.\"\nvalue = 2\nstage Second about \"Second.\"\nprint value\n")
                 "2\n")
   (with-source "about \"A \\\"quote\\\" and a \\\\ path.\"\n"
     (lambda (path)
@@ -68,21 +68,21 @@
                     "A \"quote\" and a \\ path.")))
 
   ;; A description on a nested stage belongs to that stage, not its procedure.
-  (with-source "to plan [about \"Method.\" do [stage \"Detail\" about \"Checkpoint.\" print 2]]\ndo plan\n"
+  (with-source "to plan [about \"Method.\" do [stage Detail about \"Checkpoint.\" print 2]]\ndo plan\n"
     (lambda (path)
       (define model (read-workflow-model path))
       (check-equal? (description-model-text
                      (procedure-model-description (first (workflow-model-procedures model)))) "Method.")
       (check-equal? (description-model-text
                      (stage-model-description (first (workflow-model-stages model)))) "Checkpoint.")))
-  (check-equal? (run "to plan [about \"Method.\" do [stage \"Detail\" about \"Checkpoint.\" print 2]]\ndo plan\n") "2\n")
+  (check-equal? (run "to plan [about \"Method.\" do [stage Detail about \"Checkpoint.\" print 2]]\ndo plan\n") "2\n")
 
   ;; Paired stage descriptions remain metadata; state-call requirements stay intact.
   (define staged
     (string-append
      "to identity :value [about \"Return the supplied value.\" output :value]\n"
      "performer researcher []\n"
-     "stage \"Inspect\" by researcher from state [information = [period = 2]]\n"
+     "stage Inspect by researcher from state [information = [period = 2]]\n"
      "about \"Inspect the stated period.\"\n"
      "do identity with [value at information.period] into information.copy\n"
      "end stage with state [information = [period = 2 copy = unknown]]\n"))
@@ -102,13 +102,13 @@
     (lambda (path) (check-equal? (outcomes path) '(satisfied))))
 
   ;; Placement gives every description one unambiguous owner.
-  (for ([body (list "about 2" "to plan [about true]" "stage \"Plan\" about []")])
+  (for ([body (list "about 2" "to plan [about true]" "stage Plan about []")])
     (with-source body
       (lambda (path) (check-exn #rx"quoted Markdown text" (lambda () (parse-sciencelogo-file path))))))
   (for ([body (list "about \"One\" about \"Two\""
                     "to plan [about \"One\" about \"Two\"]"
-                    "stage \"Plan\" about \"One\" about \"Two\""
-                    "stage \"Plan\" from state [] about \"One\" about \"Two\" end stage with state []")])
+                    "stage Plan about \"One\" about \"Two\""
+                    "stage Plan from state [] about \"One\" about \"Two\" end stage with state []")])
     (with-source body
       (lambda (path) (check-exn #rx"only one about" (lambda () (parse-sciencelogo-file path))))))
   (for ([body (list "print 2 about \"Late\""
@@ -116,8 +116,8 @@
                     "do [about \"Anonymous\"]"
                     "if true [about \"Anonymous\"]"
                     "repeat 1 [about \"Anonymous\"]"
-                    "stage \"Plan\" from state [] print 2 about \"Late\" end stage with state []"
-                    "library \"plans\" [about \"Library\"]")])
+                    "stage Plan from state [] print 2 about \"Late\" end stage with state []"
+                    "library plans [about \"Library\"]")])
     (with-source body
       (lambda (path) (check-exn #rx"about belongs" (lambda () (parse-sciencelogo-file path))))))
   (for ([body '("about = 2" "to about []" "resource about []")])
@@ -140,9 +140,9 @@
       (make-directory workflow)
       (git library "init" "--initial-branch=main")
       (git workflow "init" "--initial-branch=main")
-      (display-to-file "#lang sciencelogo\nlibrary \"timing\" [include \"methods.rkt\"]\n"
+      (display-to-file "#lang sciencelogo\nlibrary timing [include \"methods.rkt\"]\n"
                        (build-path library "library.rkt"))
-      (display-to-file "#lang sciencelogo\nto estimate-period :elapsed :swings [about \"Estimate the **period**.\" stage \"Calculate\" about \"Divide by swing count.\" output :elapsed / :swings]\n"
+      (display-to-file "#lang sciencelogo\nto estimate-period :elapsed :swings [about \"Estimate the **period**.\" stage Calculate about \"Divide by swing count.\" output :elapsed / :swings]\n"
                        (build-path library "methods.rkt"))
       (git library "add" ".")
       (git library "-c" "user.name=ScienceLogo Tests" "-c" "user.email=tests@example.invalid"

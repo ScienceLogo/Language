@@ -67,18 +67,18 @@
                           '() '(satisfied satisfied satisfied)))
 
   (define optional-nested
-    "interface \"Protocol\" [must [documentation [must [uncertainty] appendix [must [reason] notes]]]]\n")
+    "interface Protocol [must [documentation [must [uncertainty] appendix [must [reason] notes]]]]\n")
   (void (check-provisions optional-nested "provide documentation by \"record\""
                           '() '(satisfied satisfied)))
   (void (check-provisions optional-nested
                           "provide documentation by \"record\" provide documentation.appendix.notes by \"notes\""
                           '(documentation.appendix.reason) '(satisfied satisfied violated)))
   (void (check-provisions
-         "interface \"Repeated\" [must [observation [must [value]] calibration [must [value]]]]\n"
+         "interface Repeated [must [observation [must [value]] calibration [must [value]]]]\n"
          "provide observation by \"measurements\" provide calibration.value by \"calibration\""
          '() '(satisfied satisfied satisfied satisfied)))
   (with-sources
-   "interface \"Links\" [must [documentation [must [source result] affects source result]]]\n"
+   "interface Links [must [documentation [must [source result] affects source result]]]\n"
    "implements \"interface.rkt\" as protocol [provide documentation.result by \"result\"]\n"
    (lambda (_interface workflow)
      (define findings (assessment-findings (assess-file workflow)))
@@ -88,7 +88,7 @@
   ;; Parent blocks are shapes, so they use no assignment or new declaration word.
   (define nested-record
     (string-append
-     "interface \"Protocol\" [must [documentation [must [uncertainty unit = \"seconds\"] notes]] "
+     "interface Protocol [must [documentation [must [uncertainty unit = \"seconds\"] notes]] "
      "appendix [must [reason] method = \"manual\"]]\n"))
   (check-equal?
    (output-of
@@ -139,23 +139,23 @@
   (check-equal?
    (output-of
     (string-append
-     "interface \"Child\" [extends Base]\n"
-     "interface \"Base\" [must [documentation [must [unit = \"seconds\"] notes]]]\n"
+     "interface Child [extends Base]\n"
+     "interface Base [must [documentation [must [unit = \"seconds\"] notes]]]\n"
      "trial = Child.[]\nprint trial.documentation.unit\n"))
    "seconds\n")
   (for ([body (in-list '("must [documentation [must [uncertainty uncertainty]]]"
                          "must [documentation [must [uncertainty]]] documentation.uncertainty"
                          "documentation [version \"1\"]"
                          "documentation [extends Parent]"))])
-    (with-sources (string-append "interface \"Invalid\" [" body "]\n") ""
+    (with-sources (string-append "interface Invalid [" body "]\n") ""
       (lambda (interface _workflow)
         (check-exn exn:fail:read? (lambda () (parse-sciencelogo-file interface))))))
 
   ;; Requiredness does not depend on line breaks or on explicit value supply.
   (for ([declaration
-         (in-list '("interface \"Timing\" [must [duration unit = \"seconds\"] notes]\n"
-                    "interface \"Timing\" [\nmust [\nduration\nunit = \"seconds\"\n]\nnotes\n]\n"
-                    "interface \"Timing\" [must [duration] unit = \"seconds\" notes]\n"))])
+         (in-list '("interface Timing [must [duration unit = \"seconds\"] notes]\n"
+                    "interface Timing [\nmust [\nduration\nunit = \"seconds\"\n]\nnotes\n]\n"
+                    "interface Timing [must [duration] unit = \"seconds\" notes]\n"))])
     (check-equal?
      (output-of
       (string-append declaration
@@ -173,24 +173,24 @@
         (check-true (andmap source-ref? (map condition-model-source entries))))))
 
   (check-equal?
-   (output-of "interface \"Optional\" [notes]\nrecord = Optional.[]\nprint record\n")
+   (output-of "interface Optional [notes]\nrecord = Optional.[]\nprint record\n")
    "[]\n")
   (check-equal?
    (output-of
     (string-append
-     "interface \"Settings\" [must [enabled = false count = 0 value = unknown options = [1 2]]]\n"
+     "interface Settings [must [enabled = false count = 0 value = unknown options = [1 2]]]\n"
      "settings = Settings.[]\nprint settings.enabled\nprint settings.count\n"
      "print settings.value\nprint settings.options\n"))
    "false\n0\nunknown\n[1 2]\n")
   (check-exn
    #rx"missing field duration"
    (lambda ()
-     (output-of "interface \"Timing\" [must [duration] notes]\ntrial = Timing.[]\n")))
+     (output-of "interface Timing [must [duration] notes]\ntrial = Timing.[]\n")))
 
   ;; The same entries are required in standalone and inline record checks.
   (for ([declaration
-         (in-list '("interface \"Timing\" [must [duration unit = \"seconds\"] notes]\n"
-                    "interface \"Timing\" [must [duration] unit = \"seconds\" notes]\n"))])
+         (in-list '("interface Timing [must [duration unit = \"seconds\"] notes]\n"
+                    "interface Timing [must [duration] unit = \"seconds\" notes]\n"))])
     (with-sources
      declaration
      (string-append
@@ -211,9 +211,9 @@
   (check-equal?
    (output-of
     (string-append
-     "interface \"Combined\" [extends Timing extends Location must [count = 10] notes]\n"
-     "interface \"Timing\" [must [duration unit = \"seconds\"] uncertainty]\n"
-     "interface \"Location\" [place]\n"
+     "interface Combined [extends Timing extends Location must [count = 10] notes]\n"
+     "interface Timing [must [duration unit = \"seconds\"] uncertainty]\n"
+     "interface Location [place]\n"
      "trial = Combined.[duration = 2]\nprint trial\n"))
    "[count = 10 duration = 2 unit = \"seconds\"]\n")
   (check-exn
@@ -221,29 +221,29 @@
    (lambda ()
      (output-of
       (string-append
-       "interface \"Combined\" [extends Required extends Optional]\n"
-       "interface \"Required\" [must [notes]]\n"
-       "interface \"Optional\" [notes]\n"))))
+       "interface Combined [extends Required extends Optional]\n"
+       "interface Required [must [notes]]\n"
+       "interface Optional [notes]\n"))))
 
   ;; Dotted fields follow the same presence and default rules.
   (check-equal?
    (output-of
     (string-append
-     "interface \"Clock\" [must [clock.time clock.unit = \"seconds\"] clock.notes]\n"
+     "interface Clock [must [clock.time clock.unit = \"seconds\"] clock.notes]\n"
      "trial = Clock.[clock.time = \"12:00\"]\nprint trial.clock\n"))
    "[time = \"12:00\" unit = \"seconds\"]\n")
 
   ;; Workflow provisions use the same compulsory and optional entries.
   (with-sources
-   "interface \"Optional\" [notes]\n"
+   "interface Optional [notes]\n"
    "implements \"interface.rkt\" as protocol []\n"
    (lambda (_interface workflow)
      (define result (assess-file workflow))
      (check-equal? (assessment-findings result) '())
      (check-equal? (assessment-checks result) '())))
   (for ([declaration
-         (in-list '("interface \"Protocol\" [must [measurement documentation] notes]\n"
-                    "interface \"Protocol\" [must [measurement] must [documentation] notes]\n"))])
+         (in-list '("interface Protocol [must [measurement documentation] notes]\n"
+                    "interface Protocol [must [measurement] must [documentation] notes]\n"))])
     (with-sources
      declaration
      (string-append
@@ -259,6 +259,6 @@
                          "must [unit = \"seconds\"] unit"
                          "require duration" "must [version \"1\"]"
                          "must [must [duration]]" "must [duration"))])
-    (with-sources (string-append "interface \"Invalid\" [" body "]\n") ""
+    (with-sources (string-append "interface Invalid [" body "]\n") ""
       (lambda (interface _workflow)
         (check-exn exn:fail:read? (lambda () (parse-sciencelogo-file interface)))))))

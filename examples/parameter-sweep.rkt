@@ -4,12 +4,12 @@ workflow "Which pendulum lengths should we compare?"
 
 lengths = range 0.25 to 1.00 step 0.25
 
-stage "Plan lengths"
+stage Plan-lengths
 for each length in lengths [
   print length
 ]
 
-stage "Review longer trials"
+stage Review-longer-trials
 for each length in lengths [
   if length >= 0.75 [print length]
 ]

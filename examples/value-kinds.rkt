@@ -1,11 +1,11 @@
 #lang sciencelogo
 workflow "Describe measured and planned pendulum periods"
 
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
 
-interface "Timing-plan" [
+interface Timing-plan [
   must [period = unknown number unit = "seconds"]
 ]
 

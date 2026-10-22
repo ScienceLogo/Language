@@ -15,7 +15,7 @@ hypothesis shorter-swing [text = "A shorter swing has a shorter period"]
 assumption hand-timing [text = "Hand timing is comparable across trials"]
 conclusion regular-period [text = "The observed period was nearly constant"]
 
-stage "Review"
+stage Review
 hypotheses.shorter-swing += conclusion not-supported [
   text = "The measurements did not support a shorter period"
 ]

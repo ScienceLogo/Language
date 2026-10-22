@@ -4,8 +4,8 @@
          "../assessor.rkt" "../workflow-model.rkt")
 
 (define-runtime-path example "../examples/nested-interfaces.rkt")
-(define timing "interface \"Timing\" [must [period is number unit = \"seconds\" period > 0]]\n")
-(define experiment "interface \"Experiment\" [must [timing is Timing]]\n")
+(define timing "interface Timing [must [period is number unit = \"seconds\" period > 0]]\n")
+(define experiment "interface Experiment [must [timing is Timing]]\n")
 (define (with-source body use)
   (define file (make-temporary-file "sciencelogo-nested-~a.rkt"))
   (dynamic-wind
@@ -49,36 +49,36 @@
                 "accepted\ntrue\ntrue\n")
 
   ;; Nested groups, inheritance, optional fields, and per-item rules are reused.
-  (check-equal? (run (string-append timing "interface \"Detailed\" [extends Timing notes]\nprint [period = 2 unit = \"seconds\"] is Detailed\ninterface \"Group\" [must [timing [must [period is number]]]]\nprint [period = 2] is Group.timing\n"))
+  (check-equal? (run (string-append timing "interface Detailed [extends Timing notes]\nprint [period = 2 unit = \"seconds\"] is Detailed\ninterface Group [must [timing [must [period is number]]]]\nprint [period = 2] is Group.timing\n"))
                 "true\ntrue\n")
-  (check-equal? (outcomes (string-append timing "interface \"Series\" [for each item in measurements [must [item is Timing]]]\nseries = [measurements = [[period = 2 unit = \"seconds\"] [period = 3 unit = \"minutes\"]]]\nseries implement Series\n"))
+  (check-equal? (outcomes (string-append timing "interface Series [for each item in measurements [must [item is Timing]]]\nseries = [measurements = [[period = 2 unit = \"seconds\"] [period = 3 unit = \"minutes\"]]]\nseries implement Series\n"))
                 '(satisfied))
-  (check-equal? (outcomes (string-append timing "interface \"Series\" [for each item in measurements [must [item is Timing]]]\nseries = [measurements = [[period = 2 unit = \"seconds\"] [period = -1 unit = \"seconds\"]]]\nseries implement Series\n"))
+  (check-equal? (outcomes (string-append timing "interface Series [for each item in measurements [must [item is Timing]]]\nseries = [measurements = [[period = 2 unit = \"seconds\"] [period = -1 unit = \"seconds\"]]]\nseries implement Series\n"))
                 '(violated))
-  (check-equal? (outcomes (string-append timing "interface \"Conditional\" [must [timing] if timing is Timing [must [reviewer]] else [must [reason]]]\ntrial = [timing = [period = 2 unit = \"seconds\"] reviewer = \"human\"]\ntrial implement Conditional\n"))
+  (check-equal? (outcomes (string-append timing "interface Conditional [must [timing] if timing is Timing [must [reviewer]] else [must [reason]]]\ntrial = [timing = [period = 2 unit = \"seconds\"] reviewer = \"human\"]\ntrial implement Conditional\n"))
                 '(satisfied))
-  (check-equal? (outcomes (string-append timing "interface \"Conditional\" [must [timing] if timing is Timing [must [reviewer]] else [must [reason]]]\ntrial = [timing = [period = -1 unit = \"seconds\"] reason = \"invalid period\"]\ntrial implement Conditional\n"))
+  (check-equal? (outcomes (string-append timing "interface Conditional [must [timing] if timing is Timing [must [reviewer]] else [must [reason]]]\ntrial = [timing = [period = -1 unit = \"seconds\"] reason = \"invalid period\"]\ntrial implement Conditional\n"))
                 '(satisfied))
-  (check-equal? (run "interface \"Planned\" [must [period = unknown number]]\nprint [period = unknown] is Planned\ninterface \"Checked\" [must [period = unknown number period > 0]]\nprint [period = unknown] is Checked\n")
+  (check-equal? (run "interface Planned [must [period = unknown number]]\nprint [period = unknown] is Planned\ninterface Checked [must [period = unknown number period > 0]]\nprint [period = unknown] is Checked\n")
                 "true\nunknown\n")
   (check-equal? (outcomes (string-append timing experiment "to measure [output 2]\ndo measure as period\ntrial = [timing = [period = period unit = \"seconds\"]]\ntrial implement Experiment\n"))
                 '(undetermined))
   (check-equal? (outcomes (string-append timing experiment "to measure [output 2]\ndo measure as period\ntrial = [timing = [period = period]]\ntrial implement Experiment\n"))
                 '(violated))
   ;; Cyclic tests have no independent answer; recursive records can still match.
-  (check-equal? (run "interface \"Loop\" [must [[value = 1] is Loop]]\nprint [value = 1] is Loop\ninterface \"Node\" [must [value is number next = unknown] if next != unknown [must [next is Node]]]\nprint [value = 1 next = [value = 2 next = unknown]] is Node\n")
+  (check-equal? (run "interface Loop [must [[value = 1] is Loop]]\nprint [value = 1] is Loop\ninterface Node [must [value is number next = unknown] if next != unknown [must [next is Node]]]\nprint [value = 1 next = [value = 2 next = unknown]] is Node\n")
                 "unknown\ntrue\n")
 
   ;; Misspelled or non-interface targets fail during reading, including defaults.
   (for ([body (in-list '("print 2 is Missing\n"
-                         "interface \"Example\" [must [trial is Missing]]\n"
-                         "interface \"Example\" [accepted = [period = 2] is Missing]\n"
-                         "interface \"Example\" [period] print [period = 2] is Example.period\n"))])
+                         "interface Example [must [trial is Missing]]\n"
+                         "interface Example [accepted = [period = 2] is Missing]\n"
+                         "interface Example [period] print [period = 2] is Example.period\n"))])
     (check-exn #rx"unknown interface .* after is" (lambda () (run body))))
   (check-exn #rx"comparison cannot be chained"
              (lambda () (run (string-append timing "print [period = 2] is Timing == true\n"))))
 
-  (with-source (string-append experiment timing "stage \"Inspect\"\n\"Inspect\" implement Experiment\n")
+  (with-source (string-append experiment timing "stage Inspect\nInspect implement Experiment\n")
     (lambda (file)
       (define model (read-workflow-model file))
       (define interface (mapping-model-interface (first (workflow-model-mappings model))))
@@ -111,10 +111,10 @@
         (git repo "tag" "v1"))
       (display-to-file (string-append "#lang sciencelogo\n" timing) (build-path base "types.rkt"))
       (display-to-file
-       (string-append "#lang sciencelogo\nlibrary \"timing\" [include \"types.rkt\"\n" experiment
+       (string-append "#lang sciencelogo\nlibrary timing [include \"types.rkt\"\n" experiment
                       "to accepted :value [output :value is Timing]\n"
-                      "interface \"Series\" [for each item in measurements [must [item is Timing]]]\n"
-                      "interface \"Conditional\" [must [timing] if timing is Timing [must [reviewer]] else [must [reason]]]\n]\n")
+                      "interface Series [for each item in measurements [must [item is Timing]]]\n"
+                      "interface Conditional [must [timing] if timing is Timing [must [reviewer]] else [must [reason]]]\n]\n")
        (build-path base "library.rkt"))
       (tag base)
       (define base-import (format "import ~s at \"v1\" as timing\n" (format "file://~a" base)))
@@ -131,8 +131,8 @@
                     '(satisfied))
       ;; The combined library's field refers to its imported Timing interface.
       (display-to-file
-       (string-append "#lang sciencelogo\nlibrary \"experiment\" [" base-import
-                      "interface \"Experiment\" [must [timing is timing.Timing]]\n"
+       (string-append "#lang sciencelogo\nlibrary experiment [" base-import
+                      "interface Experiment [must [timing is timing.Timing]]\n"
                       "to accepted :value [output :value is timing.Timing]\n]\n")
        (build-path combined "library.rkt"))
       (tag combined)

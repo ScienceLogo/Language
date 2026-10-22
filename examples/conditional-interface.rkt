@@ -2,7 +2,7 @@
 
 workflow "Describe pendulum timing methods"
 
-interface "Timing-protocol" [
+interface Timing-protocol [
   version "1"
   must [method]
 

@@ -52,7 +52,7 @@ create a local scope.
 @(tabular #:style 'boxed
   (list
    (list (bold "Form") (bold "Rule"))
-   (list (tt "library \"name\" [ ... ]")
+   (list (tt "library name [ ... ]")
          "One declaration in the root library.rkt file; contains imports, includes, procedures, and record interfaces")
    (list (tt "import \"Git URL\" at \"tag or commit\" as alias")
          "Directly in a library block, or at the top of an entry workflow")
@@ -78,7 +78,7 @@ Create a separate directory named @tt{hello-world}. Save this as its
 @verbatim|{
 #lang sciencelogo
 
-library "hello-world" [
+library hello-world [
   to greeting [output "Hello, world!"]
 ]
 }|
@@ -120,8 +120,8 @@ grouped inside @tt{must [...]}; see @secref["interfaces"]. In @tt{library.rkt}:
 @verbatim|{
 #lang sciencelogo
 
-library "timing" [
-  interface "Timing" [must [duration unit = "seconds"]]
+library timing [
+  interface Timing [must [duration unit = "seconds"]]
 ]
 }|
 
@@ -129,7 +129,7 @@ After committing and tagging that repository, a workflow can import and use it:
 
 @verbatim|{
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
-interface "Timed-place" [extends timing.Timing must [place]]
+interface Timed-place [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]
 trial implement timing.Timing
 }|

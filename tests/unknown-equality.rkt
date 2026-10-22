@@ -29,14 +29,14 @@
                               "(unknown xor false) == unknown" "(not unknown) == unknown"
                               "unknown == (2 in unknown)"))])
     (check-equal? (run (string-append "print " expression "\n")) "true\n")
-    (check-equal? (outcomes (string-append "interface \"Equal\" [must [" expression "]]\n"
+    (check-equal? (outcomes (string-append "interface Equal [must [" expression "]]\n"
                                           "trial = [note = \"comparison\"]\ntrial implement Equal\n"))
                   '(satisfied)))
   (for ([expression (in-list '("unknown != unknown" "unknown == 2" "2 == unknown"
                               "unknown == false" "unknown == \"unknown\""
                               "[unknown 2] == [2 unknown]" "[value = unknown] == [value = 2]"))])
     (check-equal? (run (string-append "print " expression "\n")) "false\n")
-    (check-equal? (outcomes (string-append "interface \"Equal\" [must [" expression "]]\n"
+    (check-equal? (outcomes (string-append "interface Equal [must [" expression "]]\n"
                                           "trial = [note = \"comparison\"]\ntrial implement Equal\n"))
                   '(violated)))
   (for ([expression (in-list '("unknown < 2" "2 > unknown" "unknown + 2" "unknown is number"))])
@@ -49,7 +49,7 @@
                 "true\nfalse\nfalse\ntrue\n")
 
   (define plan
-    (string-append "interface \"Plan\" [must [period = unknown number] "
+    (string-append "interface Plan [must [period = unknown number] "
                    "if period == unknown [must [reason]] else [must [period > 0]]]\n"))
   (check-not-exn (lambda () (run (string-append plan "trial = Plan.[reason = \"not yet measured\"]\n"))))
   (check-exn #rx"missing field.*reason" (lambda () (run (string-append plan "trial = Plan.[]\n"))))
@@ -61,22 +61,22 @@
                 '(violated))
 
   ;; A checker lacking a result must not invent an explicit unknown value.
-  (define equality "interface \"Pending\" [must [period = unknown period == unknown]]\n")
+  (define equality "interface Pending [must [period = unknown period == unknown]]\n")
   (check-equal? (outcomes (string-append equality "trial = [period = unknown]\ntrial implement Pending\n"))
                 '(satisfied))
   (check-equal? (outcomes (string-append equality "to choose [output unknown]\ndo choose as value\ntrial = [period = value]\ntrial implement Pending\n"))
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Known\" [must [period = unknown period != unknown]]\nto choose [output 2]\ndo choose as value\ntrial = [period = value]\ntrial implement Known\n")
+  (check-equal? (outcomes "interface Known [must [period = unknown period != unknown]]\nto choose [output 2]\ndo choose as value\ntrial = [period = value]\ntrial implement Known\n")
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Equal\" [must [left right left == right]]\nto choose [output 2]\ndo choose as value\ntrial = [left = [period = value] right = [period = value]]\ntrial implement Equal\n")
+  (check-equal? (outcomes "interface Equal [must [left right left == right]]\nto choose [output 2]\ndo choose as value\ntrial = [left = [period = value] right = [period = value]]\ntrial implement Equal\n")
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Member\" [must [value in candidates]]\nto choose [output 2]\ndo choose as candidate\ntrial = [value = 2 candidates = [candidate 1]]\ntrial implement Member\n")
+  (check-equal? (outcomes "interface Member [must [value in candidates]]\nto choose [output 2]\ndo choose as candidate\ntrial = [value = 2 candidates = [candidate 1]]\ntrial implement Member\n")
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Series\" [for each item in trials [must [item.period]]]\nto choose [output [period = 2]]\ndo choose as value\nseries = [trials = [value]]\nseries implement Series\n")
+  (check-equal? (outcomes "interface Series [for each item in trials [must [item.period]]]\nto choose [output [period = 2]]\ndo choose as value\nseries = [trials = [value]]\nseries implement Series\n")
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Pending\" [period if period == unknown [must [reason]]]\ntrial = [note = \"no period field\"]\ntrial implement Pending\n")
+  (check-equal? (outcomes "interface Pending [period if period == unknown [must [reason]]]\ntrial = [note = \"no period field\"]\ntrial implement Pending\n")
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Strict\" [must [period] if period == unknown [must [reason]]]\ntrial = [period = unknown reason = \"not measured\"]\ntrial implement Strict\n")
+  (check-equal? (outcomes "interface Strict [must [period] if period == unknown [must [reason]]]\ntrial = [period = unknown reason = \"not measured\"]\ntrial implement Strict\n")
                 '(violated))
   (with-source "must do target\nif [value = unknown] == [value = unknown] [do target]\nto target []\n"
     (lambda (file)
@@ -84,7 +84,7 @@
   (with-source "must do target\nif unknown == 2 [do target]\nto target []\n"
     (lambda (file)
       (check-equal? (map condition-check-outcome (assessment-checks (assess-file file))) '(violated))))
-  (with-source "interface \"Pending\" [must [period = unknown] if period == unknown [must [reason]]]\nstage \"Plan\"\n\"Plan\" implement Pending\n"
+  (with-source "interface Pending [must [period = unknown] if period == unknown [must [reason]]]\nstage Plan\nPlan implement Pending\n"
     (lambda (file)
       (define model (read-workflow-model file))
       (define interface (mapping-model-interface (first (workflow-model-mappings model))))

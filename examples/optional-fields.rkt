@@ -1,11 +1,11 @@
 #lang sciencelogo
 workflow "Describe optional timing details"
 
-interface "Review" [
+interface Review [
   must [reviewer is text]
 ]
 
-interface "Timing" [
+interface Timing [
   must [period is number]
   notes is text
   review is Review

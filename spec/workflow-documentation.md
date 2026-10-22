@@ -89,7 +89,7 @@ block. This keeps the source readable and gives generated documentation a stable
 An `about` field describes its immediately containing named part, or the stage whose
 header it immediately follows. Comments are ignored by the checker and are not promised
 a place in generated documentation. Thus an explanation that matters to a future reader
-belongs in `about` on a named part. A `stage "name"` header labels the following section
+belongs in `about` on a named part. A `stage name` header labels the following section
 until the next stage header at the same nesting level or the block's end. It has no action
 or check of its own and does not change access to names. A `to` procedure defines a
 reusable sequence; `do` calls or executes one.

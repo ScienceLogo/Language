@@ -67,31 +67,44 @@ they remain distinct names because names are case-sensitive.
          (tt "mean-period"))
    (list "Interface" "First letter capitalized; later words lowercase and joined by hyphens"
          (tt "Timed-observation"))
-   (list "Workflow or stage title" "Readable quoted text"
+   (list "Stage" "Lowercase words joined by hyphens"
+         (tt "measure-the-pendulum"))
+   (list "Workflow title" "Readable quoted text"
          (tt "\"Measure the pendulum\""))
    (list "Source file or directory" "Lowercase words joined by hyphens"
          (tt "methods/estimate-period.rkt"))))
 
-An interface is declared with a quoted name, as in
-@tt{interface "Timed-observation" [ ... ]}, and referred to without quotes as
+Names are unquoted identifiers in declarations and references. Quotes mark
+string values, including descriptions, file paths, URLs, versions, and the
+workflow's human-readable title. An interface is declared as
+@tt{interface Timed-observation [ ... ]}, and referred to as
 @tt{Timed-observation}. An imported interface is @tt{alias.Timed-observation};
-an imported procedure is @tt{alias.estimate-period}. A @tt{library} name is
-display text: imports use its Git URL and the chosen alias, not that name.
-Workflow and stage titles are display text; a @tt{must stages in order} check
-uses the stage title exactly.
+an imported procedure is @tt{alias.estimate-period}. A library also declares
+an unquoted name, as in @tt{library pendulum-tools [ ... ]}; imports use its
+Git URL and the chosen alias. A stage is declared as @tt{stage measure} and
+referenced as @tt{measure}, including in implementation mappings and
+@tt{must stages in order [prepare measure]}.
 
 The reader rejects reserved command words as most user names. A dot separates
 parts of a path: record fields, list positions, stage state locations, and
 imported names. Simple procedure, input, value, result, loop, performer, resource, proposition,
-import alias, and interface names do not contain dots.
-A name used as a word has no spaces;
-quoted workflow and stage titles can contain spaces. Procedure names must be
+import alias, stage, library, and interface names do not contain dots.
+A name used as a word has no spaces. Stage, library, and interface names
+cannot start with a number. Hyphenation and capitalization remain optional
+conventions. A workflow title is a string and can contain spaces. Procedure names must be
 distinct; interface names must be distinct from each other and from procedures;
 performer and resource names follow their declaration rules;
 proposition names are unique within their type and parent;
 stage names must be distinct across the assembled workflow. Each procedure has
 distinct input names, and record fields are distinct within a record.
 @secref["procedures"] explains local value scope and result names.
+
+A stage reference in an @tt{implement} mapping is resolved from its declaration,
+including a later declaration or an imported qualified name such as
+@tt{timing.measure}. Quotes and capitalization do not select the target's kind.
+If that reference could also identify a visible value or another definition,
+the reader reports an ambiguous implementation target. A stage name does not
+become a data value or a callable function.
 
 @section{Source files}
 
@@ -107,14 +120,14 @@ Definitions may appear after their uses.
          "Names the method; at most one per file")
    (list (tt "about \"Markdown text\"") "After the optional workflow title, before imports"
          "Describes the workflow; also attaches to stages and procedures")
-   (list (tt "library \"name\" [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces")
+   (list (tt "library name [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces")
    (list (tt "import \"Git URL\" at \"tag\" as alias")
          "After an optional workflow title and description, before method forms; or directly in a library"
          "Loads a pinned library")
    (list (tt "include \"relative/path.rkt\"")
          "Top level of a workflow or library file"
          "Loads another file from the same repository")
-   (list (tt "interface \"name\" [ ... ]")
+   (list (tt "interface name [ ... ]")
          "Top level of a workflow or library, or alone in a file"
          "Declares record fields or workflow requirements")
    (list (tt "performer name [field = value ...]")
@@ -156,7 +169,7 @@ assumptions, limits, or how to interpret results when that helps a reader.
 workflow "Review a timing plan"
 about "Explain how to time a pendulum as the swing gets smaller."
 
-stage "Prepare"
+stage Prepare
 about "Prepare the timing plan."
 do make-plan as plan
 
@@ -165,7 +178,7 @@ to make-plan [
   output "Time ten swings as the swing gets smaller."
 ]
 
-stage "Review"
+stage Review
 about "Read the plan."
 print plan
 }|
@@ -213,7 +226,7 @@ records these rules and the workflow model accessors.
          (tt "repeat, until, for each, while, if, else if, else")
          "Executable control flow")
    (list (secref "stages")
-         (tt "stage \"title\"")
+         (tt "stage name")
          "Section header for runnable commands")
    (list (secref "stages")
          (tt "performer, stage ... by ... from state, do ... by ... into, end stage with state, at")

@@ -8,11 +8,11 @@ distinction among information, environment, and considered factors.
 
 ## Boundaries
 
-`stage "name" from state [ ... ]` begins a paired stage. `end stage with state
+`stage name from state [ ... ]` begins a paired stage. `end stage with state
 [ ... ]` closes it; no separate `start` command exists. Both state objects are
 mandatory, including when empty (`state []`). A paired stage is a section and
-checkpoint, not a callable procedure or a new variable scope. Its title must
-be distinct among stage titles in the assembled workflow.
+checkpoint, not a callable procedure or a new variable scope. Its unquoted
+identifier must be distinct among stage names in the assembled workflow.
 
 The state object's only top-level set names are `information`, `environment`,
 and `factors`. Each present set is a record of named fields or an empty list
@@ -24,7 +24,7 @@ field names themselves cannot contain dots.
 The opening state describes what enters. The closing state describes the full
 state leaving the stage, including unchanged fields. Writing a new value only
 at the closing boundary does not explain how the stage obtained it. The older
-`stage "name"` header form remains runnable and labels following commands
+`stage name` header form remains runnable and labels following commands
 until the next header or enclosing block's end.
 
 ## Performers
@@ -36,14 +36,14 @@ performer name is unique and cannot conflict with a procedure or interface
 name. A performer describes who or what is designated to carry out an activity
 in the written method; it is not evidence that the activity happened.
 
-A paired stage may set a default with `stage "name" by performer-name from
+A paired stage may set a default with `stage name by performer-name from
 state [ ... ]`. A state-changing call may override it with `do procedure-name
 by performer-name with [ ... ] into location`, or `do procedure-name by
 performer-name into location` when there are no inputs. Every call in a paired
 stage must resolve to a declared performer, either its own or the stage
 default. A stage without calls may omit `by`. The closing `end stage` does
 not name a performer because it only declares the resulting state. The simple
-`stage "name"` header does not accept `by`.
+`stage name` header does not accept `by`.
 
 ## Location-based calls
 
@@ -52,7 +52,7 @@ to calculate-period :duration :count [output :duration / :count]
 
 performer researcher [kind = "human" role = "scientist"]
 
-stage "Analyze" by researcher from state [
+stage Analyze by researcher from state [
   information = [elapsed = unknown swing-count = 10]
 ]
 do calculate-period with [

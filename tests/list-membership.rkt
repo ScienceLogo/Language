@@ -4,7 +4,7 @@
          "../assessor.rkt" "../workflow-model.rkt")
 
 (define-runtime-path example "../examples/list-membership.rkt")
-(define required "interface \"Timing\" [must [method in [\"manual\" \"video\"]]]\n")
+(define required "interface Timing [must [method in [\"manual\" \"video\"]]]\n")
 (define (with-source body use)
   (define file (make-temporary-file "sciencelogo-membership-~a.rkt"))
   (dynamic-wind
@@ -69,39 +69,39 @@
         [expected (in-list '(satisfied satisfied violated violated))])
     (check-equal? (outcomes (string-append required "trial = [method = " method "]\ntrial implement Timing\n"))
                   (list expected)))
-  (check-equal? (outcomes "interface \"Timing\" [must [method = unknown method in [\"manual\" \"video\"]]]\ntrial = [method = unknown]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [method = unknown method in [\"manual\" \"video\"]]]\ntrial = [method = unknown]\ntrial implement Timing\n")
                 '(violated))
-  (check-equal? (outcomes "interface \"Timing\" [must [method = unknown method in []]]\ntrial = [method = unknown]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [method = unknown method in []]]\ntrial = [method = unknown]\ntrial implement Timing\n")
                 '(violated))
-  (check-equal? (outcomes "interface \"Timing\" [must [method in [unknown \"manual\"]]]\ntrial = [method = \"manual\"]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [method in [unknown \"manual\"]]]\ntrial = [method = \"manual\"]\ntrial implement Timing\n")
                 '(satisfied))
-  (check-equal? (outcomes "interface \"Timing\" [must [method in [unknown \"manual\"]]]\ntrial = [method = \"video\"]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [method in [unknown \"manual\"]]]\ntrial = [method = \"video\"]\ntrial implement Timing\n")
                 '(violated))
-  (check-equal? (run "interface \"Timing\" [must [methods = [\"manual\" \"video\"] method in methods]]\ntrial = Timing.[method = \"video\"]\nprint trial.method\n")
+  (check-equal? (run "interface Timing [must [methods = [\"manual\" \"video\"] method in methods]]\ntrial = Timing.[method = \"video\"]\nprint trial.method\n")
                 "video\n")
-  (check-equal? (outcomes "interface \"Timing\" [must [method in methods]]\ntrial = [method = \"manual\" methods = [unknown \"manual\"]]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [method in methods]]\ntrial = [method = \"manual\" methods = [unknown \"manual\"]]\ntrial implement Timing\n")
                 '(satisfied))
-  (check-equal? (outcomes "interface \"Timing\" [must [methods = unknown method in methods]]\ntrial = [method = \"manual\" methods = unknown]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [methods = unknown method in methods]]\ntrial = [method = \"manual\" methods = unknown]\ntrial implement Timing\n")
                 '(undetermined))
-  (check-equal? (outcomes "interface \"Timing\" [must [method in methods]]\ntrial = [method = \"manual\"]\ntrial implement Timing\n")
+  (check-equal? (outcomes "interface Timing [must [method in methods]]\ntrial = [method = \"manual\"]\ntrial implement Timing\n")
                 '(violated))
-  (check-equal? (run "interface \"Timing\" [must [method] if method in [\"manual\" \"video\"] [must [observer]] else [must [instrument]]]\ntrial = Timing.[method = \"video\" observer = \"researcher\"]\nprint trial.method\n")
+  (check-equal? (run "interface Timing [must [method] if method in [\"manual\" \"video\"] [must [observer]] else [must [instrument]]]\ntrial = Timing.[method = \"video\" observer = \"researcher\"]\nprint trial.method\n")
                 "video\n")
-  (check-equal? (outcomes "interface \"Nested\" [must [timing [must [method in [\"manual\" \"video\"]]]]]\ntrial = [timing = [method = \"manual\"]]\ntrial implement Nested\n")
+  (check-equal? (outcomes "interface Nested [must [timing [must [method in [\"manual\" \"video\"]]]]]\ntrial = [timing = [method = \"manual\"]]\ntrial implement Nested\n")
                 '(satisfied))
-  (check-equal? (outcomes "interface \"Series\" [for each trial in trials [must [trial.method in [\"manual\" \"video\"]]]]\nseries = [trials = [[method = \"manual\"] [method = \"other\"]]]\nseries implement Series\n")
+  (check-equal? (outcomes "interface Series [for each trial in trials [must [trial.method in [\"manual\" \"video\"]]]]\nseries = [trials = [[method = \"manual\"] [method = \"other\"]]]\nseries implement Series\n")
                 '(violated))
-  (check-equal? (run (string-append required "interface \"Inherited\" [extends Timing]\ntrial = Inherited.[method = \"video\"]\nprint trial.method\n"))
+  (check-equal? (run (string-append required "interface Inherited [extends Timing]\ntrial = Inherited.[method = \"video\"]\nprint trial.method\n"))
                 "video\n")
 
   (with-source
     (string-append "performer researcher [kind = \"human\"]\nto keep :value [output :value]\n"
-                   "stage \"Choose\" by researcher from state [information = [method = \"manual\" methods = [\"manual\" \"video\"]]]\n"
+                   "stage Choose by researcher from state [information = [method = \"manual\" methods = [\"manual\" \"video\"]]]\n"
                    "if information.method in information.methods [do keep with [value at information.method] into information.method]\n"
                    "end stage with state [information = [method = \"manual\" methods = [\"manual\" \"video\"]]]\n")
     (lambda (file) (check-not-exn (lambda () (read-workflow-model file)))))
 
-  (with-source (string-append required "stage \"Measure\"\n\"Measure\" implement Timing\n")
+  (with-source (string-append required "stage Measure\nMeasure implement Timing\n")
     (lambda (file)
       (define model (read-workflow-model file))
       (define interface (mapping-model-interface (first (workflow-model-mappings model))))
@@ -117,7 +117,7 @@
   (dynamic-wind
     void
     (lambda ()
-      (display-to-file (string-append "#lang sciencelogo\nlibrary \"timing\" [" required
+      (display-to-file (string-append "#lang sciencelogo\nlibrary timing [" required
                                       "to accepted :method [output :method in [\"manual\" \"video\"]]]\n")
                        (build-path directory "library.rkt"))
       (display-to-file (string-append "#lang sciencelogo\n" required) (build-path directory "timing.rkt"))

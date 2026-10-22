@@ -1,11 +1,11 @@
 #lang sciencelogo
 workflow "Describe a timing before it is available"
 
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
 
-interface "Experiment" [
+interface Experiment [
   must [timing = unknown Timing]
 ]
 

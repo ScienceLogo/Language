@@ -15,7 +15,7 @@ span lines. Existing string escapes apply; no triple quotes are needed.
 workflow "Review a timing plan"
 about "Explain how to time a pendulum as the swing gets smaller."
 
-stage "Prepare"
+stage Prepare
 about "Prepare the timing plan."
 do make-plan as plan
 
@@ -24,7 +24,7 @@ to make-plan [
   output "Time ten swings as the swing gets smaller."
 ]
 
-stage "Review"
+stage Review
 about "Read the plan."
 print plan
 ```
@@ -33,7 +33,7 @@ print plan
 | --- | --- |
 | Workflow | At the start of the file, after its optional `workflow "title"` and before imports and method forms. Without a title, `about` may be the first form. |
 | Procedure | Immediately inside the opening `[` of its `to` definition, before commands. This also applies to procedures in libraries and included files. |
-| Simple stage | Immediately after `stage "title"`. |
+| Simple stage | Immediately after `stage name`. |
 | Paired stage | Immediately after its complete opening header, including its entry `state [...]`, before body commands. |
 
 Each owner has at most one description. Whitespace and comments may separate
@@ -45,7 +45,7 @@ without replacing the procedure's description.
 The paired form follows the same rule:
 
 ```text
-stage "Inspect" from state [information = [period = 2]]
+stage Inspect from state [information = [period = 2]]
 about "Inspect the stated period."
 end stage with state [information = [period = 2]]
 ```

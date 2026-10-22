@@ -9,7 +9,7 @@ An interface can describe fields of a structured data object or named parts
 of a workflow. Both uses share the following declaration rule:
 
 ```text
-interface "Timing" [
+interface Timing [
   must [duration unit = "seconds"]
   notes
 ]
@@ -83,7 +83,7 @@ periods.
 ## Constraints on optional fields
 
 ```text
-interface "Timing" [
+interface Timing [
   must [period is number]
   notes is text
 ]
@@ -130,10 +130,10 @@ and resolved interface target remain inspectable. See the
 same expression can be a field requirement:
 
 ```text
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
-interface "Experiment" [
+interface Experiment [
   must [timing is Timing]
 ]
 
@@ -179,10 +179,10 @@ See the [runnable example](../examples/nested-interfaces.rkt).
 ## Unknown defaults with named interfaces
 
 ```text
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
-interface "Experiment" [
+interface Experiment [
   must [timing = unknown Timing]
 ]
 
@@ -278,7 +278,7 @@ makes requiredness visible in one place.
 Use the same presentation for workflow parts:
 
 ```text
-interface "Pendulum-recording" [
+interface Pendulum-recording [
   version "1"
   must [measurement]
   supplementary-notes
@@ -293,7 +293,7 @@ interface "Pendulum-recording" [
 `must [...]` can mix required entries and conditions on their values:
 
 ```text
-interface "Timing-trial" [
+interface Timing-trial [
   must [swing-count > 10 swing-height unit == "seconds"]
 ]
 ```
@@ -351,7 +351,7 @@ uses the mixed form above.
 List membership uses `in`:
 
 ```text
-interface "Timing" [
+interface Timing [
   must [method in ["manual" "video"]]
 ]
 ```
@@ -383,7 +383,7 @@ its declaration permits it. Permitting an unknown does not establish a match.
 The same syntax checks a record for an immediate field:
 
 ```text
-interface "Trial" [
+interface Trial [
   details [notes]
   if notes in details [must [reviewer]]
 ]
@@ -414,7 +414,7 @@ A name followed by brackets describes child entries. The declaration rule
 applies independently at each level:
 
 ```text
-interface "Pendulum-protocol" [
+interface Pendulum-protocol [
   version "1"
   must [
     measurement
@@ -445,7 +445,7 @@ Use the existing `if [...] else if [...] else [...]` syntax inside an
 interface or one of its named parts:
 
 ```text
-interface "Timing-protocol" [
+interface Timing-protocol [
   version "1"
   must [method]
 
@@ -513,7 +513,7 @@ An interface can use the existing `for each name in collection [...]` form
 to describe requirements for every item of a list:
 
 ```text
-interface "Timing-series" [
+interface Timing-series [
   must [measurements]
 
   for each measurement in measurements [
@@ -601,12 +601,15 @@ and checks the series shown above.
 Use `implement` directly between a workflow reference and an interface reference:
 
 ```text
-"Timing" implement Pendulum-protocol.measurement
-"Report" implement Pendulum-protocol.documentation
+Timing implement Pendulum-protocol.measurement
+Report implement Pendulum-protocol.documentation
 ```
 
-The quoted names identify declared stages, including stages defined later in
-the file. A procedure uses its unquoted name. A value uses its existing name
+The unquoted names identify declared stages, including stages defined later in
+the file. Stages, procedures, interfaces, and libraries all use unquoted names
+in declarations and references. The reader reports an ambiguous mapping target
+when a stage and another visible value or definition share that reference.
+A value uses its existing name
 or dotted path; inside a state stage, for example:
 
 ```text

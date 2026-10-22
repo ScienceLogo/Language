@@ -11,12 +11,15 @@ the repository root. A complete first library needs only that file:
 ```text
 #lang sciencelogo
 
-library "hello-world" [
+library hello-world [
   to greeting [output "Hello, world!"]
 ]
 ```
 
-The `library` declaration gives the library its name. `greeting` returns a value;
+The `library` declaration gives the library its unquoted identifier. Library,
+interface, and procedure names are unquoted in declarations and references;
+quoted strings supply values such as output text, paths, URLs, and versions.
+`greeting` returns a value;
 loading the library does not print or run the procedure. Commit the file on `main`
 and tag that commit `v1.0.0` before importing it.
 
@@ -50,8 +53,8 @@ contain:
 ```text
 #lang sciencelogo
 
-library "timing" [
-  interface "Timing" [must [duration unit = "seconds"]]
+library timing [
+  interface Timing [must [duration unit = "seconds"]]
 ]
 ```
 
@@ -59,7 +62,7 @@ After committing and tagging that repository, an investigation can use it:
 
 ```text
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
-interface "Timed-place" [extends timing.Timing must [place]]
+interface Timed-place [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]
 trial implement timing.Timing
 ```
@@ -90,7 +93,7 @@ example, the root `library.rkt` in a messages repository contains:
 ```text
 #lang sciencelogo
 
-library "messages" [
+library messages [
   to greeting [output "Hello, world!"]
 ]
 ```
@@ -100,7 +103,7 @@ The root `library.rkt` in a second repository can then use that procedure:
 ```text
 #lang sciencelogo
 
-library "welcome" [
+library welcome [
   import "file:///absolute/path/to/messages" at "v1.0.0" as messages
 
   to opening [

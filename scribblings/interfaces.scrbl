@@ -16,7 +16,7 @@ Present required entries together inside @tt{must [...]}, including entries
 with defaults:
 
 @verbatim|{
-interface "Timing" [
+interface Timing [
   must [duration unit = "seconds"]
   notes
 ]
@@ -110,11 +110,11 @@ records the syntax and reader status.
 Use an interface name after @tt{is} to check the fields of a nested object:
 
 @verbatim|{
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
 
-interface "Experiment" [
+interface Experiment [
   must [timing is Timing]
 ]
 
@@ -157,11 +157,11 @@ Use @tt{field = unknown Interface} to supply and permit an unknown value
 while checking supplied objects against an interface:
 
 @verbatim|{
-interface "Timing" [
+interface Timing [
   must [period is number unit = "seconds"]
 ]
 
-interface "Experiment" [
+interface Experiment [
   must [timing = unknown Timing]
 ]
 
@@ -195,7 +195,7 @@ See the @hyperlink[(source-file-url "examples/interface-defaults.rkt")]{runnable
 Outside @tt{must [...]}, @tt{field is kind} leaves the field optional:
 
 @verbatim|{
-interface "Timing" [
+interface Timing [
   must [period is number]
   notes is text
 ]
@@ -231,7 +231,7 @@ uses an optional text field and an optional object constrained by an interface.
 A @tt{must [...]} group can mix conditions and required entries:
 
 @verbatim|{
-interface "Timing-trial" [
+interface Timing-trial [
   must [swing-count > 10 swing-height unit == "seconds"]
 ]
 }|
@@ -272,7 +272,7 @@ current structural checker.
 Use @tt{in} to require one of several allowed values:
 
 @verbatim|{
-interface "Timing" [
+interface Timing [
   must [method in ["manual" "video"]]
 ]
 }|
@@ -296,7 +296,7 @@ checker cannot establish can leave membership undetermined.
 The same @tt{in} checks field presence when its right operand is a record:
 
 @verbatim|{
-interface "Trial" [
+interface Trial [
   details [notes]
   if notes in details [must [reviewer]]
 ]
@@ -314,13 +314,13 @@ the presence test alone does not constrain its value.
 @(tabular #:style 'boxed
   (list
    (list (bold "Form") (bold "Purpose"))
-   (list (tt "interface \"Name\" [must [required-field defaulted-field = value] optional-field]")
+   (list (tt "interface Name [must [required-field defaulted-field = value] optional-field]")
          "Declare required fields, their defaults, and optional fields")
    (list (tt "extends Parent")
          "Inherit fields from a local or imported record interface")
    (list (tt "field is kind-or-interface")
          "Outside must, check the field only when supplied")
-   (list (tt "interface \"Name\" [version \"...\" must [name ...] optional-name affects source target ...]")
+   (list (tt "interface Name [version \"...\" must [name ...] optional-name affects source target ...]")
          "Declare required and optional workflow parts in a separate file")))
 
 An @tt{interface} may have one nonempty @tt{version} line or omit it.
@@ -336,7 +336,7 @@ The @hyperlink[(source-file-url "examples/interfaces/pendulum-protocol.rkt")]{pe
 uses the same @tt{must [...]} rule at each level:
 
 @verbatim|{
-interface "Pendulum-protocol" [
+interface Pendulum-protocol [
   version "1"
   must [
     measurement
@@ -364,7 +364,7 @@ A mapping to a parent also claims its required children. For example,
 @tt{"Report"} identifies a stage declared in the workflow:
 
 @verbatim|{
-"Report" implement Pendulum-protocol.documentation
+Report implement Pendulum-protocol.documentation
 }|
 
 This also claims @tt{documentation.uncertainty}. The child can instead be
@@ -381,7 +381,7 @@ remain optional when their parent is mapped. When an optional part is
 mapped, its own required children apply. These declarations identify work
 and data for inspection; they do not establish scientific conformity.
 
-Use @tt{implement} directly, without a @tt{must} prefix. A quoted stage title,
+Use @tt{implement} directly, without a @tt{must} prefix. An unquoted stage name,
 a procedure name, or a value path can appear on its left. On its right,
 use the interface name and dotted path, including the existing library alias
 when imported, such as @tt{prot.Pendulum-protocol.documentation}. A stage or
@@ -411,7 +411,7 @@ ordinary statements. The
 declares different requirements for three timing methods:
 
 @verbatim|{
-interface "Timing-protocol" [
+interface Timing-protocol [
   version "1"
   must [method]
 
@@ -484,7 +484,7 @@ can inspect those values and conditions to assess conformity.
 Use @tt{for each} inside an interface to describe every item in a list:
 
 @verbatim|{
-interface "Timing-series" [
+interface Timing-series [
   must [measurements]
 
   for each measurement in measurements [
@@ -522,7 +522,7 @@ To require a minimum number of measurements as well as their individual
 fields, use the list's reserved @tt{.count} property:
 
 @verbatim|{
-interface "Timing-series" [
+interface Timing-series [
   must [measurements.count >= 3]
 
   for each measurement in measurements [
@@ -575,7 +575,7 @@ is a runnable workflow:
 #lang sciencelogo
 
 workflow "Check timing records"
-interface "Timing" [must [duration unit = "seconds"]]
+interface Timing [must [duration unit = "seconds"]]
 trial = Timing.[duration = 2]
 trial implement Timing
 revised = trial.[unit = "minutes"]
@@ -637,13 +637,13 @@ runs and passes the assessor:
 
 @verbatim|{
 workflow "Describe a pendulum trial"
-interface "Timed-observation" [
+interface Timed-observation [
   extends Timing
   extends Location
   must [observation unit = "minutes"]
 ]
-interface "Timing" [must [duration unit = "seconds"]]
-interface "Location" [must [place]]
+interface Timing [must [duration unit = "seconds"]]
+interface Location [must [place]]
 
 trial = Timed-observation.[
   duration = 2
@@ -698,7 +698,7 @@ parts:
 @verbatim|{
 #lang sciencelogo
 
-interface "Assessor-process" [
+interface Assessor-process [
   version "0.1"
   must [
     parse
@@ -723,7 +723,7 @@ For example, an interface can require measurement and allow supplementary
 notes:
 
 @verbatim|{
-interface "Pendulum-recording" [
+interface Pendulum-recording [
   version "1"
   must [measurement]
   supplementary-notes

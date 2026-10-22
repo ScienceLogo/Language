@@ -1,6 +1,6 @@
 #lang sciencelogo
 
-interface "Pendulum-protocol" [
+interface Pendulum-protocol [
   version "1"
   must [
     measurement

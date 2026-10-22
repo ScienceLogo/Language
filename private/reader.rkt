@@ -145,6 +145,13 @@
          (not (regexp-match? #rx"[.]" name))
          (not (regexp-match? #px"^[+-]?[0-9]" name))
          (not (member name reserved))))
+  (define (identifier-name description [qualified? #f])
+    (define at (current))
+    (define name (token-value (expect 'word description)))
+    (unless (andmap valid-inline-interface-name?
+                    (if qualified? (string-split name "." #:trim? #f) (list name)))
+      (read-error source at (format "expected ~a" description)))
+    name)
   (define (operator-precedence name)
     (cond [(member name '("*" "/")) 60]
           [(member name '("+" "-")) 50]
@@ -556,12 +563,10 @@
   (define (parse-form definitions-allowed? in-procedure? includes-allowed?
                       imports-allowed?)
     (define command (current))
-    (unless (memq (token-kind command) '(word string))
-      (read-error source command "expected a command or a stage implementation mapping"))
+    (unless (eq? (token-kind command) 'word)
+      (read-error source command "expected a command or an unquoted implementation target"))
     (advance!)
-    (match (if (eq? (token-kind command) 'string) '#:stage-mapping (token-value command))
-      ['#:stage-mapping
-       (parse-implementation (node 'stage-reference (token-value command) '() command) command)]
+    (match (token-value command)
       ["to"
        (unless definitions-allowed?
          (read-error source command "to definitions belong in the investigation, not a do block"))
@@ -608,10 +613,7 @@
       ["interface"
        (unless (and definitions-allowed? (not in-procedure?))
          (read-error source command "interface belongs directly in a workflow or library"))
-       (define name (token-value (expect 'string "a quoted interface name")))
-       (unless (valid-inline-interface-name? name)
-         (read-error source command
-                     "an inline interface needs a name usable as a value"))
+       (define name (identifier-name "an unquoted interface name"))
        (expect 'open "[ after the interface name")
        (define declaration (node 'interface name (parse-interface-body) command))
        declaration]
@@ -686,9 +688,7 @@
                 [(eof) (read-error source (current) "expected ] after stage names")]
                 [else
                  (define at (current))
-                 (define name (token-value (expect 'string "a quoted stage name")))
-                 (when (string=? name "")
-                   (read-error source at "stage name cannot be empty"))
+                 (define name (identifier-name "an unquoted stage name" #t))
                  (when (member name backward)
                    (read-error source at (format "duplicate required stage ~s" name)))
                  (loop (cons name backward))])))
@@ -699,9 +699,7 @@
       ["stage"
        (when (or includes-allowed? imports-allowed?)
          (read-error source command "stage belongs in a workflow or procedure"))
-       (define name (token-value (expect 'string "a quoted stage name")))
-       (when (string=? name "")
-         (read-error source command "stage name cannot be empty"))
+       (define name (identifier-name "an unquoted stage name"))
        (define performer
          (and (eq? (token-kind (current)) 'word)
               (string=? (token-value (current)) "by")
@@ -983,7 +981,7 @@
        (values #f '() (parse-to-eof #t #f))]
       [else
        (advance!)
-       (define title (token-value (expect 'string "a quoted library or interface name")))
+       (define title (identifier-name (format "an unquoted ~a name" kind)))
        (expect 'open "[ after the library or interface name")
        (values title '()
                (if (string=? kind "interface")
@@ -999,9 +997,6 @@
   (define actual-forms
     (if inline-first?
         (let ([declaration (node 'interface title forms start)])
-          (unless (valid-inline-interface-name? title)
-            (read-error source start
-                        "an inline interface needs a name usable as a value"))
           (cons declaration (parse-to-eof #t #f)))
         forms))
   (unless (eq? (token-kind (current)) 'eof)
@@ -1088,9 +1083,19 @@
       (for/list ([form (in-list (node-children tree))] #:when (eq? (node-kind form) 'interface))
         (string->symbol (node-value form)))))
 
+(define (stage-names-in tree)
+  (append
+   (case (node-kind tree)
+     [(stage) (list (node-value tree))]
+     [(state-stage) (list (car (node-value tree)))]
+     [else '()])
+   (append* (map stage-names-in (node-children tree)))))
+
 ;; Dots are parsed uniformly first. Once imports and includes are assembled,
-;; recognize declared interface roots by their complete names, never by case.
-(define (resolve-value-references tree [names (interface-names-in tree)])
+;; recognize declared interface roots and stage mapping targets by their
+;; complete names, never by case or by quoting an identifier.
+(define (resolve-value-references tree [names (interface-names-in tree)]
+                                  [stage-names (stage-names-in tree)])
   (define interfaces (for/hasheq ([name (in-list names)]) (values name #t)))
   (define (path-name value)
     (case (node-kind value)
@@ -1108,6 +1113,13 @@
       (struct-copy node form
                    [value (walk-value (node-value form))]
                    [children (map walk (node-children form))]))
+    (when (eq? (node-kind resolved) 'implement)
+      (define subject (car (node-children resolved)))
+      (define name (path-name subject))
+      (when (and name (member name stage-names))
+        (set! resolved
+              (struct-copy node resolved
+                           [children (list (node 'stage-reference name '() (node-at subject)))]))))
     (define path (and (eq? (node-kind resolved) 'field-ref) (path-name resolved)))
     (if (and path (hash-has-key? interfaces (string->symbol path)))
         (node 'result (string->symbol path) '() (node-at resolved))
@@ -1469,7 +1481,14 @@
            (string->symbol
             (substring (node-value form) (string-length alias-prefix))))))
       (define normalized-expanded
-        (resolve-typed-defaults (resolve-value-references expanded interface-names) interface-names))
+        (resolve-typed-defaults
+         (resolve-value-references
+          expanded interface-names
+          (append (stage-names-in expanded)
+                  (for/list ([name (in-list (append* (map stage-names-in dependencies)))]
+                             #:when (string-prefix? name alias-prefix))
+                    (substring name (string-length alias-prefix)))))
+         interface-names))
       (check-direct-calls (node-children normalized-expanded) source interface-names)
       (define local-definitions
         (map (lambda (form)
@@ -2187,7 +2206,17 @@
            [(stage-reference)
             (unless (hash-has-key? stage-names (node-value subject))
               (read-error source (node-at subject)
-                          (format "unknown stage ~s in implement mapping" (node-value subject))))]
+                          (format "unknown stage ~a in implement mapping" (node-value subject))))
+            (define name (string->symbol (node-value subject)))
+            (define root (string->symbol (car (string-split (node-value subject) "."))))
+            (when (or (hash-has-key? definitions name)
+                      (hash-has-key? interfaces name)
+                      (hash-has-key? performers name)
+                      (hash-has-key? resources name)
+                      (memq root visible))
+              (read-error source (node-at subject)
+                          (format "ambiguous implementation target ~a: names a stage and another visible value or definition"
+                                  (node-value subject))))]
            [else
             (unless procedure-subject?
               (check-value subject inputs visible))])

@@ -4,7 +4,7 @@
 @title[#:style (page-style) #:tag "stages"]{Stages and state}
 
 A stage is a named section and checkpoint of a written method. The simple
-@tt{stage "title"} header labels following commands; it creates no local
+@tt{stage name} header labels following commands; it creates no local
 scope and does not itself perform work. A paired stage states what enters and
 leaves it. The reader accepts and checks that declaration, but the current
 interpreter does not execute a paired stage's body. Neither form records an
@@ -16,7 +16,7 @@ state, as below. It describes the stage's purpose without adding an activity;
 see @secref["descriptions"].
 
 @verbatim|{
-stage "Inspect" from state [information = [period = 2]]
+stage Inspect from state [information = [period = 2]]
 about "Inspect the stated period."
 end stage with state [information = [period = 2]]
 }|
@@ -49,7 +49,7 @@ why these distinctions matter.
 
 @section{Declare entry and exit}
 
-@tt{stage "title" from state [ ... ]} opens a paired stage, optionally with
+@tt{stage name from state [ ... ]} opens a paired stage, optionally with
 @tt{by performer-name} before @tt{from}, and
 @tt{end stage with state [ ... ]} closes it. Both state objects are required,
 even when empty: @tt{state []}. A set may be absent, present and empty, or
@@ -84,7 +84,7 @@ to calculate-period :duration :count [
 
 performer researcher [kind = "human" role = "scientist"]
 
-stage "Analyze" by researcher from state [
+stage Analyze by researcher from state [
   information = [elapsed = unknown swing-count = 10]
   environment = [timer = "hand timer"]
   factors = [reaction-time = unknown]

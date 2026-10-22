@@ -57,7 +57,11 @@ Numeric and escaped-line-ending forms are listed in the grammar. An escaped
 line ending contributes no character. Other backslash escapes are invalid.
 
 @secref["reference"] gives the naming conventions. Names are case-sensitive;
-letter case is guidance. Simple declaration names have no dots. A dot
+letter case is guidance. Names in declarations and references are unquoted
+identifiers. This includes stage, interface, and library names. Quoted text
+is a string value; it cannot name or reference one of those declarations.
+Stage, interface, and library declaration names have no dots and do not begin
+with a number. A dot
 separates nested parts; a colon marks a procedure input and is used only
 inside that procedure. Input declarations and references keep the colon
 attached to their name. The reader treats kind labels such as @tt{number}
@@ -199,7 +203,7 @@ An assignment start here is a word immediately followed by @tt{=} or
 path command: for example, an indexed assignment or an empty dotted update
 after a call needs an explicit call boundary.
 
-A mapping beginning with a bare value or quoted stage title does not itself
+A mapping beginning with a stage, procedure, or value name does not itself
 end an argument list. An @tt{as} result gives an explicit boundary; a mapping
 can also be separated by placing the call in @tt{do [...]}. After a call's
 @tt{as name}, the next form starts normally. Expressions greedily consume
@@ -268,7 +272,9 @@ to their requirement blocks. Named type targets must resolve to an
 interface or nested group. See @secref["interfaces"].
 
 Mapping targets may name an entire interface or an individual requirement.
-Quoted mapping subjects must name stages. A source-file mapping target is
+A stage mapping uses its declared, unquoted name, including a forward or
+imported qualified reference. Ambiguous targets that also identify another
+visible value or definition are rejected. A source-file mapping target is
 available for a value, not a stage or procedure. Mappings preserve the
 stated relationship; they do not establish scientific conformity.
 See @secref["assessment"].
@@ -278,7 +284,7 @@ See @secref["assessment"].
 All procedure, stage, interface, performer, and resource references must
 resolve. Declarations may follow their uses; local values must already be
 visible. Calls have the declared input count, requested results need an
-output, and recursive procedure calls are rejected. Stage titles are
+output, and recursive procedure calls are rejected. Stage names are
 unique across the workflow and its procedures. Procedure names are also
 unique; the naming rules specify conflicts with other namespaces.
 Includes must remain in their Git

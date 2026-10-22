@@ -48,7 +48,7 @@
         "timings.period = elapsed\n"
         "print elapsed\n"
         "performer researcher [kind = \"human\"]\n"
-        "stage \"Inspect\" by researcher from state [information = [elapsed = unknown]]\n"
+        "stage Inspect by researcher from state [information = [elapsed = unknown]]\n"
         "information.elapsed = timings.elapsed\n"
         "timings.checked = information.elapsed\n"
         "end stage with state [information = [elapsed = unknown]]\n")
@@ -109,13 +109,13 @@
 (reject #rx"resource write reads an unavailable state location"
         (string-append
          "#lang sciencelogo\nresource timings []\n"
-         "stage \"Inspect\" from state [information = []]\n"
+         "stage Inspect from state [information = []]\n"
          "timings.period = information.absent + 1\n"
          "end stage with state [information = []]\n"))
 (reject #rx"resource read list position must exist in state"
         (string-append
          "#lang sciencelogo\nresource timings []\n"
-         "stage \"Inspect\" from state [information = [trials = [unknown]]]\n"
+         "stage Inspect from state [information = [trials = [unknown]]]\n"
          "information.trials.[2] = timings.[2]\n"
          "end stage with state [information = [trials = [unknown]]]\n"))
 

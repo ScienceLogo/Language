@@ -36,6 +36,29 @@ and the position must be an exact positive integer within the list.
 @tt{grid.[1].[2]} reads the second value of the first row. Several positions,
 as in @tt{sequence.[1 3]}, select a new list in the stated order.
 
+Use @tt{=} on an indexed target to replace an existing list entry. Use
+@tt{+=} on the list itself to append one item:
+
+@(tabular #:style 'boxed
+  (list
+   (list (bold "Operation") (bold "Form") (bold "Effect"))
+   (list "Replace an entry" (tt "values.[2] = 3")
+         "The second entry becomes 3; the list length stays the same")
+   (list "Append an item" (tt "values += 3")
+         "3 becomes a new last entry; the list length increases by one")))
+
+@verbatim|{
+values = [1 2]
+values.[2] = 3         ; values is now [1 3]
+values += 4            ; values is now [1 3 4]
+values += [5 6]        ; values is now [1 3 4 [5 6]]
+}|
+
+The appended value is one complete item, even when it is a list or record.
+To replace several existing positions together, use
+@tt{values.[1 = 7 2 = 8]}. Lists remain lists from their first entry;
+@tt{+=} does not convert a scalar into a list.
+
 @tt{sequence.count} reports the number of items. @tt{.count} is a reserved,
 read-only list property:
 
@@ -111,11 +134,7 @@ Nested fields use the same path, such as @tt{trial.clock.unit}.
 @tt{trial.[clock.time = "12:00"]} updates that nested field while preserving
 other fields of @tt{clock}. Missing containing fields are created as records;
 an existing containing value must be a record.
-For lists, @tt{trials.[2] = value} replaces an existing position;
-@tt{trials.[1 = first 2 = second]} replaces several positions.
-@tt{trials += value} appends one item, even when @tt{value} is itself a list
-or record. Lists remain lists from their first entry; @tt{+=} does not
-convert a scalar into a list. @secref["propositions"] describes a separate
+@secref["propositions"] describes a separate
 @tt{+=} rule for adding named propositions under another proposition.
 
 @section{Numeric ranges}
@@ -213,7 +232,7 @@ loops, and interface conditions.
 The same @tt{is} accepts a declared interface name:
 
 @verbatim|{
-interface "Timing" [must [period is number unit = "seconds"]]
+interface Timing [must [period is number unit = "seconds"]]
 trial = [period = 2 unit = "seconds"]
 if trial is Timing [print trial.period]
 }|

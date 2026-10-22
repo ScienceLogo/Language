@@ -45,7 +45,7 @@ Within a paired stage, read into a field of @tt{information},
 resource timings [path = "data/timings.csv"]
 performer researcher [kind = "human"]
 
-stage "Inspect timing" by researcher from state [
+stage Inspect-timing by researcher from state [
   information = [elapsed = unknown]
 ]
 information.elapsed = timings.elapsed

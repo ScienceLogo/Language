@@ -66,7 +66,7 @@ and results as value slots in `item-model`, and explicit links with `relation-mo
 That Racket record name does not define a ScienceLogo `Item` type. An interface's
 required parts become
 `condition-model` records, as do an investigation's `must do name` and
-`must stages in order ["First" "Second"]` rules;
+`must stages in order [First Second]` rules;
 `assess-workflow` returns an `assessment` with checks and findings. This implements
 only part of the contract: named inputs and results are value slots, and broader
 conditions are not yet readable ScienceLogo syntax. The
