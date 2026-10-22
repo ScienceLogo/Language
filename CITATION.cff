@@ -8,7 +8,7 @@ authors:
     email: ribo@nilu.no
     orcid: "https://orcid.org/0000-0002-7468-9096"
 abstract: >-
-  ScienceLogo is a Logo dialect for scientific workflows in the AI era.
+  ScienceLogo is a Logo-inspired language for scientific workflows in the AI era.
   Its design pairs readable procedures with checkable scientific obligations
   and traceable evidence so people can understand and supervise AI-assisted work.
 keywords:

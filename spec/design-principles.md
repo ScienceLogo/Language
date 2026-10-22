@@ -29,9 +29,8 @@ criteria, method, and conclusions.
 
 ScienceLogo follows Logo's approachable words, small named procedures, interactivity,
 and vocabulary that learners can extend. It need not copy the exact syntax of an
-existing Logo dialect. Its claim to be a Logo dialect should be tested by whether a
-learner can read a command, try it, see its effect, and build larger methods from small
-parts. Scientific activities, obligations, evidence, and run records require meanings
+existing Logo dialect. Its Logo inspiration should be tested by whether a learner
+can read a command, try it, see its effect, and build larger methods from small parts. Scientific activities, obligations, evidence, and run records require meanings
 that ordinary turtle movement alone does not supply.
 
 The [young Galileo pendulum investigation](../examples/pendulum-period.md) is a

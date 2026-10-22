@@ -14,6 +14,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | Document | Role and current status |
 | --- | --- |
 | [Compact grammar](compact.ebnf) | Current compact forms in one grammar; the [manual's grammar page](../scribblings/grammar.scrbl) supplies grouping, disambiguation, placement, and declaration-based resolution rules. |
+| [Verbose syntax](verbose-syntax.md) | Agreed equivalent spellings, mixed-source rules, and source-preserving translation requirements; verbose parsing and translation await implementation. |
 | [First runnable slice](first-slice.md) | Accepted forms the Racket interpreter runs, plus the current structural checks. |
 | [Descriptions](descriptions.md) | Accepted optional `about` Markdown for workflows, stages, and procedures; retained for inspection and external publication tools. |
 | [Interface entries](interfaces.md) | Accepted compact `must [...]` groups, value kinds and defaults, explicit unknown permissions, optional entries, nested protocol parts, conditional and per-item requirements, and shared structural checks. |
@@ -23,7 +24,7 @@ necessarily an executable command, and a design sketch is not accepted syntax.
 | [Uncertainty descriptions](uncertainty.md) | Accepted compact `u` attachment and named source rules. |
 | [Data sources and storage](resources.md) | Accepted declarations and directional data paths; no external I/O. |
 | [Context sets](context.md) | Meaning and rationale for information, environment, and considered factors. |
-| [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications; compact and future verbose syntax. |
+| [Language boundary](architecture.md) | Separation of language rules, readers, interpreters, and independent applications; compact and verbose syntax. |
 | [Shared representation](representation.md) | Design contract for what readers should preserve; portable format remains open. |
 | [Semantic core](core.md) | Wider semantic design and proposed run traces, beyond current accepted syntax. |
 | [Design principles](design-principles.md) | Goals and learning tests, not syntax. |

@@ -16,8 +16,10 @@ it must not introduce separate semantics or separate scientific checks.
 A future translator will convert compact source to verbose source, verbose
 source to compact source, and source that mixes the two into either form.
 Verbose and mixed source will be converted to the compact form for the same
-language checks. The verbose forms and translator are not yet specified or
-implemented; the current reader accepts the compact forms only.
+language checks. The [verbose syntax specification](verbose-syntax.md) defines
+the agreed spellings, mixed-source rules, and translation requirements.
+Verbose parsing and source translation remain to be implemented; the current
+reader accepts the compact forms only.
 
 ## What the specification defines
 
@@ -69,6 +71,8 @@ language package; the language supplies the syntax and representation they need.
 - [Compact grammar](compact.ebnf) and its [context rules](../scribblings/grammar.scrbl)
   collect current forms, grouping, and name-resolution rules for implementations
   in any language.
+- [Verbose syntax](verbose-syntax.md) records the agreed equivalent spellings and
+  source-preserving translation rules; their implementation remains future work.
 - [First runnable slice](first-slice.md) and [Libraries](libraries.md) describe
   accepted runnable forms and file rules.
 - [Paired stages and state locations](stage-state.md) describes accepted

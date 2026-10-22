@@ -29,7 +29,7 @@
              (substring doc-commit 0 (min 12 (string-length doc-commit))))
   "local checkout")
 
-ScienceLogo is a Logo dialect for describing scientific workflows that people
+ScienceLogo is a Logo-inspired language for describing scientific workflows that people
 can read and inspect. It aims to keep the purpose, structure, assumptions,
 and conditions of a method understandable to people, including when AI
 participates. The language is under development: the current runnable subset
