@@ -11,8 +11,7 @@
 (define (panel syntax source)
   (flow "code-example-panel"
         (list (paragraph (style "code-example-label" '())
-                         (list (case syntax [(compact) "Compact"] [(verbose) "Verbose"]
-                                     [else "Shared syntax"])))
+                         (list (case syntax [(compact) "Compact"] [(verbose) "Verbose"])))
               (verbatim source))
         (list (attributes `((data-syntax . ,(symbol->string syntax)))))))
 
@@ -36,5 +35,5 @@
   (define verbose (convert 'verbose))
   (flow "code-example"
         (if (string=? compact verbose)
-            (list (panel 'shared compact))
+            (list (verbatim compact))
             (list (panel 'compact compact) (panel 'verbose verbose)))))

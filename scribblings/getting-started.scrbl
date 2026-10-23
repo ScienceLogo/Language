@@ -9,8 +9,8 @@ change as its swing gets smaller? It describes work to do; it does not measure
 a pendulum.
 
 Examples with different spellings have @bold{Compact} and @bold{Verbose}
-tabs. Your choice is remembered across the manual. Examples using only shared
-syntax appear once; @secref["verbose-syntax"] explains the two spellings.
+tabs. Your choice is remembered across the manual.
+@secref["verbose-syntax"] explains the two spellings.
 
 @section{Your first investigation}
 

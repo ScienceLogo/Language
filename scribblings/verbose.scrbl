@@ -12,7 +12,7 @@ output form. A file needs no label identifying its input syntax.
 
 Use the @bold{Compact} and @bold{Verbose} tabs on examples to choose a
 spelling. The choice applies to the other examples and is remembered across
-pages. Shared forms appear once.
+pages. When both versions are identical, the code appears once without tabs.
 
 @code-example|{
 to estimate-period :duration :swings [
