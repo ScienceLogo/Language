@@ -1,0 +1,98 @@
+name: Prepare release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, such as v0.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      SCIENCELOGO_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
+
+      - name: Validate citation metadata
+        uses: citation-file-format/cffconvert-github-action@2.0.0
+        with:
+          args: "--validate"
+
+      - name: Set up Racket
+        uses: Bogdanp/setup-racket@v1.15
+        with:
+          distribution: full
+          variant: CS
+          version: "9.3"
+
+      - name: Build the release package
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/sciencelogo"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/sciencelogo"
+          raco pkg create --source --format zip --dest "$RUNNER_TEMP" "$RUNNER_TEMP/sciencelogo"
+
+      - name: Install the release package
+        run: raco pkg install --auto --batch --scope user "$RUNNER_TEMP/sciencelogo.zip"
+
+      - name: Check release versions
+        shell: bash
+        run: |
+          racket /dev/stdin <<'RACKET'
+          #lang racket/base
+          (require setup/getinfo version/utils yaml)
+          (define package-info (get-info/full (current-directory)))
+          (define package-version (package-info 'version (lambda () #f)))
+          (unless (and (string? package-version) (valid-version? package-version))
+            (error 'release "info.rkt must declare a valid Racket package version"))
+          (define citation-version (hash-ref (file->yaml "CITATION.cff") "version" #f))
+          (unless (equal? package-version citation-version)
+            (error 'release "info.rkt and CITATION.cff must declare the same version"))
+          (unless (equal? (getenv "SCIENCELOGO_RELEASE_TAG")
+                          (string-append "v" package-version))
+            (error 'release "release tag must be v~a" package-version))
+          RACKET
+
+      - name: Run Racket tests
+        run: raco test .
+
+      - name: Attach the package to a draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if is_draft="$(gh release view "$SCIENCELOGO_RELEASE_TAG" --json isDraft --jq .isDraft)"; then
+            if [ "$is_draft" != true ]; then
+              echo "::error::This release is already published; its assets will not be replaced."
+              exit 1
+            fi
+          else
+            gh release create "$SCIENCELOGO_RELEASE_TAG" --draft --verify-tag \
+              --title "ScienceLogo ${SCIENCELOGO_RELEASE_TAG#v}" --generate-notes
+          fi
+          gh release upload "$SCIENCELOGO_RELEASE_TAG" \
+            "$RUNNER_TEMP/sciencelogo.zip" \
+            "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM" --clobber
+          release_url="$(gh release view "$SCIENCELOGO_RELEASE_TAG" --json url --jq .url)"
+          printf 'Draft release ready: %s\n\nReview the release notes, then publish the draft in GitHub.\n' \
+            "$release_url" >> "$GITHUB_STEP_SUMMARY"

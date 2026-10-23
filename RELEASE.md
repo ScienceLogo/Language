@@ -7,8 +7,10 @@ implementation's behavior.
 
 ## Prepare a release
 
-1. Choose the release version and tag. Set the package version in `info.rkt`
-   and the matching `version` and `date-released` in `CITATION.cff`.
+1. Choose the release version and tag, for example `0.1` and `v0.1`.
+   Set the package version in `info.rkt` and the matching `version` in
+   `CITATION.cff`. Use Racket's canonical version form: `0.1`, not `0.1.0`.
+   Set `date-released` in `CITATION.cff` when the publication date is known.
 2. Review the release notes against the specification and implementation.
    Describe the available tools and their limits without treating
    independent scientific applications as missing language features.
@@ -25,9 +27,19 @@ workspace metadata from source packages.
 
 1. Connect the public GitHub repository to Zenodo before the GitHub release
    to be archived. Enable the repository in Zenodo's GitHub integration.
-2. Commit the reviewed release files and run CI on that commit. Create the
-   version tag and GitHub release from the same commit. Zenodo ingests the
-   release after the repository is enabled.
+2. Commit and push the reviewed release files and wait for CI and the manual
+   build to pass. Create and push the version tag from that same commit:
+
+   ```sh
+   git tag v0.1
+   git push origin v0.1
+   ```
+
+   The **Prepare release** workflow builds and installs the source package,
+   checks the versions, and runs the tests. It then creates a **draft**
+   GitHub release with `sciencelogo.zip` and `sciencelogo.zip.CHECKSUM`
+   attached. Review its release notes and publish the draft in GitHub.
+   Zenodo ingests the published release after the repository is enabled.
 3. Check the resulting Zenodo record. Its **version DOI** identifies the
    exact archived release; its **concept DOI** identifies the series of
    releases. Add the concept DOI to the top-level `doi` field in
@@ -38,9 +50,18 @@ workspace metadata from source packages.
    The manual's About and citation page reads `CITATION.cff` during the
    documentation build. Committing the DOI updates the displayed citation
    and archive link through the documentation workflow.
-4. Register the runnable, installable `sciencelogo` package in the Racket
-   package catalog with the repository root as its source. The catalog
-   points to the source rather than publishing a separate package binary.
+4. After the first release is published and both attachments are available,
+   register `sciencelogo` once in the Racket package catalog with this source:
+
+   ```text
+   https://github.com/ScienceLogo/Language/releases/latest/download/sciencelogo.zip
+   ```
+
+   Mark the published release as the latest release in GitHub. Future
+   releases use the same attachment names, so this address follows the latest
+   published release. The catalog periodically detects checksum changes;
+   users install updates with `raco pkg update sciencelogo`. Racket retrieves
+   the package from GitHub, independently of Zenodo archival.
 
 Zenodo documents [enabling a repository](https://help.zenodo.org/docs/github/enable-repository/)
 and [archiving a GitHub release](https://help.zenodo.org/docs/github/archive-software/github-upload/).
@@ -55,6 +76,13 @@ creates and installs a Racket source package archive, and runs `raco test .`.
 The [documentation workflow](.github/workflows/docs.yml) builds the manual
 and deploys it to GitHub Pages from `main` and version tags.
 
-Creating a GitHub release is a deliberate publication action. Zenodo handles
-archival after the repository is connected. The repository workflows do not
-create releases or register packages in the Racket catalog.
+The [release workflow](.github/workflows/release.yml) runs when a `v*` tag is
+pushed. It checks that the tag, `info.rkt`, and `CITATION.cff` agree, tests the
+package, and attaches the archive and Racket-generated checksum to a draft
+release. It can also be run from **Actions → Prepare release → Run workflow**
+with an existing tag. Reruns replace attachments only while the release is
+still a draft; published releases are left unchanged.
+
+Publishing the prepared draft remains a deliberate action in GitHub. Zenodo
+handles archival after the repository is connected. The workflows do not
+register packages in the Racket catalog.

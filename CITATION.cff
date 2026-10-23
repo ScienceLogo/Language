@@ -2,6 +2,7 @@ cff-version: 1.2.0
 message: "If you use ScienceLogo, please cite this repository."
 title: "ScienceLogo: a language for scientific workflows in the AI era"
 type: software
+version: "0.1"
 authors:
   - given-names: Riccardo
     family-names: Boero
