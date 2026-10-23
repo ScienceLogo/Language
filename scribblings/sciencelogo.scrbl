@@ -1,11 +1,11 @@
 #lang scribble/manual
-@(require racket/runtime-path "site-head.rkt" "site-links.rkt")
+@(require racket/runtime-path "site-head.rkt" "site-links.rkt" "citation-data.rkt")
 @(define-runtime-path logo-path "../assets/logo.png")
 @(define release-tag (getenv "SCIENCELOGO_RELEASE_TAG"))
 @(define doc-commit (getenv "SCIENCELOGO_DOC_COMMIT"))
 
 @title[#:style (page-style #:toc? #t)]{ScienceLogo}
-@author{Riccardo Boero}
+@(apply author (map citation-author-name (hash-ref project-citation "authors")))
 
 @para[#:style "docs-logo-asset"]{@image[logo-path #:scale 0.12]{ScienceLogo logo}}
 
@@ -13,11 +13,7 @@
 
 @bold{Human-centered scientific workflows in the AI era.}
 
-@hyperlink["https://github.com/ScienceLogo/Language"]{Source code and issues}
-@" · "
-@hyperlink[(source-directory-url "spec")]{Language specifications}
-@" · "
-@hyperlink[(source-file-url "CITATION.cff")]{How to cite ScienceLogo}
+@seclink["about-citation"]{About and citation}
 
 @bold{Latest tagged release:} @(if release-tag
   (hyperlink (string-append "https://github.com/ScienceLogo/Language/tree/" release-tag)
@@ -77,3 +73,4 @@ and the scope of the package's structural checks.
 @include-section["interfaces.scrbl"]
 @include-section["libraries.scrbl"]
 @include-section["assessment.scrbl"]
+@include-section["about.scrbl"]

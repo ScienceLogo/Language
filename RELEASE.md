@@ -35,6 +35,9 @@ workspace metadata from source packages.
    release-specific DOI in the corresponding release notes or citation
    when needed. A DOI minted after publication can be committed for
    subsequent releases.
+   The manual's About and citation page reads `CITATION.cff` during the
+   documentation build. Committing the DOI updates the displayed citation
+   and archive link through the documentation workflow.
 4. Register the runnable, installable `sciencelogo` package in the Racket
    package catalog with the repository root as its source. The catalog
    points to the source rather than publishing a separate package binary.

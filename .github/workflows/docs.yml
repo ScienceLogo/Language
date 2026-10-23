@@ -6,6 +6,7 @@ on:
     tags: ["v*"]
     paths:
       - "scribblings/**"
+      - "CITATION.cff"
       - "normalize.rkt"
       - "private/source-offsets.rkt"
       - "spec/compact.ebnf"
@@ -50,6 +51,9 @@ jobs:
           distribution: full
           variant: CS
           version: "9.3"
+
+      - name: Install documentation dependencies
+        run: raco pkg install --auto --batch --no-setup --scope user --name sciencelogo --link "$GITHUB_WORKSPACE"
 
       - name: Build HTML manual
         run: raco scribble --html-tree 2 ++style scribblings/pages.css --dest "$RUNNER_TEMP" --dest-name site scribblings/sciencelogo.scrbl
