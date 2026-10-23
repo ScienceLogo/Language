@@ -6,7 +6,7 @@
 A @tt{resource} declaration names data outside a workflow: where it would be
 read from or stored. Write the declaration directly in the workflow:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 workflow "Trace a pendulum timing"
 resource timings [path = "data/timings.csv" kind = "table"]
@@ -41,7 +41,7 @@ identify language definitions; they are separate from data paths.
 Within a paired stage, read into a field of @tt{information},
 @tt{environment}, or @tt{factors}, or write a state field to a data location:
 
-@verbatim|{
+@code-example|{
 resource timings [path = "data/timings.csv"]
 performer researcher [kind = "human"]
 

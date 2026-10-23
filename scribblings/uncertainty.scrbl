@@ -6,7 +6,7 @@
 @tt{u} attaches a description of uncertainty to a value. It does not calculate
 uncertainty or say that the description is scientifically adequate.
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 workflow "Time a pendulum"
 period = 2.01 u [

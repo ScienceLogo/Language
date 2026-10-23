@@ -15,7 +15,7 @@ their complete opening header. For a paired stage this means after its entry
 state, as below. It describes the stage's purpose without adding an activity;
 see @secref["descriptions"].
 
-@verbatim|{
+@code-example|{
 stage Inspect from state [information = [period = 2]]
 about "Inspect the stated period."
 end stage with state [information = [period = 2]]
@@ -74,7 +74,7 @@ when a stage has no default, each call must name one. This identifies the
 designated performer in the written method, not who actually carried out
 a particular run. @tt{end stage} needs no performer.
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 workflow "Does the period change as the swing gets smaller?"
 
@@ -112,7 +112,7 @@ The state declaration may also spell nested entries as paths, for example
 Inside a paired stage, a procedure call maps each declared input to a field
 location in the current state:
 
-@verbatim|{
+@code-example|{
 do calculate-period with [
   duration at information.elapsed
   count at information.swing-count

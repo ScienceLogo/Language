@@ -1,0 +1,108 @@
+/* Give block examples a distinct frame without changing inline syntax. */
+.main .SVerbatim,
+.code-example {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 1.2rem 0;
+  border: 1px solid #ccd7e1;
+  border-left: 3px solid #377ca1;
+  border-radius: 6px;
+  background: #f6f8fa;
+}
+
+.main .SVerbatim {
+  display: block;
+  overflow-x: auto;
+  padding: 1rem 1.2rem;
+}
+
+.code-example {
+  overflow: hidden;
+}
+
+.code-example .SVerbatim {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.code-example-label,
+.code-example-tabs {
+  margin: 0;
+  border-bottom: 1px solid #ccd7e1;
+  background: #eaf0f5;
+  font-size: 0.85rem;
+}
+
+.code-example-label {
+  padding: 0.55rem 1.2rem;
+  color: #40546a;
+  font-weight: 600;
+}
+
+.code-example-tabs {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.35rem 0.5rem 0;
+}
+
+.code-example-tabs button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: #40546a;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.code-example-tabs button:hover {
+  background: #dfe8f0;
+}
+
+.code-example-tabs button[aria-selected="true"] {
+  margin-bottom: -1px;
+  border-color: #ccd7e1;
+  border-bottom: 1px solid #f6f8fa;
+  background: #f6f8fa;
+  color: #164c70;
+}
+
+.code-example-tabs button:focus-visible,
+.code-example-panel:focus-visible {
+  outline: 2px solid #164c70;
+  outline-offset: -3px;
+}
+
+.code-example[data-enhanced="true"] .code-example-label,
+.code-example-panel[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .main .SVerbatim {
+    padding: 0.8rem;
+  }
+
+  .code-example-label {
+    padding-inline: 0.8rem;
+  }
+}
+
+@media print {
+  .code-example-tabs {
+    display: none;
+  }
+
+  .code-example[data-enhanced="true"] .code-example-label,
+  .code-example-panel[hidden] {
+    display: block;
+  }
+
+  .main .SVerbatim {
+    overflow: visible;
+  }
+}

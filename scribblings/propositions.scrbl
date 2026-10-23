@@ -7,7 +7,7 @@ A proposition is a named hypothesis, assumption, or conclusion. Its @tt{text}
 is the author's statement. The language records relationships between
 statements; it does not judge whether they are scientifically justified.
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 workflow "Does a smaller swing have a shorter period?"
 
@@ -32,7 +32,7 @@ The plural names @tt{hypotheses}, @tt{assumptions}, and @tt{conclusions}
 access propositions at the root and at every nested level. The two conclusions
 above have these paths:
 
-@verbatim|{
+@code-example[#:kind 'expressions]|{
 conclusions.regular-period
 hypotheses.shorter-swing.conclusions.not-supported
 }|
@@ -48,21 +48,21 @@ children of any of the three types.
 is an error; @tt{+=} never silently replaces an existing proposition.
 Use @tt{=} to update a field of an existing proposition:
 
-@verbatim|{
+@code-example|{
 hypotheses.shorter-swing.conclusions.not-supported.text =
   "The revised finding"
 }|
 
 An independent conclusion can also be added later:
 
-@verbatim|{
+@code-example|{
 conclusions += conclusion regular-period [text = "The period was nearly constant"]
 }|
 
 Nested propositions can be written inside the original declaration. A
 collection is a named record; an omitted collection starts empty.
 
-@verbatim|{
+@code-example|{
 hypothesis shorter-swing [
   text = "A shorter swing has a shorter period"
   conclusions = [not-supported = [text = "Measurements did not support it"]]

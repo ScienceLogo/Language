@@ -47,7 +47,7 @@ Use @tt{=} on an indexed target to replace an existing list entry. Use
    (list "Append an item" (tt "values += 3")
          "3 becomes a new last entry; the list length increases by one")))
 
-@verbatim|{
+@code-example|{
 values = [1 2]
 values.[2] = 3         ; values is now [1 3]
 values += 4            ; values is now [1 3 4]
@@ -62,7 +62,7 @@ To replace several existing positions together, use
 @tt{sequence.count} reports the number of items. @tt{.count} is a reserved,
 read-only list property:
 
-@verbatim|{
+@code-example|{
 measurements = [2 unknown 2.1]
 print measurements.count       ; 3
 print [].count                 ; 0
@@ -82,7 +82,7 @@ a minimum or exact count.
 Brackets whose first entry is @tt{name = value} make a record with named
 fields. Field names are unquoted and distinct within one record:
 
-@verbatim|{
+@code-example|{
 trial = [
   duration = 2
   unit = "seconds"
@@ -119,7 +119,7 @@ modified value for another name. An interface name can be used the same way
 to construct a record with its defaults and required fields; see
 @secref["interfaces"].
 
-@verbatim|{
+@code-example|{
 trial = [duration = 2 unit = "seconds"]
 revised = trial.[unit = "minutes"]
 trial += [unit = "minutes"]
@@ -143,7 +143,7 @@ an existing containing value must be a record.
 The end is included only when a step lands on it. The step must be nonzero and
 move toward the end. Bounds and step can be expressions:
 
-@verbatim|{
+@code-example|{
 lengths = range 0.25 to 1 step 0.25
 for each length in lengths [print length]
 }|
@@ -161,7 +161,7 @@ Use @tt{in} for both checks. The value on the right determines what is checked:
    (list (tt "value in list") "Does the list contain an equal item?")
    (list (tt "field in record") "Does the record contain that named field?")))
 
-@verbatim|{
+@code-example|{
 trial = [period = unknown method = "manual"]
 if period in trial [print "period is present"]
 if not (notes in trial) [print "notes is absent"]
@@ -177,7 +177,7 @@ Quoted text and other value expressions are not record field selectors.
 
 @tt{value in list} tests whether a value equals an item in a list:
 
-@verbatim|{
+@code-example|{
 methods = ["manual" "video"]
 method = "manual"
 accepted = method in methods
@@ -211,7 +211,7 @@ shows both checks together.
 
 @tt{value is kind} checks the outer kind of a value:
 
-@verbatim|{
+@code-example|{
 period = 2
 numeric = period is number
 if numeric [print period]
@@ -231,7 +231,7 @@ loops, and interface conditions.
 
 The same @tt{is} accepts a declared interface name:
 
-@verbatim|{
+@code-example|{
 interface Timing [must [period is number unit = "seconds"]]
 trial = [period = 2 unit = "seconds"]
 if trial is Timing [print trial.period]
@@ -274,7 +274,7 @@ assigns the result of a comparison to @tt{ready}.
 The same rule applies inside records and lists. Use the ordinary equality
 operators to choose a branch:
 
-@verbatim|{
+@code-example|{
 period = unknown
 if period == unknown [
   print "Period not yet known"

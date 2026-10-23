@@ -72,6 +72,12 @@ Use a small example before the full constraints. Give each detailed rule one
 home and link to it from other pages. The manual uses one level of pages
 with headings within each page.
 
+Use the manual's `code-example` helper for ScienceLogo examples. It generates
+compact and verbose versions from one source and shows shared syntax once.
+Interface-entry and expression fragments specify their context with `#:kind`.
+Use `verbatim` for grammar notation, shell commands, Racket code, and examples
+whose purpose is to show a mixed spelling.
+
 Use familiar terms consistently: a **stage** is a checkpoint, a **procedure**
 is a reusable definition, a **call** invokes one, **state** names what a
 paired stage receives and leaves, and a **performer** is the named object

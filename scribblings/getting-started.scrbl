@@ -8,11 +8,15 @@ example makes a plan for the young Galileo question: does a pendulum's period
 change as its swing gets smaller? It describes work to do; it does not measure
 a pendulum.
 
+Examples with different spellings have @bold{Compact} and @bold{Verbose}
+tabs. Your choice is remembered across the manual. Examples using only shared
+syntax appear once; @secref["verbose-syntax"] explains the two spellings.
+
 @section{Your first investigation}
 
 Save this as @tt{investigation.rkt} and run @tt{racket investigation.rkt}:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 workflow "Does the period change as the swing gets smaller?"
@@ -34,7 +38,7 @@ times swings nor records evidence.
 This second program shows how a procedure receives values and returns a number.
 The example numbers illustrate the calculation; they are not recorded timings:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 workflow "Calculate one example period"

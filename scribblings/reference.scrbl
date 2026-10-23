@@ -168,7 +168,7 @@ assumptions, limits, or how to interpret results when that helps a reader.
    (list "Simple stage" "Immediately after its stage header")
    (list "Paired stage" "Immediately after its complete opening header and entry state")))
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 workflow "Review a timing plan"
 about "Explain how to time a pendulum as the swing gets smaller."

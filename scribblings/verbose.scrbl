@@ -10,7 +10,11 @@ Both spellings describe the same workflow and preserve its existing constraints.
 Source conversion accepts compact, verbose, or mixed input and produces either
 output form. A file needs no label identifying its input syntax.
 
-@verbatim|{
+Use the @bold{Compact} and @bold{Verbose} tabs on examples to choose a
+spelling. The choice applies to the other examples and is remembered across
+pages. Shared forms appear once.
+
+@code-example|{
 to estimate-period :duration :swings [
   output :duration / :swings
 ]
@@ -55,7 +59,7 @@ it adds; on a record, it merges fields; on a proposition, it adds a named child.
 On a list, it appends one complete item. List replacement uses @tt{=} or
 @tt{set ... to ...} on an indexed position:
 
-@verbatim|{
+@code-example|{
 set values to [1 2]
 set [2] of values to 3    ; values is now [1 3]
 update values with [4 5]  ; values is now [1 3 [4 5]]
@@ -64,15 +68,8 @@ update values with [4 5]  ; values is now [1 3 [4 5]]
 A standalone multi-field update can be written by assigning a changed value
 back to the same name:
 
-@verbatim|{
-; Compact
+@code-example|{
 trial.[unit = "minutes" duration = 3]
-
-; Verbose
-set trial to trial with [
-  set unit to "minutes"
-  set duration to 3
-]
 }|
 
 @section{Conditions and control flow}
@@ -131,7 +128,7 @@ its closing @tt{end stage with state [...]} remains identical.
 Its calls use the existing input and output words, with optional @tt{of}
 access for locations:
 
-@verbatim|{
+@code-example|{
 do estimate-period with [
   duration at elapsed of information
   swings at swing-count of information

@@ -32,7 +32,7 @@ naming convention and file-level rules.
    (list (tt "print value")
          "Display a value on a line")))
 
-@verbatim|{
+@code-example|{
 do estimate-period 20 10 as period
 print period
 
@@ -75,7 +75,7 @@ require an existing value on the left. In a condition such as
 as in @tt{do check count == 10}. Parentheses remain available to group an
 expression.
 
-@verbatim|{
+@code-example|{
 attempts = 0
 do [
   attempts += 1
@@ -99,7 +99,7 @@ a procedure nor a command to call. Stage names must be distinct across the
 assembled workflow, including its procedures. A procedure defined between
 stage headers remains available throughout its enclosing workflow.
 
-@verbatim|{
+@code-example|{
 workflow "Review a timing plan"
 stage Prepare
 do make-plan as plan
@@ -139,7 +139,7 @@ updated by assignment. A @tt{repeat ... until} condition may read a name
 introduced in its body. @tt{while} and @tt{repeat ... until} stop with an
 error after 10,000 iterations if they have not terminated.
 
-@verbatim|{
+@code-example|{
 lengths = range 0.25 to 1 step 0.25
 for each length in lengths [
   if length > 0.5 [print length]

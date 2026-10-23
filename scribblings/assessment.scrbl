@@ -53,7 +53,7 @@ The @hyperlink[(source-file-url "examples/protocol-mapping.rkt")]{runnable mappi
 uses the protocol from @secref["interfaces"]. The stage addresses its measurement
 part, and the uncertainty description addresses its nested documentation requirement:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 workflow "Document a pendulum measurement"
@@ -105,7 +105,7 @@ those questions.
 @tt{must do} requires a procedure call on the written method's established
 paths. For example:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 workflow "How will we compare pendulum periods?"

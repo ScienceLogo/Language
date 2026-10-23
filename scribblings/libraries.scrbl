@@ -17,7 +17,7 @@ include more files. For example, these three paths are in one repository:
 
 @tt{method.rkt}:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 workflow "Pendulum trial"
 include "methods/period.rkt"
@@ -27,7 +27,7 @@ print seconds-per-swing
 
 @tt{methods/period.rkt}:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 include "../shared/divide.rkt"
 to period :seconds :swings [
@@ -38,7 +38,7 @@ to period :seconds :swings [
 
 @tt{shared/divide.rkt}:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 to divide :total :count [output :total / :count]
 }|
@@ -75,7 +75,7 @@ library never runs its procedures.
 Create a separate directory named @tt{hello-world}. Save this as its
 @tt{library.rkt}:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 library hello-world [
@@ -98,7 +98,7 @@ git tag v1.0.0
 Save the following investigation in another file. Replace the example
 @tt{file://} URL with the absolute path to your @tt{hello-world} directory:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 workflow "Try a library"
@@ -117,7 +117,7 @@ The reader resolves and validates the library before running the investigation.
 A library can also define a data interface, with required fields and defaults
 grouped inside @tt{must [...]}; see @secref["interfaces"]. In @tt{library.rkt}:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 library timing [
@@ -127,7 +127,7 @@ library timing [
 
 After committing and tagging that repository, a workflow can import and use it:
 
-@verbatim|{
+@code-example|{
 import "file:///absolute/path/to/timing" at "v1.0.0" as timing
 interface Timed-place [extends timing.Timing must [place]]
 trial = Timed-place.[duration = 2 place = "lab"]

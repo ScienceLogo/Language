@@ -6,6 +6,8 @@ on:
     tags: ["v*"]
     paths:
       - "scribblings/**"
+      - "normalize.rkt"
+      - "private/source-offsets.rkt"
       - "spec/compact.ebnf"
       - "assets/logo.png"
       - "examples/first-slice.rkt"

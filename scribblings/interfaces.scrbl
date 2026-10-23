@@ -15,7 +15,7 @@ interface files. @secref["assessment"] explains the reference structural checks.
 Present required entries together inside @tt{must [...]}, including entries
 with defaults:
 
-@verbatim|{
+@code-example|{
 interface Timing [
   must [duration unit = "seconds"]
   notes
@@ -109,7 +109,7 @@ defines these declarations, constraints, and checks.
 
 Use an interface name after @tt{is} to check the fields of a nested object:
 
-@verbatim|{
+@code-example|{
 interface Timing [
   must [period is number unit = "seconds"]
 ]
@@ -156,7 +156,7 @@ constructs a timing object and reuses its interface in an experiment.
 Use @tt{field = unknown Interface} to supply and permit an unknown value
 while checking supplied objects against an interface:
 
-@verbatim|{
+@code-example|{
 interface Timing [
   must [period is number unit = "seconds"]
 ]
@@ -194,7 +194,7 @@ See the @hyperlink[(source-file-url "examples/interface-defaults.rkt")]{runnable
 
 Outside @tt{must [...]}, @tt{field is kind} leaves the field optional:
 
-@verbatim|{
+@code-example|{
 interface Timing [
   must [period is number]
   notes is text
@@ -230,7 +230,7 @@ uses an optional text field and an optional object constrained by an interface.
 
 A @tt{must [...]} group can mix conditions and required entries:
 
-@verbatim|{
+@code-example|{
 interface Timing-trial [
   must [swing-count > 10 swing-height unit == "seconds"]
 ]
@@ -245,7 +245,7 @@ it as a default. A comparison using a permitted unknown can remain undetermined.
 
 Use the existing arithmetic, comparison, and Boolean expressions:
 
-@verbatim|{
+@code-example[#:kind 'interface]|{
 must [swing-count > 10 and swing-count < 100 swing-height]
 }|
 
@@ -271,7 +271,7 @@ reference structural checker.
 
 Use @tt{in} to require one of several allowed values:
 
-@verbatim|{
+@code-example|{
 interface Timing [
   must [method in ["manual" "video"]]
 ]
@@ -281,7 +281,7 @@ This requires @tt{method} to equal @tt{"manual"} or @tt{"video"}; it supplies
 no default. A named list is also possible. As with other interface
 expressions, its name refers to a field of the surrounding interface part:
 
-@verbatim|{
+@code-example[#:kind 'interface]|{
 must [methods = ["manual" "video"] method in methods]
 }|
 
@@ -295,7 +295,7 @@ checker cannot establish can leave membership undetermined.
 
 The same @tt{in} checks field presence when its right operand is a record:
 
-@verbatim|{
+@code-example|{
 interface Trial [
   details [notes]
   if notes in details [must [reviewer]]
@@ -335,7 +335,7 @@ A name followed by brackets declares a part containing its own requirements.
 The @hyperlink[(source-file-url "examples/interfaces/pendulum-protocol.rkt")]{pendulum protocol example}
 uses the same @tt{must [...]} rule at each level:
 
-@verbatim|{
+@code-example|{
 interface Pendulum-protocol [
   version "1"
   must [
@@ -363,14 +363,14 @@ the full hierarchy.
 A mapping to a parent also claims its required children. For example,
 @tt{"Report"} identifies a stage declared in the workflow:
 
-@verbatim|{
+@code-example|{
 Report implement Pendulum-protocol.documentation
 }|
 
 This also claims @tt{documentation.uncertainty}. The child can instead be
 referenced directly:
 
-@verbatim|{
+@code-example|{
 information.period.u implement Pendulum-protocol.documentation.uncertainty
 }|
 
@@ -392,7 +392,7 @@ See @secref["assessment"] for a complete example and the checks available.
 Named blocks also describe nested data fields. A nested part can be used
 with the existing construction and record-check forms:
 
-@verbatim|{
+@code-example|{
 details = Pendulum-protocol.documentation.[uncertainty = [estimate = unknown]]
 details implement Pendulum-protocol.documentation
 }|
@@ -410,7 +410,7 @@ ordinary statements. The
 @hyperlink[(source-file-url "examples/conditional-interface.rkt")]{conditional interface example}
 declares different requirements for three timing methods:
 
-@verbatim|{
+@code-example|{
 interface Timing-protocol [
   version "1"
   must [method]
@@ -448,7 +448,7 @@ including across conditional branches. Further conditionals can be nested;
 
 Construct records with the existing syntax:
 
-@verbatim|{
+@code-example|{
 automatic = Timing-protocol.[method = "automatic" instrument = "timer-1"]
 video = Timing-protocol.[method = "video" frame-rate = 25]
 manual = Timing-protocol.[method = "manual" observer = "researcher"]
@@ -470,7 +470,7 @@ requires an explanation when a period is unknown and a positive number otherwise
 For a workflow, the existing @tt{implement} form connects a value to the
 interface entry used by a condition:
 
-@verbatim|{
+@code-example|{
 information.timing-method implement Timing-protocol.method
 }|
 
@@ -483,7 +483,7 @@ can inspect those values and conditions to assess conformity.
 
 Use @tt{for each} inside an interface to describe every item in a list:
 
-@verbatim|{
+@code-example|{
 interface Timing-series [
   must [measurements]
 
@@ -504,7 +504,7 @@ count requirement.
 The name @tt{measurement} refers to one item and is local to the block.
 Use its dotted paths for entries and the existing expressions for conditions:
 
-@verbatim|{
+@code-example[#:kind 'interface]|{
 for each measurement in measurements [
   must [measurement.swing-count > 10 measurement.unit == "seconds"]
 ]
@@ -521,7 +521,7 @@ item names. Scalar lists can use the item name directly, as in
 To require a minimum number of measurements as well as their individual
 fields, use the list's reserved @tt{.count} property:
 
-@verbatim|{
+@code-example|{
 interface Timing-series [
   must [measurements.count >= 3]
 
@@ -571,7 +571,7 @@ absent, and extra fields are allowed. The
 @hyperlink[(source-file-url "examples/record-interface.rkt")]{timing record example}
 is a runnable workflow:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 workflow "Check timing records"
@@ -590,7 +590,7 @@ assignment, @tt{trial.[unit = "minutes"]} produces a modified value for
 @tt{revised}; @tt{trial} retains its earlier value. The existing @tt{trial}
 can also be updated:
 
-@verbatim|{
+@code-example|{
 trial += [unit = "minutes" note = "hand timed"]
 trial.duration += 2
 }|
@@ -601,7 +601,7 @@ the existing numeric @tt{duration}. Extra fields remain allowed.
 A literal record can satisfy the same interface even when it was not
 constructed from @tt{Timing}:
 
-@verbatim|{
+@code-example|{
 direct = [duration = 2 unit = "seconds"]
 direct implement Timing
 }|
@@ -635,7 +635,7 @@ several parents. The
 @hyperlink[(source-file-url "examples/combined-interface.rkt")]{combined interface example}
 runs and passes the assessor:
 
-@verbatim|{
+@code-example|{
 workflow "Describe a pendulum trial"
 interface Timed-observation [
   extends Timing
@@ -695,7 +695,7 @@ The @hyperlink[(source-file-url "examples/meta-assessor/requirements/assessor.rk
 is a separate @tt{#lang sciencelogo} file. It has one version and five required
 parts:
 
-@verbatim|{
+@code-example|{
 #lang sciencelogo
 
 interface Assessor-process [
@@ -722,7 +722,7 @@ parts belong to the example interface; they are not built-in ScienceLogo parts.
 For example, an interface can require measurement and allow supplementary
 notes:
 
-@verbatim|{
+@code-example|{
 interface Pendulum-recording [
   version "1"
   must [measurement]
