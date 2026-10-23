@@ -20,8 +20,10 @@ the same boundary and implement the compact parser and checks once.
 The [normalization API](../normalize.rkt) returns compact text and original
 source locations while retaining comments and explicit groups.
 The [verbose syntax specification](verbose-syntax.md) defines the equivalent
-spellings and preservation requirements. The API converts source to compact
-form; it does not generate verbose source from compact source.
+spellings and preservation requirements. Source conversion accepts either
+spelling or any mixture without an input label. It first normalizes to
+compact form, then returns compact source or generates the equivalent
+verbose source. Both output forms use the same parser and checks.
 
 ## What the specification defines
 

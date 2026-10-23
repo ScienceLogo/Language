@@ -7,6 +7,8 @@ ScienceLogo accepts compact, verbose, and mixed source with the same
 @tt{#lang sciencelogo} header. A normalizer converts the spellings to compact
 source before the compact parser resolves names and applies language checks.
 Both spellings describe the same workflow and preserve its existing constraints.
+Source conversion accepts compact, verbose, or mixed input and produces either
+output form. A file needs no label identifying its input syntax.
 
 @verbatim|{
 to estimate-period :duration :swings [
@@ -163,34 +165,64 @@ The
 @hyperlink[(source-file-url "spec/verbose-syntax.md")]{verbose syntax specification}
 gives the complete equivalences and preservation contract.
 
-@section{Normalization API for applications}
+@section{Convert a source file}
+
+Choose the output syntax on the command line:
+
+@verbatim|{
+racket -l sciencelogo/translate -- --to verbose investigation.rkt
+racket -l sciencelogo/translate -- --to compact investigation.rkt
+}|
+
+The converter writes the converted source to standard output. Either command
+accepts a compact, verbose, or mixed file. To save the result, redirect it to
+a different file:
+
+@verbatim|{
+racket -l sciencelogo/translate -- --to verbose investigation.rkt > investigation-verbose.rkt
+}|
+
+Each invocation converts one file. Source dependency paths and qualified
+definition names retain their references. In verbose output, containing paths
+stay dotted and shared forms keep their spelling, as specified above.
+The converter retains code indentation and line endings while normalizing
+spacing between tokens. Repeated conversion does not accumulate indentation
+or spaces. Strings, comments, and existing parentheses are retained.
+
+@section{Source conversion API for applications}
 
 @index["sciencelogo/normalize"]
+@index["sciencelogo/translate"]
 
-The Racket API is @tt{sciencelogo/normalize}. It converts source to compact
-form; it does not generate verbose source from compact source. Other SDKs
-can follow the same sequence: normalize source, parse compact syntax, then
-apply the language checks.
+The Racket API is @tt{sciencelogo/normalize}; @tt{sciencelogo/translate}
+also exports it. @tt{normalize-source} produces compact source.
+@tt{translate-source} accepts either spelling or any mixture and requires
+@tt{#:to 'compact} or @tt{#:to 'verbose} to choose the output.
 
 @verbatim|{
 (require sciencelogo/normalize)
 
 (define result
-  (normalize-source "set period to 2\n" #:source 'example))
+  (translate-source "period = 2\n" #:to 'verbose #:source 'example))
 
 (normalized-source-text result)
 (normalized-source-origin result 1)
 }|
 
-@tt{normalize-source} accepts a string, with optional @tt{#:source},
+The output text in this example is @tt{"set period to 2\n"}.
+Both functions accept a string, with optional @tt{#:source},
 @tt{#:line}, @tt{#:column}, and @tt{#:position}. Defaults are @tt{#f},
-@tt{1}, @tt{0}, and @tt{1}. It returns a @tt{normalized-source} whose
-@tt{text} is compact source and whose @tt{origins} is an immutable vector.
+@tt{1}, @tt{0}, and @tt{1}. Both return a @tt{normalized-source} whose
+@tt{text} is source in the selected output syntax and whose @tt{origins}
+is an immutable vector.
 
 @tt{normalized-source-origin} accepts that result and a one-based position
 in its text, including the position immediately after its last character.
 It returns a @tt{source-origin} with @tt{source}, @tt{line}, @tt{column},
 @tt{position}, and @tt{span}. Lines and positions start at one; columns
-start at zero. The EOF entry has span zero. Normalization recognizes source
-spelling; parsing and the language checks still determine whether the
+start at zero. The EOF entry has span zero. Verbose conversion retains the
+original locations through both passes: normalization to compact, then
+generation of verbose source. Other SDKs can use the same sequence and keep
+one compact parser and set of language checks. Conversion recognizes source
+forms; parsing, name resolution, and language checks determine whether the
 result is a valid workflow.

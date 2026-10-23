@@ -10,6 +10,7 @@
          racket/system
          syntax/readerr
          "../normalize.rkt"
+         "source-offsets.rkt"
          "expression-groups.rkt"
          "record-interfaces.rkt"
          "value-kinds.rkt")
@@ -43,11 +44,13 @@
   (raise-read-error message (token-source at) (token-line at) (token-column at)
                     (token-position at) 1))
 
-(define (lex in source)
+(define (lex text source)
+  (define in (open-input-string text source))
+  (define offset (make-character-offset text in))
   (port-count-lines! in)
   (define (at kind value)
-    (define-values (line column position) (port-next-location in))
-    (token kind value line column position source))
+    (define-values (line column _position) (port-next-location in))
+    (token kind value line column (add1 (offset)) source))
   (define (skip-line)
     (let loop ()
       (define c (read-char in))
@@ -115,7 +118,7 @@
                       #:position (or position 1)))
   (define tokens
     (list->vector
-     (for/list ([found (in-list (lex (open-input-string (normalized-source-text normalized) source) source))])
+     (for/list ([found (in-list (lex (normalized-source-text normalized) source))])
        (define origin (normalized-source-origin normalized (token-position found)))
        (struct-copy token found
                     [line (source-origin-line origin)]

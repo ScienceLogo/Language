@@ -3,8 +3,8 @@
 The reference implementation normalizes compact,
 verbose, and mixed source to compact form before parsing and language checks.
 The public normalization API preserves comments, groups, and original source
-locations. The API converts source to compact form; it does not generate
-verbose source from compact source.
+locations. Source conversion accepts compact, verbose, or mixed input and
+produces either compact or verbose source without an input-syntax label.
 
 ## Purpose and scope
 
@@ -509,6 +509,33 @@ A translator must accept compact, verbose, and mixed source and be able to
 produce either compact or verbose source. All variants use the same language
 checks through their compact equivalents.
 
+The reference API is `translate-source` from `sciencelogo/normalize`, also
+exported by `sciencelogo/translate`. Supply `#:to 'compact` or
+`#:to 'verbose`; no input-syntax option is needed. It returns the same
+`normalized-source` record as `normalize-source`, with output text and a
+character-by-character map to the original input. The optional `#:source`,
+`#:line`, `#:column`, and `#:position` arguments have the same meanings and
+defaults as in normalization.
+
+Conversion first normalizes any mixture to compact source. For verbose
+output, the shared source-rewriting code then emits verbose grammatical
+forms. The second pass uses the first pass's source map, so output locations
+and conversion diagnostics still refer to the original input. Conversion
+recognizes source forms; name resolution and language validation remain the
+compact reader's responsibility.
+
+The command-line entry point writes the converted source to standard output:
+
+```sh
+racket -l sciencelogo/translate -- --to verbose investigation.rkt
+racket -l sciencelogo/translate -- --to compact investigation.rkt
+```
+
+Each invocation converts one source file. Imports, includes, and qualified
+definition names retain their paths and references. Verbose output uses the
+word-based alternatives defined here; arithmetic, shared forms, and dotted
+containing paths keep their specified spelling.
+
 Translation must preserve:
 
 - Names, their spelling and case, bindings, references, and input colons.
@@ -529,6 +556,10 @@ A compact-to-verbose-to-compact round trip must retain the same workflow
 meaning and the preserved information above. The standalone field-update
 command may return in its equivalent assignment-back form. Spacing and
 indentation can change while preserving comments and explicit groups.
+The reference converter retains code indentation and line endings when
+rewriting forms and normalizes inter-token spacing. Repeated conversion to
+the same output form does not accumulate
+spaces. Whitespace inside strings and comments is left intact.
 The translator may add parentheses where needed to preserve expression
 binding, while retaining every group already written by the author.
 
@@ -539,9 +570,10 @@ execution, conformance verdict, or uncertainty calculation.
 
 ## 9. Implementation checks
 
-The normalization tests check verbose and mixed input against compact behavior
-in the cases below. A generator producing verbose source must satisfy the
-same preservation contract.
+The normalization and translation tests check both output choices for
+compact, verbose, and mixed input in the cases below. They include source
+examples, reader and interpreter equivalence, the command-line entry point,
+and original source locations through both conversion passes.
 
 1. Assignments and nested object fields, including identical field and outer
    variable names.

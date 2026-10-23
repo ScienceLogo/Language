@@ -37,11 +37,11 @@ The [assessment support manual](../scribblings/assessment.scrbl) describes
 the package's structural checks and the information available to independent
 assessment applications.
 
-The public [normalization API](../normalize.rkt) converts source to compact
-form. It does not generate verbose source from compact source. The
+The public [source conversion API](../normalize.rkt) accepts compact,
+verbose, or mixed input and produces compact or verbose source. The
+[command-line converter](../translate.rkt) exposes the same operation. The
 [workflow model](../workflow-model.rkt) exposes Racket values; the package
-does not provide a language-neutral export format. These are tooling limits,
-not additional source-language rules. Scientific assessment algorithms and
+does not provide a language-neutral export format. Scientific assessment algorithms and
 publication generators belong to independent applications.
 
 ## Design rationale
