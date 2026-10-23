@@ -2,7 +2,6 @@
 @(require racket/runtime-path "site-head.rkt" "site-links.rkt" "citation-data.rkt")
 @(define-runtime-path logo-path "../assets/logo.png")
 @(define release-tag (getenv "SCIENCELOGO_RELEASE_TAG"))
-@(define doc-commit (getenv "SCIENCELOGO_DOC_COMMIT"))
 
 @title[#:style (page-style #:toc? #t)]{ScienceLogo}
 @(apply author (map citation-author-name (hash-ref project-citation "authors")))
@@ -15,15 +14,10 @@
 
 @seclink["about-citation"]{About and citation}
 
-@bold{Latest tagged release:} @(if release-tag
-  (hyperlink (string-append "https://github.com/ScienceLogo/Language/tree/" release-tag)
-             release-tag)
-  "None yet")
-
-@bold{Documentation source:} @(if doc-commit
-  (hyperlink (string-append "https://github.com/ScienceLogo/Language/commit/" doc-commit)
-             (substring doc-commit 0 (min 12 (string-length doc-commit))))
-  "local checkout")
+@(if release-tag
+     (para (hyperlink (string-append "https://github.com/ScienceLogo/Language/tree/" release-tag)
+                      release-tag))
+     '())
 
 ScienceLogo is a Logo-inspired language for describing scientific workflows that people
 can read and inspect. It aims to keep the purpose, structure, assumptions,

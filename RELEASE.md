@@ -40,6 +40,9 @@ workspace metadata from source packages.
    GitHub release with `sciencelogo.zip` and `sciencelogo.zip.CHECKSUM`
    attached. Review its release notes and publish the draft in GitHub.
    Zenodo ingests the published release after the repository is enabled.
+   If you publish the release before packaging finishes, the workflow can
+   also attach the missing files to that published release, provided GitHub
+   still allows attachments.
 3. Check the resulting Zenodo record. Its **version DOI** identifies the
    exact archived release; its **concept DOI** identifies the series of
    releases. Add the concept DOI to the top-level `doi` field in
@@ -81,7 +84,14 @@ pushed. It checks that the tag, `info.rkt`, and `CITATION.cff` agree, tests the
 package, and attaches the archive and Racket-generated checksum to a draft
 release. It can also be run from **Actions → Prepare release → Run workflow**
 with an existing tag. Reruns replace attachments only while the release is
-still a draft; published releases are left unchanged.
+still a draft. For a published release, the workflow verifies any existing
+archive and checksum and uploads only missing files. Existing published
+attachments are never replaced. An immutable release must already contain
+both files.
+
+When recovering from a workflow error fixed after a tag was created, run the
+workflow from `main` with that existing tag as the input. **Re-run jobs** on
+the old run uses its original workflow and will repeat the old error.
 
 Publishing the prepared draft remains a deliberate action in GitHub. Zenodo
 handles archival after the repository is connected. The workflows do not

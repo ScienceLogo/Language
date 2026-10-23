@@ -35,11 +35,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Identify release and documentation source
         shell: bash
         run: |
-          release_tag="$(git tag --merged HEAD --sort=-version:refname --list 'v*' | head -n 1)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            release_tag="$GITHUB_REF_NAME"
+          else
+            release_tag="$(git tag --merged HEAD --sort=-version:refname --list 'v*' | head -n 1)"
+          fi
           if [ -n "$release_tag" ]; then
             echo "SCIENCELOGO_RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
           fi

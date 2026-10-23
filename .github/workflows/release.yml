@@ -75,24 +75,60 @@ jobs:
       - name: Run Racket tests
         run: raco test .
 
-      - name: Attach the package to a draft release
+      - name: Attach the release package
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if is_draft="$(gh release view "$SCIENCELOGO_RELEASE_TAG" --json isDraft --jq .isDraft)"; then
-            if [ "$is_draft" != true ]; then
-              echo "::error::This release is already published; its assets will not be replaced."
-              exit 1
-            fi
-          else
+          release_metadata="$RUNNER_TEMP/sciencelogo-release.json"
+          if ! gh api "repos/$GH_REPO/releases/tags/$SCIENCELOGO_RELEASE_TAG" > "$release_metadata"; then
             gh release create "$SCIENCELOGO_RELEASE_TAG" --draft --verify-tag \
               --title "ScienceLogo ${SCIENCELOGO_RELEASE_TAG#v}" --generate-notes
+            gh api "repos/$GH_REPO/releases/tags/$SCIENCELOGO_RELEASE_TAG" > "$release_metadata"
           fi
-          gh release upload "$SCIENCELOGO_RELEASE_TAG" \
-            "$RUNNER_TEMP/sciencelogo.zip" \
-            "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM" --clobber
-          release_url="$(gh release view "$SCIENCELOGO_RELEASE_TAG" --json url --jq .url)"
-          printf 'Draft release ready: %s\n\nReview the release notes, then publish the draft in GitHub.\n' \
-            "$release_url" >> "$GITHUB_STEP_SUMMARY"
+          release_url="$(jq -r .html_url "$release_metadata")"
+          if jq -e .draft "$release_metadata" > /dev/null; then
+            gh release upload "$SCIENCELOGO_RELEASE_TAG" \
+              "$RUNNER_TEMP/sciencelogo.zip" \
+              "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM" --clobber
+            printf 'Draft release ready: %s\n\nReview the release notes, then publish the draft in GitHub.\n' \
+              "$release_url" >> "$GITHUB_STEP_SUMMARY"
+          else
+            has_asset() {
+              jq -e --arg name "$1" 'any(.assets[]; .name == $name)' "$release_metadata" > /dev/null
+            }
+            missing_assets=()
+            for asset in sciencelogo.zip sciencelogo.zip.CHECKSUM; do
+              if ! has_asset "$asset"; then
+                missing_assets+=("$RUNNER_TEMP/$asset")
+              fi
+            done
+            if [ "${#missing_assets[@]}" -gt 0 ] && jq -e .immutable "$release_metadata" > /dev/null; then
+              echo "::error::This published release is immutable; missing package files cannot be attached."
+              exit 1
+            fi
+
+            existing_directory="$RUNNER_TEMP/published-package"
+            mkdir -p "$existing_directory"
+            release_archive="$RUNNER_TEMP/sciencelogo.zip"
+            if has_asset sciencelogo.zip; then
+              gh release download "$SCIENCELOGO_RELEASE_TAG" --pattern sciencelogo.zip --dir "$existing_directory"
+              release_archive="$existing_directory/sciencelogo.zip"
+            fi
+            archive_checksum="$(sha1sum "$release_archive" | cut -d ' ' -f 1)"
+            if has_asset sciencelogo.zip.CHECKSUM; then
+              gh release download "$SCIENCELOGO_RELEASE_TAG" --pattern sciencelogo.zip.CHECKSUM --dir "$existing_directory"
+              existing_checksum="$(tr -d '[:space:]' < "$existing_directory/sciencelogo.zip.CHECKSUM")"
+              if [ "$existing_checksum" != "$archive_checksum" ]; then
+                echo "::error::The published checksum does not match the package archive; existing files were left unchanged."
+                exit 1
+              fi
+            else
+              printf '%s' "$archive_checksum" > "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM"
+            fi
+            if [ "${#missing_assets[@]}" -gt 0 ]; then
+              gh release upload "$SCIENCELOGO_RELEASE_TAG" "${missing_assets[@]}"
+            fi
+            printf 'Release package files ready: %s\n' "$release_url" >> "$GITHUB_STEP_SUMMARY"
+          fi
