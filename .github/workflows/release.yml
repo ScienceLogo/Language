@@ -9,6 +9,15 @@ on:
         description: Existing release tag, such as v0.1
         required: true
         type: string
+      source_ref:
+        description: Source commit or branch for an explicit package rebuild
+        required: false
+        type: string
+      replace_assets:
+        description: Replace the existing ZIP and checksum using source_ref
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -24,12 +33,27 @@ jobs:
       contents: write
     env:
       SCIENCELOGO_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      SCIENCELOGO_SOURCE_REF: ${{ inputs.source_ref }}
+      SCIENCELOGO_REPLACE_ASSETS: ${{ github.event_name == 'workflow_dispatch' && inputs.replace_assets }}
 
     steps:
-      - name: Check out the release tag
+      - name: Check rebuild inputs
+        shell: bash
+        run: |
+          if [ "$SCIENCELOGO_REPLACE_ASSETS" = true ]; then
+            if [ -z "$SCIENCELOGO_SOURCE_REF" ]; then
+              echo "::error::Provide source_ref for the commit or branch to rebuild."
+              exit 1
+            fi
+          elif [ -n "$SCIENCELOGO_SOURCE_REF" ]; then
+            echo "::error::Enable replace_assets to rebuild an existing release from source_ref."
+            exit 1
+          fi
+
+      - name: Check out package source
         uses: actions/checkout@v7
         with:
-          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          ref: ${{ inputs.source_ref || format('refs/tags/{0}', inputs.tag || github.ref_name) }}
           persist-credentials: false
 
       - name: Validate citation metadata
@@ -77,6 +101,13 @@ jobs:
           git --version
           raco test --jobs 2 --drdr --package sciencelogo
 
+      - name: Test the release package without Git
+        shell: bash
+        run: |
+          racket_executable="$(command -v racket)"
+          mkdir -p "$RUNNER_TEMP/without-git"
+          PATH="$RUNNER_TEMP/without-git" "$racket_executable" -l- raco test --jobs 2 --drdr --package sciencelogo
+
       - name: Attach the release package
         shell: bash
         env:
@@ -85,12 +116,27 @@ jobs:
         run: |
           release_metadata="$RUNNER_TEMP/sciencelogo-release.json"
           if ! gh api "repos/$GH_REPO/releases/tags/$SCIENCELOGO_RELEASE_TAG" > "$release_metadata"; then
+            if [ "$SCIENCELOGO_REPLACE_ASSETS" = true ]; then
+              echo "::error::A package rebuild requires an existing GitHub release."
+              exit 1
+            fi
             gh release create "$SCIENCELOGO_RELEASE_TAG" --draft --verify-tag \
               --title "ScienceLogo ${SCIENCELOGO_RELEASE_TAG#v}" --generate-notes
             gh api "repos/$GH_REPO/releases/tags/$SCIENCELOGO_RELEASE_TAG" > "$release_metadata"
           fi
           release_url="$(jq -r .html_url "$release_metadata")"
-          if jq -e .draft "$release_metadata" > /dev/null; then
+          if [ "$SCIENCELOGO_REPLACE_ASSETS" = true ]; then
+            if jq -e .immutable "$release_metadata" > /dev/null; then
+              echo "::error::This release is immutable; its package files cannot be replaced."
+              exit 1
+            fi
+            source_commit="$(git rev-parse HEAD)"
+            gh release upload "$SCIENCELOGO_RELEASE_TAG" "$RUNNER_TEMP/sciencelogo.zip" --clobber
+            gh release upload "$SCIENCELOGO_RELEASE_TAG" "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM" --clobber
+            printf 'Package files replaced: %s\n\nSource commit: https://github.com/%s/commit/%s\n\nArchive SHA-1: %s\n' \
+              "$release_url" "$GH_REPO" "$source_commit" \
+              "$(cat "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM")" >> "$GITHUB_STEP_SUMMARY"
+          elif jq -e .draft "$release_metadata" > /dev/null; then
             gh release upload "$SCIENCELOGO_RELEASE_TAG" \
               "$RUNNER_TEMP/sciencelogo.zip" \
               "$RUNNER_TEMP/sciencelogo.zip.CHECKSUM" --clobber
