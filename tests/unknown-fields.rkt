@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/system racket/runtime-path
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/system racket/runtime-path
          "../assessor.rkt" "../workflow-model.rkt")
 
 (define (with-source body use)
@@ -109,7 +110,7 @@
       (check-equal? (condition-model-evidence (first (interface-model-conditions interface))) '(literal unknown))))
 
   (define directory (make-temporary-file "sciencelogo-unknown-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (display-to-file (string-append "#lang sciencelogo\nlibrary timing [" permitted "]\n")

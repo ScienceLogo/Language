@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit
+(require "git-fixture.rkt"
+         rackunit
          racket/file
          racket/path
          racket/port
@@ -27,7 +28,7 @@
 
 (define (with-workflow-repo use)
   (define directory (make-temporary-file "sciencelogo-workflow-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (unless (zero? (parameterize ([current-output-port (open-output-string)]
@@ -47,7 +48,7 @@
 
 (define (with-library-repo use)
   (define repo (make-temporary-file "sciencelogo-library-test-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define (git . args)
@@ -175,7 +176,7 @@
          "-c" "user.email=tests@example.invalid"
          "commit" "--quiet" "-m" tag)
     (git repo "tag" tag))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (git a "init" "--initial-branch=main")

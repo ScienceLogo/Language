@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit
+(require "git-fixture.rkt"
+         rackunit
          racket/file
          racket/list
          racket/port
@@ -25,7 +26,7 @@
   (define directory (make-temporary-file "sciencelogo-model-~a" 'directory))
   (define library (build-path directory "library"))
   (define method-path (build-path directory "method.rkt"))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (make-directory library)

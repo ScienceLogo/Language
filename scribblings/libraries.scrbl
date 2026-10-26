@@ -8,6 +8,9 @@ reuse a versioned library from another Git repository. A ScienceLogo library
 is one Git repository with a @tt{main} branch and a @tt{library.rkt} file at
 its root. Importing makes its procedures and record interfaces available.
 
+The Racket implementation requires the Git executable on @tt{PATH} to resolve
+library imports and the repository boundaries of included workflow files.
+
 @section{Split one workflow across files}
 
 Every included file begins with @tt{#lang sciencelogo}. Its path starts at the

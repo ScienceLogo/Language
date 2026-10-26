@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt")
 
 (define-runtime-path example "../examples/optional-fields.rkt")
@@ -104,7 +105,7 @@
 
   ;; Standalone interface files reconstruct their optional checks from the model.
   (define directory (make-temporary-file "sciencelogo-optional-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define interface-file (build-path directory "timing.rkt"))

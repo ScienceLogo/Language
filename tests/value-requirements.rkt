@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt" "../private/reader.rkt")
 
 (define-runtime-path example "../examples/value-requirements.rkt")
@@ -149,7 +150,7 @@
                       (interface-model-conditions interface))) 2)))
 
   (define directory (make-temporary-file "sciencelogo-required-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (display-to-file (string-append "#lang sciencelogo\n" declaration) (build-path directory "requirement.rkt"))

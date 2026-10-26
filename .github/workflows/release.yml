@@ -73,7 +73,9 @@ jobs:
           RACKET
 
       - name: Run Racket tests
-        run: raco test .
+        run: |
+          git --version
+          raco test --jobs 2 --drdr --package sciencelogo
 
       - name: Attach the release package
         shell: bash

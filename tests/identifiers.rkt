@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/path racket/port racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/path racket/port racket/system
          "../private/reader.rkt" "../workflow-model.rkt" "../assessor.rkt")
 
 (define (with-source body use)
@@ -93,7 +94,7 @@
     (git repo "-c" "user.name=ScienceLogo Tests" "-c" "user.email=tests@example.invalid"
          "commit" "--quiet" "-m" "Define identifier fixture")
     (git repo "tag" "v1"))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define base (build-path directory "base"))

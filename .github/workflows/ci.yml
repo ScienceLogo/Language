@@ -35,7 +35,16 @@ jobs:
         run: raco pkg create --source --format zip --dest "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
 
       - name: Install package archive
-        run: raco pkg install --auto --batch --scope user "$RUNNER_TEMP"/*.zip
+        run: raco pkg install --auto --batch --scope user --name sciencelogo "$RUNNER_TEMP"/*.zip
 
-      - name: Run Racket tests
-        run: raco test .
+      - name: Run all installed package tests with Git
+        run: |
+          git --version
+          raco test --jobs 2 --drdr --package sciencelogo
+
+      - name: Test the installed package without Git
+        shell: bash
+        run: |
+          racket_executable="$(command -v racket)"
+          mkdir -p "$RUNNER_TEMP/without-git"
+          PATH="$RUNNER_TEMP/without-git" "$racket_executable" -l- raco test --jobs 2 --drdr --package sciencelogo

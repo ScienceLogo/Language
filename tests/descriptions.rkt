@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/path racket/port racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/path racket/port racket/system
          "../private/reader.rkt" "../workflow-model.rkt" "../assessor.rkt")
 
 (define (with-source body use)
@@ -131,7 +132,7 @@
                                   [current-error-port (open-output-string)])
                      (apply system*/exit-code (find-executable-path "git") "-C" (path->string repo) args)))
       (error 'descriptions "Git fixture failed")))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define library (build-path directory "library"))

@@ -75,7 +75,11 @@ explains catalog sources and package registration.
 ## Automation
 
 The [CI workflow](.github/workflows/ci.yml) validates citation metadata,
-creates and installs a Racket source package archive, and runs `raco test .`.
+creates and installs a Racket source package archive, and runs
+`raco test --jobs 2 --drdr --package sciencelogo`, matching the package-build
+service's isolated test settings. CI requires Git for this full run, then
+repeats the tests without Git on `PATH`. In environments without Git, only
+the Git integration fixtures are skipped; their surrounding tests still run.
 The [documentation workflow](.github/workflows/docs.yml) builds the manual
 and deploys it to GitHub Pages from `main` and version tags.
 

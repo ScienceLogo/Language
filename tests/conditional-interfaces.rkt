@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt" "../private/reader.rkt")
 
 (define-runtime-path example "../examples/conditional-interface.rkt")
@@ -165,7 +166,7 @@
   ;; Existing pinned library imports carry the conditions without renaming the
   ;; interface's own entry references.
   (define directory (make-temporary-file "sciencelogo-conditional-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (display-to-file (string-append "#lang sciencelogo\nlibrary timing [" declaration "]\n")

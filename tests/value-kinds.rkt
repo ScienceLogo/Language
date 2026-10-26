@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt")
 
 (define-runtime-path example "../examples/value-kinds.rkt")
@@ -117,7 +118,7 @@
                     '((kind-test text ((result unit)))))))
 
   (define directory (make-temporary-file "sciencelogo-kinds-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define declaration "interface Timing [must [period = unknown number unit = \"seconds\"]]\n")

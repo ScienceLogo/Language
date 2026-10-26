@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt" "../private/reader.rkt")
 
 (define-runtime-path example "../examples/list-requirements.rkt")
@@ -188,7 +189,7 @@
      (check-equal? (count (lambda (condition) (eq? (condition-model-kind condition) 'collection-requirement))
                           (interface-model-conditions interface)) 1)))
   (define directory (make-temporary-file "sciencelogo-list-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (display-to-file (string-append "#lang sciencelogo\n" declaration) (build-path directory "series.rkt"))

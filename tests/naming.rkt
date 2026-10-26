@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/path racket/port racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/path racket/port racket/system
          "../private/reader.rkt" "../workflow-model.rkt" "../assessor.rkt")
 
 (define (with-source source use)
@@ -22,7 +23,7 @@
   (check-exn #rx"unknown result timing" (lambda () (run "interface Timing [must [period]]\nvalue = timing.[period = 2]")))
 
   (define directory (make-temporary-file "sciencelogo-naming-repos-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define base (build-path directory "base"))

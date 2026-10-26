@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt")
 
 (define-runtime-path example "../examples/interface-defaults.rkt")
@@ -84,7 +85,7 @@
   ;; Included and imported definitions, including private dependencies, resolve
   ;; before the candidate suffix is classified as a type or ordinary field.
   (define directory (make-temporary-file "sciencelogo-interface-default-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define base (build-path directory "timing"))

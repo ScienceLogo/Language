@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit racket/file racket/list racket/port racket/runtime-path racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/port racket/runtime-path racket/system
          "../assessor.rkt" "../workflow-model.rkt" "../private/reader.rkt")
 
 (define-runtime-path example "../examples/protocol-mapping.rkt")
@@ -12,7 +13,7 @@
 
 (define (with-workflow body use)
   (define directory (make-temporary-file "sciencelogo-mappings-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (unless (zero? (parameterize ([current-output-port (open-output-string)]
@@ -142,7 +143,7 @@
 
   ;; Use the established pinned Git import, including mappings inside a library.
   (define directory (make-temporary-file "sciencelogo-mapping-library-~a" 'directory))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define library (build-path directory "library"))

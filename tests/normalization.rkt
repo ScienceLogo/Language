@@ -1,5 +1,6 @@
 #lang racket/base
-(require rackunit racket/file racket/list racket/path racket/port racket/string racket/system
+(require "git-fixture.rkt"
+         rackunit racket/file racket/list racket/path racket/port racket/string racket/system
          "../normalize.rkt" "../private/reader.rkt")
 (define (compact text) (normalized-source-text (normalize-source text)))
 (define (with-source text use)
@@ -186,7 +187,7 @@
     (parameterize ([current-output-port (open-output-string)] [current-error-port (open-output-string)])
       (unless (apply system* (find-executable-path "git") "-C" (path->string root) arguments)
         (error 'normalization-tests "Git fixture failed"))))
-  (dynamic-wind
+  (with-git-fixture
     void
     (lambda ()
       (define library (build-path directory "library"))
