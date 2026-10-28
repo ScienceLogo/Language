@@ -175,7 +175,7 @@ observed events. If a provider hides a condition or the trace lacks evidence, th
 check reports **undetermined**, with that limit visible. An investigation without AI uses
 the same concepts of activities, obligations, and evidence at a simpler scale.
 
-## Humans first in AI science
+## Human understanding and supervision
 
 People set the scientific conditions for the workflow and retain a way to inspect and
 challenge its results, even when AI performs most of its operations. The declarative layer

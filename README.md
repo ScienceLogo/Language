@@ -4,11 +4,6 @@
 
 **Human-centered scientific workflows in the AI era.**
 
-**Mottos:**
-
-- **Humans first in AI science.**
-- Declarative, not decorative.
-
 ScienceLogo is a Logo-inspired language for describing scientific workflows that people
 can read and inspect. It aims to make research methods understandable, from
 their overall purpose down to their steps, inputs, assumptions, and conditions.

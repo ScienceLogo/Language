@@ -8,8 +8,6 @@
 
 @para[#:style "docs-logo-asset"]{@image[logo-path #:scale 0.12]{ScienceLogo logo}}
 
-@bold{Humans first in AI science.}
-
 @bold{Human-centered scientific workflows in the AI era.}
 
 @seclink["about-citation"]{About and citation}

@@ -6,7 +6,7 @@ The [specification](README.md#language-specification) and
 The principles guide readable workflow descriptions; they do not add syntax
 or requirements to individual workflows.
 
-## Humans first in AI science
+## Human understanding and supervision
 
 ScienceLogo makes scientific methods understandable and inspectable by
 people. Its scope includes questions, data, procedures, assumptions,
