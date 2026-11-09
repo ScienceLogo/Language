@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use ScienceLogo, please cite this repository."
+message: "If you use ScienceLogo, please cite the release version you used."
 title: "ScienceLogo: a language for scientific workflows in the AI era"
 type: software
 version: "0.2"

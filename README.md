@@ -56,3 +56,10 @@ The [changelog](CHANGELOG.md) lists the changes in each release.
 
 ScienceLogo is released under the [MIT License](LICENSE).
 Citation metadata is in [CITATION.cff](CITATION.cff).
+
+## Citation
+
+If you use ScienceLogo, please cite it:
+
+> Riccardo Boero. *ScienceLogo: a language for scientific workflows in the AI era*
+> [Software]. https://doi.org/10.5281/zenodo.23597749
