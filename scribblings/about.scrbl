@@ -40,8 +40,9 @@ as @tt{0.2} or @tt{0.3}. A language version is a fixed set of definitions: its
 syntax and the workflow model the reader produces. Every change, including
 a fix to the implementation or the documentation, is released as a new
 language version; there are no patch releases. Packages built on ScienceLogo
-can have their own patch releases and state which language version they
-support. Each release tag is @tt{v} followed by the version, such as
+can add a patch number to every release, but their first two numbers name
+the language version they support: version @tt{0.2.3} of such a package
+works with language version @tt{0.2}. Each release tag is @tt{v} followed by the version, such as
 @tt{v0.2}. The Racket package catalog offers only the latest release; earlier
 releases remain available from their GitHub tags and releases.
 
