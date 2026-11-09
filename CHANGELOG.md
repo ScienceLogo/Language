@@ -11,14 +11,21 @@ works with language version `0.2`. Each release tag is `v` followed by the versi
 The Racket package catalog offers only the latest release; earlier releases
 remain available from their GitHub tags and releases.
 
-**0.2 — 2026-11-09:**
+## 0.2 — 2026-11-09
 
-- Local `include` paths start at the file that contains the include and no longer require Git or a Git repository. Git is used only for library imports.
-- New `phase` declaration groups workflow-level stages and smaller phases, with an optional `about` description: `phase Name [Stage1 Stage2]`, or `phase Name contains Stage1 and Stage2` in verbose syntax. The reader checks that members exist, have one parent, follow file order, and cover a continuous stretch of stages.
-- Breaking: a procedure's `about` now follows its name and inputs, before its opening bracket (`to name :input about "..." [ ... ]`). The old placement inside the brackets is an error that shows the new form.
-- The workflow model records where each stage, phase, and procedure ends (`stage-model-end`, `phase-model-end`, `procedure-model-end`) and exposes phases through `workflow-model-phases`. A verbose `start stage` now starts at `start`.
-- The library documentation describes the `@doc url:` comment marker that documentation tools read from `library.rkt`.
-- A library can state the language version it was written for: `library name language "0.2" [ ... ]`. The statement is optional and not a limit; when a library fails to load under another version, the error names both versions. The workflow model keeps it as `import-model-language`.
-- The README, manual, and changelog explain version numbers: each release is a language version with a two-part number, covering its syntax and workflow model, and there are no patch releases.
+### Added
 
-**0.1 — 2026-10-23:** Initial release of the language specification, compact and verbose syntax, Racket implementation, structural checks, translation, documentation and examples.
+- `phase` groups stages under a name, with an optional `about`. The workflow model records phases and where each stage, phase, and procedure ends.
+- A library can state the language version it was written for: `library name language "0.2" [ ... ]`.
+
+### Changed
+
+- A procedure's `about` now goes before its opening bracket: `to name :input about "..." [ ... ]`.
+
+### Fixed
+
+- Local `include` no longer requires Git.
+
+## 0.1 — 2026-10-23
+
+Initial release of the language specification, compact and verbose syntax, Racket implementation, structural checks, translation, documentation and examples.
