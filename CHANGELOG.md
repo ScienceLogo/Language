@@ -1,13 +1,12 @@
 # Changelog
 
-The first release of a language version has a two-part number, such as
-`0.2`. Later refinements add a third part: `0.2.1`, `0.2.2`, and so on. The
-language version, `0.2`, covers the syntax and the workflow model the reader
-produces; a change to either starts a new language version. A refinement,
-such as a fix or a documentation change, changes neither. Workflows and
-tools written for language version `0.2` work with every `0.2` release.
-Each release tag is `v` followed by the version, such as `v0.2` or `v0.2.1`.
-Racket does not accept `0.2.0` as a version, so there is no `v0.2.0`.
+Each ScienceLogo release is a language version with a two-part number, such
+as `0.2` or `0.3`. A language version is a fixed set of definitions: its
+syntax and the workflow model the reader produces. Every change, including
+a fix to the implementation or the documentation, is released as a new
+language version; there are no patch releases. Packages built on ScienceLogo
+can have their own patch releases and state which language version they
+support. Each release tag is `v` followed by the version, such as `v0.2`.
 The Racket package catalog offers only the latest release; earlier releases
 remain available from their GitHub tags and releases.
 
@@ -18,6 +17,6 @@ remain available from their GitHub tags and releases.
 - Breaking: a procedure's `about` now follows its name and inputs, before its opening bracket (`to name :input about "..." [ ... ]`). The old placement inside the brackets is an error that shows the new form.
 - The workflow model records where each stage, phase, and procedure ends (`stage-model-end`, `phase-model-end`, `procedure-model-end`) and exposes phases through `workflow-model-phases`. A verbose `start stage` now starts at `start`.
 - The library documentation describes the `@doc url:` comment marker that documentation tools read from `library.rkt`.
-- The README, manual, and changelog explain version numbers: the first two parts name the language version, covering its syntax and workflow model, and the third marks refinements.
+- The README, manual, and changelog explain version numbers: each release is a language version with a two-part number, covering its syntax and workflow model, and there are no patch releases.
 
 **0.1 — 2026-10-23:** Initial release of the language specification, compact and verbose syntax, Racket implementation, structural checks, translation, documentation and examples.
