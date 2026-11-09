@@ -55,7 +55,6 @@ The [changelog](CHANGELOG.md) lists the changes in each release.
 ## License
 
 ScienceLogo is released under the [MIT License](LICENSE).
-Citation metadata is in [CITATION.cff](CITATION.cff).
 
 ## Citation
 
