@@ -14,6 +14,7 @@
          (struct-out description-model)
          (struct-out workflow-model)
          (struct-out stage-model)
+         (struct-out phase-model)
          (struct-out performer-model)
          (struct-out resource-model)
          (struct-out proposition-model)
@@ -35,12 +36,14 @@
 (struct description-model (text source) #:transparent)
 (struct workflow-model (id title source revision procedures stages activities items
                            relations imports implementations conditions performers resources
-                           propositions mappings description) #:transparent)
-(struct stage-model (id name parent source entry exit performer description) #:transparent)
+                           propositions mappings description phases) #:transparent)
+;; source is where an element starts; end is just after its last character.
+(struct stage-model (id name parent source entry exit performer description end) #:transparent)
+(struct phase-model (id name members parent source description end) #:transparent)
 (struct performer-model (id name fields source) #:transparent)
 (struct resource-model (id name fields source) #:transparent)
 (struct proposition-model (id type name fields source) #:transparent)
-(struct procedure-model (id name inputs source description) #:transparent)
+(struct procedure-model (id name inputs source description end) #:transparent)
 (struct activity-model (id kind name parent source control details) #:transparent)
 (struct item-model (id name role scope producer source) #:transparent)
 (struct relation-model (kind from to source) #:transparent)
@@ -61,6 +64,29 @@
               (token-line at)
               (token-column at)
               (token-position at)))
+
+(define (end-of form)
+  (define end (form-end form))
+  (and end (origin end)))
+
+;; A simple stage header labels the following section. Its end is the end of
+;; the last command or mapping in that section from the header's own file.
+(define section-kinds
+  '(call state-call sequence repeat repeat-until for-each while if assignment
+         path-assignment path-update-command print output implement))
+(define (section-end header following)
+  (define file (token-source (node-at header)))
+  (define ends
+    (filter values
+            (map form-end
+                 (cons header
+                       (filter (lambda (form)
+                                 (and (memq (node-kind form) section-kinds)
+                                      (equal? (token-source (node-at form)) file)))
+                               (takef following
+                                      (lambda (form)
+                                        (not (memq (node-kind form) '(stage state-stage))))))))))
+  (and (pair? ends) (origin (argmax token-position ends))))
 
 (define (source-revision path)
   (call-with-input-file path sha1))
@@ -390,7 +416,8 @@
          (define id (element-id root 'stage (node-at form) parent))
          (set! stages
                (cons (stage-model id (node-value form) parent
-                                  (origin (node-at form)) #f #f #f (description-of form))
+                                  (origin (node-at form)) #f #f #f (description-of form)
+                                  (section-end form (cdr (memq form body))))
                      stages))
          (add-relation 'contains parent id (node-at form))
          (set! current-stage id)]
@@ -401,7 +428,8 @@
                                   (origin (node-at form))
                                   (node->datum (second (node-value form)))
                                   (node->datum (third (node-value form)))
-                                  (fourth (node-value form)) (description-of form))
+                                  (fourth (node-value form)) (description-of form)
+                                  (end-of form))
                      stages))
          (add-relation 'contains parent id (node-at form))
          (parameterize ([current-performer (fourth (node-value form))]
@@ -605,7 +633,8 @@
         item-id))
     (set! procedures
           (cons (procedure-model id (car (node-value definition)) input-ids
-                                 (origin (node-at definition)) (description-of definition))
+                                 (origin (node-at definition)) (description-of definition)
+                                 (end-of definition))
                 procedures))
     (add-relation
      (if (equal? (format "~a" (token-source (node-at definition))) source)
@@ -665,6 +694,32 @@
                                     (origin (node-at form)) #f)
                    conditions))]))
   (build-block forms root (make-hasheq) (list (make-hasheq)))
+  ;; Phases group workflow-level stages and other phases by name.
+  (define phase-forms (filter (lambda (form) (eq? (node-kind form) 'phase)) forms))
+  (define phase-ids
+    (for/hash ([form (in-list phase-forms)])
+      (values (node-value form) (element-id root 'phase (node-at form) (node-value form)))))
+  (define stage-ids
+    (for/hash ([stage (in-list stages)] #:when (equal? (stage-model-parent stage) root))
+      (values (stage-model-name stage) (stage-model-id stage))))
+  (define (phase-members form)
+    (filter (lambda (child) (eq? (node-kind child) 'phase-member)) (node-children form)))
+  (define phase-parents
+    (for*/hash ([form (in-list phase-forms)] [member (in-list (phase-members form))])
+      (values (node-value member) (hash-ref phase-ids (node-value form)))))
+  (define phases
+    (for/list ([form (in-list phase-forms)])
+      (define id (hash-ref phase-ids (node-value form)))
+      (add-relation 'defines-phase root id (node-at form))
+      (define members
+        (for/list ([member (in-list (phase-members form))])
+          (define target
+            (hash-ref phase-ids (node-value member)
+                      (lambda () (hash-ref stage-ids (node-value member)))))
+          (add-relation 'groups id target (node-at member))
+          target))
+      (phase-model id (node-value form) members (hash-ref phase-parents (node-value form) #f)
+                   (origin (node-at form)) (description-of form) (end-of form))))
   (set! mappings
         (for/list ([mapping (in-list (reverse mappings))])
           (if (eq? (mapping-model-kind mapping) 'stage)
@@ -691,7 +746,7 @@
                   (reverse procedures) (reverse stages) (reverse activities) (reverse items)
                   (reverse relations) (reverse imports)
                   (reverse implementations) (reverse conditions) performers resources
-                  propositions mappings (description-of tree)))
+                  propositions mappings (description-of tree) phases))
 
 (define (read-interface-model path)
   (define source (path->string (path->complete-path path)))

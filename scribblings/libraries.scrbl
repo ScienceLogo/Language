@@ -9,14 +9,14 @@ is one Git repository with a @tt{main} branch and a @tt{library.rkt} file at
 its root. Importing makes its procedures and record interfaces available.
 
 The Racket implementation requires the Git executable on @tt{PATH} to resolve
-library imports and the repository boundaries of included workflow files.
+library imports. Included workflow files do not use Git.
 
 @section{Split one workflow across files}
 
 Every included file begins with @tt{#lang sciencelogo}. Its path starts at the
-directory of the file containing @tt{include}; it must stay in the same Git
-repository. An included workflow file has no workflow title or import and can
-include more files. For example, these three paths are in one repository:
+directory of the file containing @tt{include}. An included workflow file has
+no workflow title or import and can include more files. For example, these
+three files are loaded from @tt{method.rkt}:
 
 @tt{method.rkt}:
 
@@ -80,6 +80,7 @@ Create a separate directory named @tt{hello-world}. Save this as its
 
 @code-example|{
 #lang sciencelogo
+; @doc url: https://example.org/hello-world/
 
 library hello-world [
   to greeting [output "Hello, world!"]
@@ -87,6 +88,8 @@ library hello-world [
 }|
 
 The @tt{greeting} procedure returns text. Loading the library does not print it.
+The optional comment line tells documentation tools where the library's own
+documentation is published; see @secref["library-doc-links"].
 In that directory, initialize and tag the Git repository:
 
 @verbatim|{
@@ -114,6 +117,22 @@ The @tt{at} value selects a tag or full commit ID reachable from @tt{main}; it
 does not select a branch. @tt{hello} is the local alias for this import. The call
 returns @tt{"Hello, world!"} as @tt{message}, and the investigation displays it.
 The reader resolves and validates the library before running the investigation.
+
+@section[#:tag "library-doc-links"]{Link to a library's documentation}
+
+A @tt{@"@"doc url:} marker in a comment at the top of @tt{library.rkt}, after
+@tt{#lang sciencelogo} and before the @tt{library} form, gives the address of
+the library's published documentation. A marker has the form
+@tt{@"@"doc key: value} in a @tt{;} or @tt{#| ... |#} comment. Only @tt{url}
+is used so far, with an @tt{http} or @tt{https} address. The
+@hyperlink["https://github.com/ScienceLogo/Documenter"]{ScienceLogo Documenter}
+reads it and links a workflow's documentation to those pages instead of
+generating them again. If a key appears more than once, the first marker is
+used and the Documenter warns.
+
+The marker is a convention for tools, not ScienceLogo syntax. The reader
+ignores comments, so the marker does not change the library, its checks, or
+the workflow model. A library without it remains valid.
 
 @section{Share a record interface}
 

@@ -2,8 +2,9 @@
 workflow "A pendulum timing calculation"
 about "Compute a period from an elapsed time and a swing count."
 
-to estimate-period :duration :swings [
-  about "Return the elapsed time divided by the number of swings."
+to estimate-period :duration :swings
+about "Return the elapsed time divided by the number of swings."
+[
   output :duration / :swings
 ]
 

@@ -170,15 +170,17 @@ A file beginning with an interface and continuing with other forms is a
 workflow with an inline interface. A file containing only that declaration
 is a standalone interface.
 
-A procedure's optional @tt{about} is first inside its opening bracket.
-A stage's optional @tt{about} immediately follows its complete header,
-including entry state for a paired stage. Each attachment accepts one quoted
+A procedure's optional @tt{about} follows its name and inputs, before its
+opening bracket; an @tt{about} inside the bracket is an error. A phase's
+optional @tt{about} follows its name, before its list. A stage's optional
+@tt{about} immediately follows its complete header, including entry state
+for a paired stage. Each attachment accepts one quoted
 string. These descriptions are not commands in anonymous blocks and do not
 affect execution or checks; see @secref["descriptions"].
 
 Procedure definitions, interfaces, performers, resources, proposition
-declarations, obligations, and the older file-provision form belong at
-workflow top level. Libraries contain only the declarations listed in
+declarations, phases, obligations, and the older file-provision form belong
+at workflow top level. Libraries contain only the declarations listed in
 @tt{library-form}. A command block cannot define procedures or interfaces.
 The @tt{output} command belongs inside a procedure; it returns immediately.
 See @secref["procedures"] for value scope, protected names, and updates.
@@ -192,6 +194,7 @@ The reader checks that count afterwards. The command-start words are:
 @verbatim|{
 to do stage end print output include implements must workflow interface
 performer resource hypothesis assumption conclusion repeat for while if else set about
+phase
 }|
 
 Because proposition declaration words end an argument list, enclose a new
@@ -242,6 +245,12 @@ child with @tt{+=} rejects a duplicate; @tt{=} updates fields without
 creating a new proposition or changing its identity. The language does
 not require a conclusion for every hypothesis. See @secref["propositions"].
 
+A phase lists workflow-level stages and other phases by name. Phase names
+share the stage namespace. Each member belongs to at most one phase, phases
+cannot contain themselves, and members follow the order of their stages in
+the assembled workflow, with no unlisted stage between them. See
+@secref["phases"].
+
 @section{Interface disambiguation and constraints}
 
 Inside @tt{must [...]}, first read a candidate expression. A comparison,
@@ -287,8 +296,9 @@ visible. Calls have the declared input count, requested results need an
 output, and recursive procedure calls are rejected. Stage names are
 unique across the workflow and its procedures. Procedure names are also
 unique; the naming rules specify conflicts with other namespaces.
-Includes must remain in their Git
-repository, without repeated files or cycles. Imports choose a tag or full
+An include path starts at the file containing it; a library's includes
+must remain in its repository. Repeated files and cycles are rejected.
+Imports choose a tag or full
 commit on @tt{main}; dependency aliases remain private. See
 @secref["libraries"].
 

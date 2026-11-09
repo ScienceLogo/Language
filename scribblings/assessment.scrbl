@@ -76,8 +76,8 @@ end stage with state [
 }|
 
 This example declares its interface in the same file, so it also runs from
-an installed package. In a workflow repository, the existing @tt{include}
-rule can load a local interface. A library interface uses its existing import
+an installed package. The existing @tt{include} rule can also load a local
+interface from another file. A library interface uses its existing import
 alias, such as @tt{prot.Pendulum-protocol.measurement}. The interface's version
 and source revision identify the protocol being referenced.
 
@@ -188,13 +188,18 @@ guard, and a nested interface model of the body, including source locations.
 @section{Method information available to other tools}
 
 The @hyperlink[(source-file-url "workflow-model.rkt")]{Racket workflow model}
-records the written investigation as procedures, activities, named input and
+records the written investigation as phases, stages, procedures, activities, named input and
 result slots, imports, performers, named data sources and destinations,
 interface mappings, @tt{must do}
 conditions, and typed relations. @tt{read-workflow-model} reads an
 investigation file;
 @tt{read-interface-model} reads an interface file. Method elements carry
-source locations. Optional @tt{about} descriptions retain their owning workflow, stage, or
+source locations. Stages, phases, and procedures also carry an end location
+just after their last character: @tt{stage-model-end},
+@tt{phase-model-end}, and @tt{procedure-model-end}. A simple stage ends with
+the last command or mapping of its section. A phase lists its member stage
+and phase identifiers in order, links to each with @tt{groups}, and records
+its parent phase. Optional @tt{about} descriptions retain their owning workflow, phase, stage, or
 procedure, Markdown text, and source location. They introduce no activities
 or assessment conditions; see @secref["descriptions"]. Explicit state stages
 retain their entry and exit records; state calls retain input-location

@@ -23,7 +23,7 @@
      "workflow \"Review a timing plan\"\nabout \"" summary "\"\n"
      "stage Prepare\n; Comments do not interrupt attachment.\nabout \"Prepare the timing plan.\"\n"
      "do make-plan as plan\n"
-     "to make-plan [\n  about \"Return a timing plan, with its **purpose**.\"\n"
+     "to make-plan\nabout \"Return a timing plan, with its **purpose**.\"\n[\n"
      "  output \"Time ten swings as the swing gets smaller.\"\n]\n"
      "stage Review about \"Read the plan.\"\nprint plan\n"))
   (check-equal? (run method) "Time ten swings as the swing gets smaller.\n")
@@ -54,7 +54,7 @@
       (check-false (workflow-model-description model))
       (check-false (procedure-model-description (first (workflow-model-procedures model))))
       (check-false (stage-model-description (first (workflow-model-stages model))))))
-  (with-source "about \"\"\nto empty [about \"\"]\nstage Empty about \"\"\ndo empty\n"
+  (with-source "about \"\"\nto empty about \"\" []\nstage Empty about \"\"\ndo empty\n"
     (lambda (path)
       (define model (read-workflow-model path))
       (for ([description (list (workflow-model-description model)
@@ -69,19 +69,19 @@
                     "A \"quote\" and a \\ path.")))
 
   ;; A description on a nested stage belongs to that stage, not its procedure.
-  (with-source "to plan [about \"Method.\" do [stage Detail about \"Checkpoint.\" print 2]]\ndo plan\n"
+  (with-source "to plan about \"Method.\" [do [stage Detail about \"Checkpoint.\" print 2]]\ndo plan\n"
     (lambda (path)
       (define model (read-workflow-model path))
       (check-equal? (description-model-text
                      (procedure-model-description (first (workflow-model-procedures model)))) "Method.")
       (check-equal? (description-model-text
                      (stage-model-description (first (workflow-model-stages model)))) "Checkpoint.")))
-  (check-equal? (run "to plan [about \"Method.\" do [stage Detail about \"Checkpoint.\" print 2]]\ndo plan\n") "2\n")
+  (check-equal? (run "to plan about \"Method.\" [do [stage Detail about \"Checkpoint.\" print 2]]\ndo plan\n") "2\n")
 
   ;; Paired stage descriptions remain metadata; state-call requirements stay intact.
   (define staged
     (string-append
-     "to identity :value [about \"Return the supplied value.\" output :value]\n"
+     "to identity :value about \"Return the supplied value.\" [output :value]\n"
      "performer researcher []\n"
      "stage Inspect by researcher from state [information = [period = 2]]\n"
      "about \"Inspect the stated period.\"\n"
@@ -97,21 +97,26 @@
       (check-equal? (map activity-model-kind (workflow-model-activities model)) '(output state-call))))
 
   ;; Text cannot silently add a declaration, satisfy a rule, or become a value read.
-  (with-source "about \"must do missing; stage \\\"Pretend\\\"\"\nto inspect [about \"output missing\"]\nmust do inspect\n"
+  (with-source "about \"must do missing; stage \\\"Pretend\\\"\"\nto inspect about \"output missing\" []\nmust do inspect\n"
     (lambda (path) (check-equal? (outcomes path) '(violated))))
-  (with-source "to inspect [about \"A description.\"]\nmust do inspect\ndo inspect\n"
+  (with-source "to inspect about \"A description.\" []\nmust do inspect\ndo inspect\n"
     (lambda (path) (check-equal? (outcomes path) '(satisfied))))
 
   ;; Placement gives every description one unambiguous owner.
-  (for ([body (list "about 2" "to plan [about true]" "stage Plan about []")])
+  (for ([body (list "about 2" "to plan about true []" "stage Plan about []")])
     (with-source body
       (lambda (path) (check-exn #rx"quoted Markdown text" (lambda () (parse-sciencelogo-file path))))))
   (for ([body (list "about \"One\" about \"Two\""
-                    "to plan [about \"One\" about \"Two\"]"
+                    "to plan about \"One\" about \"Two\" []"
                     "stage Plan about \"One\" about \"Two\""
                     "stage Plan from state [] about \"One\" about \"Two\" end stage with state []")])
     (with-source body
       (lambda (path) (check-exn #rx"only one about" (lambda () (parse-sciencelogo-file path))))))
+  ;; The old placement inside a procedure's brackets points to the new one.
+  (with-source "to plan [about \"Method.\" print 2]\ndo plan\n"
+    (lambda (path)
+      (check-exn #rx"procedure's about goes after its inputs, before \\["
+                 (lambda () (parse-sciencelogo-file path)))))
   (for ([body (list "print 2 about \"Late\""
                     "to plan [print 2 about \"Late\"]"
                     "do [about \"Anonymous\"]"
@@ -143,14 +148,14 @@
       (git workflow "init" "--initial-branch=main")
       (display-to-file "#lang sciencelogo\nlibrary timing [include \"methods.rkt\"]\n"
                        (build-path library "library.rkt"))
-      (display-to-file "#lang sciencelogo\nto estimate-period :elapsed :swings [about \"Estimate the **period**.\" stage Calculate about \"Divide by swing count.\" output :elapsed / :swings]\n"
+      (display-to-file "#lang sciencelogo\nto estimate-period :elapsed :swings about \"Estimate the **period**.\" [stage Calculate about \"Divide by swing count.\" output :elapsed / :swings]\n"
                        (build-path library "methods.rkt"))
       (git library "add" ".")
       (git library "-c" "user.name=ScienceLogo Tests" "-c" "user.email=tests@example.invalid"
            "commit" "--quiet" "-m" "Add described method")
       (git library "tag" "v1")
       (define local (build-path workflow "local.rkt"))
-      (display-to-file "#lang sciencelogo\nto show :value [about \"Display the value.\" print :value]\n" local)
+      (display-to-file "#lang sciencelogo\nto show :value about \"Display the value.\" [print :value]\n" local)
       (define entry (build-path workflow "entry.rkt"))
       (display-to-file
        (format "#lang sciencelogo\nworkflow \"Timing\"\nabout \"Workflow summary.\"\nimport ~s at \"v1\" as timing\ninclude \"local.rkt\"\ndo timing.estimate-period 20 10 as period\ndo show period\n"

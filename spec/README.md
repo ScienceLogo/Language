@@ -15,10 +15,10 @@ have their own sections; they do not introduce additional language forms.
 | --- | --- |
 | Compact syntax | [Compact grammar](compact.ebnf), together with the manual's [grouping, placement, and name-resolution rules](../scribblings/grammar.scrbl). |
 | Verbose and mixed syntax | [Equivalent spellings and normalization](verbose-syntax.md), including preservation of source locations, comments, and parentheses. |
-| Source and core behavior | [Language rules and reference behavior](first-slice.md): files, names, values, procedures, assignments, expressions, control flow, and structural checks. |
-| Human explanation | [Descriptions](descriptions.md): optional `about` Markdown attached to workflows, stages, and procedures. |
+| Source and core behavior | [Language rules and reference behavior](first-slice.md): files, names, values, procedures, phases, assignments, expressions, control flow, and structural checks. |
+| Human explanation | [Descriptions](descriptions.md): optional `about` Markdown attached to workflows, phases, stages, and procedures. |
 | Interfaces | [Interface entries](interfaces.md): required and optional entries, defaults, value kinds, unknown permissions, nested parts, inheritance, conditions, and per-item requirements. |
-| Libraries and local files | [Libraries](libraries.md): repository layout, pinned imports, includes, and dependency rules. |
+| Libraries and local files | [Libraries](libraries.md): repository layout, pinned imports, includes, dependency rules, and documentation links for tools. |
 | Stages and state | [Paired stages and state locations](stage-state.md): entry and exit state, performers, input and return locations, and declared changes. |
 | Context | [Context sets](context.md): the meaning of information, environment, and considered factors within stage state. |
 | Hypotheses, assumptions, and conclusions | [Propositions](propositions.md): names, nesting, references, and updates. |
@@ -26,6 +26,7 @@ have their own sections; they do not introduce additional language forms.
 | Data outside a workflow | [Data sources and storage](resources.md): `resource` declarations and directional data paths. |
 | Reader output | [Shared representation](representation.md): method information and relationships readers must preserve. |
 | Language and applications | [Language boundary](architecture.md): the specification, reader, core interpreter, structural assessor, and independent scientific applications. |
+| Versions | [Changelog](../CHANGELOG.md): how a version number identifies the language version, covering syntax and workflow model, and its refinements. |
 
 ## Reference implementation and tools
 

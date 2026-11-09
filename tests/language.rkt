@@ -26,17 +26,12 @@
       (with-output-to-string
         (lambda () (dynamic-require path #f))))))
 
-(define (with-workflow-repo use)
+;; Local includes need neither Git nor a repository around the workflow.
+(define (with-workflow-directory use)
   (define directory (make-temporary-file "sciencelogo-workflow-~a" 'directory))
-  (with-git-fixture
+  (dynamic-wind
     void
     (lambda ()
-      (unless (zero? (parameterize ([current-output-port (open-output-string)]
-                                    [current-error-port (open-output-string)])
-                       (system*/exit-code (find-executable-path "git")
-                                          "-C" (path->string directory)
-                                          "init" "--initial-branch=main")))
-        (error 'with-workflow-repo "could not initialize Git repository"))
       (define (write-source relative content)
         (define path (build-path directory relative))
         (make-directory* (path-only path))
@@ -269,7 +264,7 @@
     (lambda () (delete-directory/files base))))
 
 (module+ test
-  (with-workflow-repo
+  (with-workflow-directory
    (lambda (directory write-source)
      (write-source "shared/plan.rkt"
                    "#lang sciencelogo\nto plan [output \"ready\"]\n")
@@ -303,9 +298,19 @@
                     "include \"methods/../methods/method.rkt\"\n"))
      (check-exn #rx"duplicate include"
                 (lambda () (parse-sciencelogo-file entry)))
+     ;; A path may leave the including file's directory; it starts there.
+     (define nested-entry
+       (write-source "project/entry.rkt"
+                     "#lang sciencelogo\ninclude \"../shared/plan.rkt\"\ndo plan as message\nprint message\n"))
+     (check-equal? (with-output-to-string (lambda () (dynamic-require nested-entry #f)))
+                   "ready\n")
      (write-source "entry.rkt"
-                   "#lang sciencelogo\ninclude \"../outside.rkt\"\n")
-     (check-exn #rx"include path escapes the workflow repository"
+                   "#lang sciencelogo\ninclude \"missing.rkt\"\n")
+     (check-exn #rx"missing included file missing.rkt"
+                (lambda () (parse-sciencelogo-file entry)))
+     (write-source "entry.rkt"
+                   "#lang sciencelogo\ninclude \"/shared/plan.rkt\"\n")
+     (check-exn #rx"include path must be relative"
                 (lambda () (parse-sciencelogo-file entry)))
      (write-source "entry.rkt"
                    "#lang sciencelogo\ninclude \"methods/method.rkt\"\n")

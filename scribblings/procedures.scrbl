@@ -36,8 +36,9 @@ naming convention and file-level rules.
 do estimate-period 20 10 as period
 print period
 
-to estimate-period :seconds :swings [
-  about "Estimate one period from a duration and swing count."
+to estimate-period :seconds :swings
+about "Estimate one period from a duration and swing count."
+[
   output :seconds / :swings
 ]
 }|
@@ -49,8 +50,8 @@ its procedure. Procedure names must be distinct; recursive calls are rejected.
 @tt{print} is a teaching and display action, not a
 scientific observation or evidence record.
 
-An optional @tt{about "Markdown text"} belongs first inside a procedure's
-opening bracket. It describes the reusable method and remains available
+An optional @tt{about "Markdown text"} follows a procedure's name and
+inputs, before its opening bracket. It describes the reusable method and remains available
 through imports and includes. It does not run as a command or replace its
 input and result declarations. See @secref["descriptions"].
 
@@ -111,7 +112,8 @@ to make-plan [output "Time ten swings as the swing gets smaller."]
 The second stage can use @tt{plan} because a stage does not create a new
 scope. @tt{do Review} would call a procedure named @tt{Review}; it does not
 call the stage. @secref["stages"] explains the paired form that declares a
-stage's incoming and outgoing state.
+stage's incoming and outgoing state, and @secref["phases"] shows how to
+group and describe stages with a phase.
 
 @section{Conditions and repetition}
 

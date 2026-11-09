@@ -150,7 +150,7 @@ The accepted comment forms are `;` to the end of a line, following
 `#| ... |#` across lines, following
 [Racket](https://docs.racket-lang.org/reference/reader.html). Both are ignored by the
 checker. An optional `about "..."` retains explanatory text on a workflow,
-procedure, or stage, without making it an obligation or an LLM prompt.
+phase, procedure, or stage, without making it an obligation or an LLM prompt.
 An ordinary quoted string may span several lines; no second quote form is
 needed. The [accepted description contract](descriptions.md) defines placement
 and preservation. The broader AI request sketches below are separate from
@@ -162,7 +162,7 @@ lists, links, and code. A parser can retain the text without rendering Markdown 
 run. Richer dialects such as [MyST](https://mystmd.org/spec/overview) may be useful for a
 separate documentation site, but are not required inside a ScienceLogo workflow.
 
-`about` describes a workflow, stage, or procedure. A short opening summary is
+`about` describes a workflow, phase, stage, or procedure. A short opening summary is
 recommended. Further prose may explain rationale, assumptions, or
 limitations. Headings are optional. The facts available to
 [external publication tools](workflow-documentation.md) come from named activities,
@@ -173,11 +173,12 @@ satisfy a scientific obligation or establish that an LLM suggestion is true.
 For example, a procedure can include:
 
 ```text
-to estimate-period :duration :swings [
-  about "Estimate one period from a duration and swing count.
+to estimate-period :duration :swings
+about "Estimate one period from a duration and swing count.
 
 ## Why
 Use the same definition of a swing when comparing timings."
+[
   output :duration / :swings
 ]
 ```

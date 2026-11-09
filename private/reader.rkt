@@ -20,6 +20,7 @@
          parse-sciencelogo-file
          parse-sciencelogo-tree-file
          node->datum
+         form-end
          ungroup-node
          state-call-location-syntax
          (struct-out token)
@@ -27,6 +28,12 @@
 
 (struct token (kind value line column position source) #:transparent)
 (struct node (kind value children at) #:transparent)
+
+;; The end of each parsed form, keyed by the form's first token. The end is a
+;; token whose location is just after the form's last original character.
+(define form-ends (make-weak-hasheq))
+(define (form-end form)
+  (hash-ref form-ends (node-at form) #f))
 
 ;; This is a temporary view for structural checks. The source tree retains
 ;; every group, including redundant and nested parentheses.
@@ -44,6 +51,7 @@
   (raise-read-error message (token-source at) (token-line at) (token-column at)
                     (token-position at) 1))
 
+;; Each token is paired with the normalized character offset just after it.
 (define (lex text source)
   (define in (open-input-string text source))
   (define offset (make-character-offset text in))
@@ -75,7 +83,7 @@
     (define start (at 'pending #f))
     (define c (peek-char in))
     (cond
-      [(eof-object? c) (reverse (cons (at 'eof #f) backward))]
+      [(eof-object? c) (reverse (cons (cons (at 'eof #f) (offset)) backward))]
       [(char-whitespace? c) (read-char in) (loop backward)]
       [(char=? c #\;) (skip-line) (loop backward)]
       [(char=? c #\#)
@@ -85,19 +93,19 @@
            (read-error source start "expected #| to start a block comment"))]
       [(char=? c #\[)
        (read-char in)
-       (loop (cons (struct-copy token start [kind 'open] [value "["]) backward))]
+       (loop (cons (cons (struct-copy token start [kind 'open] [value "["]) (offset)) backward))]
       [(char=? c #\])
        (read-char in)
-       (loop (cons (struct-copy token start [kind 'close] [value "]"]) backward))]
+       (loop (cons (cons (struct-copy token start [kind 'close] [value "]"]) (offset)) backward))]
       [(char=? c #\()
        (read-char in)
-       (loop (cons (struct-copy token start [kind 'left-paren] [value "("]) backward))]
+       (loop (cons (cons (struct-copy token start [kind 'left-paren] [value "("]) (offset)) backward))]
       [(char=? c #\))
        (read-char in)
-       (loop (cons (struct-copy token start [kind 'right-paren] [value ")"]) backward))]
+       (loop (cons (cons (struct-copy token start [kind 'right-paren] [value ")"]) (offset)) backward))]
       [(char=? c #\")
        (define value (read in))
-       (loop (cons (struct-copy token start [kind 'string] [value value]) backward))]
+       (loop (cons (cons (struct-copy token start [kind 'string] [value value]) (offset)) backward))]
       [else
        (define text (open-output-string))
        (let word-loop ()
@@ -105,7 +113,7 @@
            (write-char (read-char in) text)
            (word-loop)))
        (define value (get-output-string text))
-       (loop (cons (struct-copy token start [kind 'word] [value value]) backward))])))
+       (loop (cons (cons (struct-copy token start [kind 'word] [value value]) (offset)) backward))])))
 
 (define (parse-tree in source [expected-kind #f] [expand-local? #t])
   ;; Normalize spelling before the compact grammar sees the source. Keep
@@ -116,17 +124,37 @@
     (normalize-source (port->string in) #:source source
                       #:line (or line 1) #:column (or column 0)
                       #:position (or position 1)))
+  (define lexed (lex (normalized-source-text normalized) source))
   (define tokens
     (list->vector
-     (for/list ([found (in-list (lex (normalized-source-text normalized) source))])
+     (for/list ([entry (in-list lexed)])
+       (define found (car entry))
        (define origin (normalized-source-origin normalized (token-position found)))
        (struct-copy token found
                     [line (source-origin-line origin)]
                     [column (source-origin-column origin)]
                     [position (source-origin-position origin)]
                     [source (source-origin-source origin)]))))
+  ;; A token ends just after its last original character. Verbose source can
+  ;; change word order, so use the latest original character of the token.
+  (define token-ends
+    (list->vector
+     (for/list ([entry (in-list lexed)] [mapped (in-vector tokens)])
+       (define last-origin
+         (for/fold ([latest #f])
+                   ([offset (in-range (sub1 (token-position (car entry))) (cdr entry))])
+           (define origin (normalized-source-origin normalized (add1 offset)))
+           (if (or (not latest)
+                   (> (source-origin-position origin) (source-origin-position latest)))
+               origin latest)))
+       (if last-origin
+           (token 'end #f (source-origin-line last-origin)
+                  (add1 (source-origin-column last-origin))
+                  (add1 (source-origin-position last-origin))
+                  (source-origin-source last-origin))
+           mapped))))
   (define index 0)
-  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "hypothesis" "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set" "about"))
+  (define commands '("to" "do" "stage" "end" "print" "output" "include" "implements" "must" "workflow" "interface" "performer" "resource" "hypothesis" "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set" "about" "phase"))
   (define reserved
     (append commands '("as" "at" "from" "with" "into" "state" "import" "workflow" "library"
                        "interface" "version" "require" "affects" "provide" "by"
@@ -580,8 +608,20 @@
         [(eof) (read-error source found "expected ] before end of file")]
         [else (loop (cons (parse-form definitions-allowed? in-procedure?
                                      includes-allowed? imports-allowed?) backward))])))
+  ;; Record where each form ends, so other tools can find its source text.
   (define (parse-form definitions-allowed? in-procedure? includes-allowed?
                       imports-allowed?)
+    (define first index)
+    (define form (parse-command definitions-allowed? in-procedure? includes-allowed?
+                                imports-allowed?))
+    (define end
+      (for/fold ([latest #f]) ([candidate (in-vector token-ends first index)])
+        (if (or (not latest) (> (token-position candidate) (token-position latest)))
+            candidate latest)))
+    (when end (hash-set! form-ends (node-at form) end))
+    form)
+  (define (parse-command definitions-allowed? in-procedure? includes-allowed?
+                         imports-allowed?)
     (define command (current))
     (unless (eq? (token-kind command) 'word)
       (read-error source command "expected a command or an unquoted implementation target"))
@@ -596,7 +636,9 @@
        (define inputs
          (let loop ([backward '()])
            (define found (current))
-           (if (eq? (token-kind found) 'open)
+           (if (or (eq? (token-kind found) 'open)
+                   (and (eq? (token-kind found) 'word)
+                        (string=? (token-value found) "about")))
                (reverse backward)
                (let* ([word (token-value (expect 'word "an input such as :paper"))]
                       [input (and (> (string-length word) 1)
@@ -609,13 +651,39 @@
                 (when (regexp-match? #rx"[.]" word)
                   (read-error source found "an input name cannot contain a dot"))
                  (loop (cons input backward))))))
-       (expect 'open "[ after procedure inputs")
+       ;; Like every description, a procedure's about follows its header.
        (define description (parse-about))
+       (expect 'open "[ after procedure inputs")
+       (when (and (eq? (token-kind (current)) 'word)
+                  (string=? (token-value (current)) "about"))
+         (read-error source (current)
+                     "a procedure's about goes after its inputs, before [, as in to name :input about \"...\" [ ... ]"))
        (node 'to (cons name inputs)
              (append description (parse-body #f #t #f #f)) command)]
       ["about"
        (read-error source command
-                   "about belongs at the start of a workflow or procedure, or immediately after a stage header")]
+                   "about belongs after a workflow title, a procedure's inputs, a stage header, or a phase name")]
+      ["phase"
+       (unless (and definitions-allowed? (not in-procedure?)
+                    (not includes-allowed?) (not imports-allowed?))
+         (read-error source command "phase belongs directly in a workflow"))
+       (define name (identifier-name "an unquoted phase name"))
+       (define description (parse-about))
+       (expect 'open "[ with the phase's stage and phase names")
+       (define members
+         (let loop ([backward '()])
+           (case (token-kind (current))
+             [(close) (advance!) (reverse backward)]
+             [(eof) (read-error source (current) "expected ] after the phase's stage and phase names")]
+             [else
+              (define at (current))
+              (define member (identifier-name "an unquoted stage or phase name"))
+              (when (findf (lambda (other) (equal? (node-value other) member)) backward)
+                (read-error source at (format "phase ~a lists ~a twice" name member)))
+              (loop (cons (node 'phase-member member '() at) backward))])))
+       (when (null? members)
+         (read-error source command (format "phase ~a needs at least one stage or phase" name)))
+       (node 'phase name (append description members) command)]
       ["include"
        (unless (and definitions-allowed? (not in-procedure?))
          (read-error source command "include belongs directly in a workflow or library file"))
@@ -1254,35 +1322,18 @@
 
 (define (expand-workflow-forms forms source)
   (define entry (simplify-path (path->complete-path source)))
-  (define root #f)
   (define seen (make-hash))
   (define active (make-hash))
   (hash-set! seen entry #t)
   (hash-set! active entry #t)
-  (define (repository-root at)
-    (unless root
-      (define directory (path-only entry))
-      (set! root
-            (simplify-path
-             (string->path
-              (string-trim
-               (git-output source at "find the workflow Git repository"
-                           "-C" (path->string directory)
-                           "rev-parse" "--show-toplevel")))
-             #t)))
-    root)
-  (define (inside-root? path base)
-    (define relative (find-relative-path base path))
-    (and (relative-path? relative)
-         (not (for/or ([part (in-list (explode-path relative))])
-                (eq? part 'up)))))
+  ;; A local include is resolved from the directory of the file that contains
+  ;; it. Local files do not depend on Git or on a repository boundary.
   (define (expand body current)
     (apply append
            (for/list ([form (in-list body)])
              (if (eq? (node-kind form) 'include)
                  (let* ([requested (node-value form)]
-                        [at (node-at form)]
-                        [base (repository-root at)])
+                        [at (node-at form)])
                    (when (or (string=? requested "")
                              (not (relative-path? (string->path requested)))
                              (string-contains? requested "\\"))
@@ -1290,13 +1341,9 @@
                    (define candidate
                      (simplify-path
                       (build-path (path-only current) (string->path requested))))
-                   (unless (inside-root? candidate base)
-                     (read-error source at "include path escapes the workflow repository"))
                    (unless (file-exists? candidate)
                      (read-error source at (format "missing included file ~a" requested)))
                    (define full (simplify-path candidate #t))
-                   (unless (inside-root? full base)
-                     (read-error source at "include path escapes the workflow repository"))
                    (when (hash-has-key? active full)
                      (read-error source at (format "include cycle through ~a" requested)))
                    (when (hash-has-key? seen full)
@@ -1796,6 +1843,84 @@
       (expression (record-requirement-guard requirement))))
   (check (record-interface-fields template) (record-interface-requirements template)))
 
+;; A phase groups workflow-level stages and smaller phases. Each member has
+;; one parent, and a phase covers one continuous stretch of stages, listed in
+;; the order in which they appear in the assembled workflow.
+(define (check-phases forms stage-names source)
+  (define top-stages
+    (for/list ([form (in-list forms)]
+               #:when (memq (node-kind form) '(stage state-stage)))
+      (if (eq? (node-kind form) 'stage) (node-value form) (car (node-value form)))))
+  (define positions
+    (for/hash ([name (in-list top-stages)] [position (in-naturals)])
+      (values name position)))
+  (define declarations
+    (filter (lambda (form) (eq? (node-kind form) 'phase)) forms))
+  (define phases (make-hash))
+  (for ([form (in-list declarations)])
+    (define name (node-value form))
+    (when (hash-has-key? phases name)
+      (read-error source (node-at form) (format "duplicate phase ~a" name)))
+    (when (hash-has-key? stage-names name)
+      (read-error source (node-at form) (format "phase name ~a conflicts with a stage" name)))
+    (hash-set! phases name form))
+  (define (members form)
+    (filter (lambda (child) (eq? (node-kind child) 'phase-member)) (node-children form)))
+  (define parents (make-hash))
+  (for ([form (in-list declarations)])
+    (define name (node-value form))
+    (for ([member (in-list (members form))])
+      (define target (node-value member))
+      (cond
+        [(or (hash-has-key? phases target) (hash-has-key? positions target)) (void)]
+        [(hash-has-key? stage-names target)
+         (read-error source (node-at member)
+                     (format "phase ~a can list only workflow-level stages; ~a is inside a procedure or block"
+                             name target))]
+        [else
+         (read-error source (node-at member)
+                     (format "unknown stage or phase ~a in phase ~a" target name))])
+      (when (hash-has-key? parents target)
+        (read-error source (node-at member)
+                    (format "~a already belongs to phase ~a; it can belong to only one phase"
+                            target (hash-ref parents target))))
+      (hash-set! parents target name)))
+  ;; A span is the first and last position of the stages a phase covers.
+  (define spans (make-hash))
+  (define (span-of name active)
+    (when (member name active)
+      (read-error source (node-at (hash-ref phases name)) (format "phase cycle through ~a" name)))
+    (hash-ref
+     spans name
+     (lambda ()
+       (define form (hash-ref phases name))
+       (define parts
+         (for/list ([member (in-list (members form))])
+           (define target (node-value member))
+           (cons member
+                 (if (hash-has-key? phases target)
+                     (span-of target (cons name active))
+                     (let ([position (hash-ref positions target)])
+                       (cons position position))))))
+       (for ([previous (in-list parts)] [next (in-list (cdr parts))])
+         (define previous-name (node-value (car previous)))
+         (define next-name (node-value (car next)))
+         (cond
+           [(<= (cadr next) (cddr previous))
+            (read-error source (node-at (car next))
+                        (format "phase ~a lists ~a after ~a, but ~a comes first in the workflow"
+                                name next-name previous-name next-name))]
+           [(> (cadr next) (add1 (cddr previous)))
+            (read-error source (node-at (car next))
+                        (format "phase ~a is not continuous: stage ~a lies between ~a and ~a"
+                                name (list-ref top-stages (add1 (cddr previous)))
+                                previous-name next-name))]))
+       (define span (cons (cadr (first parts)) (cddr (last parts))))
+       (hash-set! spans name span)
+       span)))
+  (for ([form (in-list declarations)])
+    (span-of (node-value form) '())))
+
 (define (validate-program program source)
   (define definitions (make-hasheq))
   (define interfaces (make-hasheq))
@@ -1895,6 +2020,7 @@
          (check-stage-names (node-children form))]
         [else (void)])))
   (check-stage-names (node-children program))
+  (check-phases (node-children program) stage-names source)
   (define (check-value value inputs results)
     (case (node-kind value)
       [(compare)
@@ -2202,7 +2328,7 @@
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
         [(to import interface performer resource proposition implements must-call must-stage-order stage about
-             included-file) visible]
+             included-file phase) visible]
         [(state-stage)
          (check-value (second (node-value form)) inputs visible)
          (check-value (third (node-value form)) inputs visible)
@@ -2465,6 +2591,14 @@
     [(stage-reference) (list 'stage-reference (node-value form))]
     [(must-stage-order) (list 'must-stage-order (node-value form))]
     [(about) (list 'about (node-value form))]
+    [(phase)
+     (list 'phase (node-value form)
+           (for/list ([child (in-list (node-children form))]
+                      #:when (eq? (node-kind child) 'phase-member))
+             (node-value child))
+           (for/list ([child (in-list (node-children form))]
+                      #:when (eq? (node-kind child) 'about))
+             (node->datum child)))]
     [(stage) (append (list 'stage (node-value form))
                      (map node->datum (node-children form)))]
     [(performer)

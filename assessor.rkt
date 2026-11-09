@@ -65,6 +65,8 @@
     (register (stage-model-id stage) 'stage stage))
   (for ([procedure (in-list (workflow-model-procedures method))])
     (register (procedure-model-id procedure) 'procedure procedure))
+  (for ([phase (in-list (workflow-model-phases method))])
+    (register (phase-model-id phase) 'phase phase))
   (for ([performer (in-list (workflow-model-performers method))])
     (register (performer-model-id performer) 'performer performer))
   (for ([resource (in-list (workflow-model-resources method))])
@@ -141,6 +143,8 @@
          (and (eq? from-type 'workflow) (eq? to-type 'resource))]
         [(defines-proposition)
          (and (eq? from-type 'workflow) (eq? to-type 'proposition))]
+        [(defines-phase) (and (eq? from-type 'workflow) (eq? to-type 'phase))]
+        [(groups) (and (eq? from-type 'phase) (memq to-type '(stage phase)))]
         [(reads-from writes-to)
          (and (eq? from-type 'activity) (eq? to-type 'resource))]
         [(performed-by)

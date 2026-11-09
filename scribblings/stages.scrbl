@@ -171,3 +171,54 @@ records the accepted reader constraints.
 writes to data storage outside the workflow.
 @secref["assessment"] explains the distinct structural checks available
 through @tt{must} and workflow interfaces.
+
+@section[#:tag "phases"]{Group stages into phases}
+
+A phase gives a group of stages a name and an optional description. Use it
+to describe a larger part of the method, such as all the stages of a
+measurement. A phase can also contain smaller phases, so a long method can
+be read as an outline.
+
+@code-example|{
+stage Setup
+print "Set the length."
+stage Timing
+print "Time ten swings."
+stage Report
+print "Report the period."
+
+phase Measurement
+about "Measure the period at each length."
+[Setup Timing]
+
+phase Study [Measurement Report]
+}|
+
+The list names stages or other phases, without the word @tt{stage}. In
+verbose syntax the list is written with @tt{contains} and @tt{and}, as in
+@tt{phase Study contains Measurement and Report}. A phase's @tt{about}
+follows its name, before the list.
+
+A phase is a declaration. It may appear anywhere at workflow level,
+including after the stages it groups, in the entry file or an included
+workflow file. It does not run anything, create a scope, or set an order.
+Phases are optional, and stages may stay outside every phase.
+
+The reader rejects a phase when:
+
+@itemlist[
+ @item{It is inside a procedure, block, branch, paired stage, or library.}
+ @item{Its list is empty, repeats a name, or names something other than a
+       workflow-level stage or another phase. Stages inside procedures and
+       blocks cannot be grouped.}
+ @item{Its name is already used by a stage or another phase.}
+ @item{A stage or phase is listed by more than one phase, or a phase
+       contains itself directly or through other phases.}
+ @item{Its members are not listed in the order in which their stages appear
+       in the workflow, or an unlisted stage lies between two members.}
+]
+
+A nested phase counts from its first stage to its last. These rules keep
+every phase one continuous part of the method, so the phases form a simple
+outline. The @hyperlink[(source-file-url "spec/first-slice.md")]{language rules}
+record the same constraints.

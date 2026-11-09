@@ -104,6 +104,8 @@ Operator precedence follows the @secref["compact-grammar"] rules.
    (list (bold "Compact") (bold "Verbose"))
    (list (tt "stage measure") (tt "start stage measure"))
    (list (tt "end stage with state [...]") (tt "end stage with state [...]"))
+   (list (tt "phase study [measurement report]")
+         (tt "phase study contains measurement and report"))
    (list (tt "measure implement Protocol.measurement")
          (tt "measure implements Protocol.measurement"))
    (list (tt "affects measurement analysis") (tt "measurement affects analysis"))
@@ -123,6 +125,8 @@ Their fields can use either assignment spelling at every depth.
 The existing @tt{implements "file.rkt" as alias [provide ... by "..."]}
 file-reference form also stays shared.
 
+A verbose phase lists its members after @tt{contains}, separated by
+@tt{and}; see @secref["phases"].
 A paired stage can use @tt{start stage measure by observer from state [...]};
 its closing @tt{end stage with state [...]} remains identical.
 Its calls use the existing input and output words, with optional @tt{of}

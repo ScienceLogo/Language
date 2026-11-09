@@ -45,12 +45,16 @@ pendulum.
 
 - **Identity and origin.** Identify the language version, the source workflow
   and its revision, each included file, and each resolved library revision.
-  Identify the source location of each declaration and command. Element
+  Identify the source location of each declaration and command. For each
+  stage, phase, and procedure, also identify where it ends, so another tool
+  can locate its whole source text. A simple stage ends with the last command
+  or mapping of its section in the header's own file. Element
   identifiers must be unambiguous within the identified method revision;
   this contract does not standardize their spelling across implementations
   or their stability across revisions.
 - **Definitions and structure.** Preserve the workflow title, procedure
   definitions and inputs, stage headers and paired-stage entry and exit state,
+  phases with their ordered members, parent phase, and description,
   performer declarations and named data sources and storage, record interfaces,
   named hypothesis, assumption, and conclusion declarations and nested children,
   imports, and includes. A stage remains a label and

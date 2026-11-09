@@ -35,6 +35,14 @@ the citation metadata for reference managers and other tools.
 Browse @hyperlink[(string-append repository "/releases")]{ScienceLogo releases}
 for version information and release notes.
 
+A version number has three parts, such as @tt{0.2.1}. The first two,
+@tt{0.2}, name the language version: its syntax and the workflow model the
+reader produces. A change to either starts a new language version. The third
+part marks refinements, such as fixes and documentation, that change neither.
+Workflows and tools written for language version @tt{0.2} work with every
+@tt{0.2} release. Racket omits a third part of zero, so the first release of
+@tt{0.2} is written @tt{0.2}.
+
 @(if archive
      (para "Zenodo archive: " (hyperlink archive (hash-ref project-citation "doi"))
            ". This concept DOI identifies ScienceLogo across versions.")

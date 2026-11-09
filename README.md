@@ -41,6 +41,17 @@ structural assessor checks declared calls, stage order, workflow parts, and
 record requirements. The [shared representation contract](spec/representation.md)
 describes the method information available to independent applications.
 
+## Versions
+
+Version numbers have three parts, such as `0.2.1`. The first two, `0.2`,
+name the language version: its syntax and the workflow model the reader
+produces. A change to either starts a new language version. The third part
+marks refinements, such as fixes and documentation, that change neither.
+Workflows and tools written for language version `0.2` work with every `0.2`
+release. Racket omits a third part of zero, so the first release of `0.2` is
+written `0.2`.
+The [changelog](CHANGELOG.md) lists the changes in each release.
+
 ## License
 
 ScienceLogo is released under the [MIT License](LICENSE).

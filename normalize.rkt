@@ -221,7 +221,7 @@
     '("to" "do" "stage" "end" "print" "output" "include" "implements" "must"
       "workflow" "interface" "about" "performer" "resource" "hypothesis"
       "assumption" "conclusion" "repeat" "for" "while" "if" "else" "set"
-      "import" "library"))
+      "import" "library" "phase"))
   (define (normalize-units units role)
     (define vector (list->vector units))
     (define size (vector-length vector))
@@ -584,7 +584,45 @@
                  (expression-bits (parse-expression)))]
         [(words? '("start" "stage"))
          (changed!)
-         (append (trivia (take!)) (parse-form))]
+         ;; Anchor the stage keyword at start, where the verbose form begins.
+         (define start (take!))
+         (define rest (parse-form))
+         (define leading (takef rest (lambda (b) (eq? (bit-kind b) 'trivia))))
+         (append (trivia start) (list (new (if verbose? "start stage" "stage") start))
+                 (drop rest (add1 (length leading))))]
+        [(word? "phase")
+         (define phase (take!)) (define name (take!))
+         (define description
+           (if (word? "about") (append (raw (take!)) (raw (take!))) '()))
+         (append
+          (raw phase) (raw name) description
+          (cond
+            ;; phase Name contains A and B  ==  phase Name [A B]
+            [(word? "contains")
+             (changed!)
+             (define contains (take!))
+             (define first-member (take!))
+             (define-values (others last-member)
+               (let loop ([previous first-member])
+                 (if (word? "and")
+                     (let* ([separator (take!)] [member (take!)])
+                       (define-values (rest final) (loop member))
+                       (values (append (trivia separator) (raw member) rest) final))
+                     (values '() previous))))
+             (append (replacement contains "[") (raw first-member) others
+                     (list (new "]" last-member)))]
+            [(group? (peek))
+             (define group (take!))
+             (define members (bracket-body group))
+             (if (and verbose? (pair? members))
+                 (begin
+                   (changed!)
+                   (append (replacement (bracket-open group) "contains") (raw (car members))
+                           (append-map (lambda (member) (cons (new "and" member) (raw member)))
+                                       (cdr members))
+                           (trivia (bracket-close group))))
+                 (raw group))]
+            [else (fail (at (peek)) "expected [ or contains after the phase name")]))]
         [(member (it-text (peek)) '("workflow" "about" "include"))
          (append (raw (take!)) (raw (take!)))]
         [(word? "import")

@@ -10,11 +10,15 @@ the repository root. A complete first library needs only that file:
 
 ```text
 #lang sciencelogo
+; @doc url: https://example.org/hello-world/
 
 library hello-world [
   to greeting [output "Hello, world!"]
 ]
 ```
+
+The comment line is optional; see
+[documentation links for tools](#documentation-links-for-tools).
 
 The `library` declaration gives the library its unquoted identifier. Library,
 interface, and procedure names are unquoted in declarations and references;
@@ -46,6 +50,29 @@ a dot.
 The reader checks the library and records the resolved commit in the loaded program
 before any investigation command runs. A library does not need a central ScienceLogo
 repository or catalog.
+
+## Documentation links for tools
+
+A library can tell documentation tools where its own documentation is
+published. Put a `@doc url:` marker in a comment at the top of `library.rkt`,
+after `#lang sciencelogo` and before the `library` form:
+
+```text
+; @doc url: https://example.org/hello-world/
+```
+
+A marker has the form `@doc key: value`, in a `;` or `#| ... |#` comment.
+Only `url` is used so far, and its value is an `http` or `https` address. The
+[ScienceLogo Documenter](https://github.com/ScienceLogo/Documenter)
+reads it and links a workflow's documentation to the library's pages instead
+of generating them again. If a key appears more than once, the first marker is
+used and the Documenter warns.
+
+The marker is a tool convention, not ScienceLogo syntax. The reader ignores
+comments, so the marker does not change the library, its checks, or the
+workflow model. A library without it remains valid.
+
+## Interfaces in libraries
 
 A library may also export a record interface. For example, `library.rkt` can
 contain:

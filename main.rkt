@@ -590,6 +590,7 @@
            [`(resource ,_ ,_) (void)]
            [`(proposition ,_ ,_) (void)]
            [`(about ,_) (void)]
+           [`(phase ,_ ,_ ,_) (void)]
            [(list 'stage _ _ ...) (void)]
            [`(state-stage ,_ ,_ ,_ ,_ ,_) (void)]
            [`(to ,_ ,_ ,_) (void)]

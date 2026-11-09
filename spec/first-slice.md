@@ -19,7 +19,7 @@ The [uncertainty form](uncertainty.md) attaches named sources to a value with
 `u [ ... ]`. Its description is readable at `.u`; the interpreter does not
 calculate or propagate uncertainty.
 The [description form](descriptions.md) attaches optional Markdown explanation
-to workflows, stages, and procedures with `about "text"`.
+to workflows, phases, stages, and procedures with `about "text"`.
 
 ## Source file, procedures, and stage headers
 
@@ -74,6 +74,53 @@ The second stage can use `plan` because both stages are in the same workflow fil
 Calling `do Review` would try to call a procedure named `Review`; it does not call
 the stage.
 
+## Phases
+
+A phase groups stages, and smaller phases, under one name and an optional
+description. It is the way to describe a group of stages:
+
+```text
+stage Setup
+stage Timing
+stage Report
+
+phase Measurement
+about "Measure the period at each length."
+[Setup Timing]
+
+phase Study [Measurement Report]
+```
+
+The verbose spelling lists the same names with `contains` and `and`:
+`phase Study contains Measurement and Report`. The list ends at the first name
+not followed by `and`.
+
+`phase name [ ... ]` is a declaration. It may appear anywhere at workflow
+level, in the entry file or an included workflow file, including after the
+stages it lists. It does not belong in a procedure, block, branch, paired
+stage, or library. Its `about` follows its name, before the list. A phase does
+not run anything, change scope, or impose an order: it only names and
+describes a group. The reader checks these rules:
+
+- The list names at least one member, each at most once. A member is a
+  workflow-level stage or another phase. Stages inside procedures and blocks
+  cannot be listed: their position in the file is not where they run.
+- Phases share the stage namespace. A phase name differs from every stage
+  name and every other phase name.
+- Each stage or phase belongs to at most one phase, and phases cannot
+  contain themselves, directly or through other phases.
+- Members are listed in the order in which their stages appear in the
+  assembled workflow, after includes. A nested phase counts from its first
+  stage to its last.
+- A phase covers one continuous stretch of workflow-level stages: no
+  unlisted stage lies between two of its members.
+- Phases are optional. A workflow without phases is valid, and stages may
+  remain outside every phase.
+
+A phase cannot yet be named by `must stages in order` or an `implement`
+mapping. The workflow model records each phase with its members, parent
+phase, description, and source location.
+
 ## Files and libraries
 
 Imports belong at the top of the workflow file, after an optional title and
@@ -114,8 +161,8 @@ workflow file can contain top-level commands, stages, procedures, record
 interfaces, `must` declarations, and more includes. It has no `workflow` title
 or `import`: the entry file supplies the one title and its imports. Each include
 path is resolved relative to the file containing it. For example, an include
-in `methods/measure.rkt` can load `../shared/period.rkt`. The resulting path
-must remain inside the same Git repository. Included files begin with
+in `methods/measure.rkt` can load `../shared/period.rkt`. Local includes do
+not depend on Git or on a repository boundary. Included files begin with
 `#lang sciencelogo`. The reader rejects missing files, duplicate includes,
 and cycles, and validates the assembled workflow before running it.
 
@@ -245,8 +292,12 @@ versions or judge scientific adequacy.
 
 The Racket module `sciencelogo/workflow-model` provides `read-workflow-model` for an
 investigation file and `read-interface-model` for an interface file. The first returns
-separate records for the workflow, stages, procedures, activities, named input and result slots,
-imports, interface claims, and typed relations. Method elements carry source locations;
+separate records for the workflow, phases, stages, procedures, activities, named input and
+result slots, imports, interface claims, and typed relations. Method elements carry source
+locations. Stages, phases, and procedures also record where they end: just after the closing
+`]` of a procedure or phase, after the closing state of a paired stage, and after the last
+command or mapping of a simple stage's section in the header's own file. A phase has a
+`groups` relation to each member;
 the workflow revision reflects its source and resolved library definitions. Direct
 imports record their resolved Git commits; imported procedures retain source references.
 A `do` call has an `invokes` relation to its procedure. Sequential

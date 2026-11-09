@@ -260,10 +260,19 @@ the corresponding control structures. Their contents remain interface entries.
 | `stage measure` | `start stage measure` |
 | `stage measure by observer from state [ … ]` | `start stage measure by observer from state [ … ]` |
 | `end stage with state [ … ]` | `end stage with state [ … ]` |
+| `phase study [measurement report]` | `phase study contains measurement and report` |
 
 The closing command is identical. A simple stage header still labels a section;
 its verbose spelling preserves the same boundaries. A paired stage retains its
 required entry and exit state objects, including when they are empty.
+A verbose stage begins at `start`, which is its recorded source location.
+
+A verbose phase lists its members after `contains`, separated by `and`. The
+list ends at the first name that is not followed by `and`. An optional
+`about` stays between the phase name and its list, as in
+`phase study about "…" contains measurement and report`. `contains` is not
+the file-loading word `include`. The [phase rules](first-slice.md#phases)
+apply to both spellings.
 
 `state`, `information`, `environment`, and `factors` retain their names.
 Assignments within state objects follow the recursive field rule, such as
@@ -439,7 +448,7 @@ and relative include paths follow the existing library contract. Importing
 a library preserves the separate identities of its versioned interfaces.
 
 Workflow titles remain optional text. The `about` form remains optional
-Markdown in its existing workflow, stage, and procedure attachment positions.
+Markdown in its workflow, phase, stage, and procedure attachment positions.
 Neither form quotes an identifier.
 
 The existing file-reference form is also shared:

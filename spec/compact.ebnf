@@ -24,7 +24,7 @@ header = ? first line, trimmed, is exactly #lang sciencelogo ? ;
 workflow-title = "workflow", text ;
 description = "about", text ;
 workflow-form = procedure | interface | include | performer | resource
-              | proposition | obligation | file-provisions | command ;
+              | proposition | phase | obligation | file-provisions | command ;
 library-form = procedure | interface | include | import ;
 
 (* Words, names, numbers, and strings. Names are case-sensitive. Capitalization
@@ -79,7 +79,7 @@ suffix = ".", segment | ".", selection | ".", object-fields | "u", uncertainty ;
 selection = "[", expression, { expression }, "]" ;
 
 (* Declarations and ordinary commands. Context rules restrict their placement. *)
-procedure = "to", simple-name, { input }, "[", [ description ], { command }, "]" ;
+procedure = "to", simple-name, { input }, [ description ], "[", { command }, "]" ;
 block = "[", { command }, "]" ;
 command = assignment | dotted-update | call | state-call | "do", block
         | "print", expression | "output", expression
@@ -110,6 +110,10 @@ location = ( "information" | "environment" | "factors" ), ".", segment,
 position = ? a positive integer literal or a stage control name ?
          | "(", position, ")" ;
 performer = "performer", simple-name, object ;
+
+(* A phase groups workflow-level stages and other phases by name. *)
+phase = "phase", declaration-name, [ description ],
+        "[", declaration-name, { declaration-name }, "]" ;
 resource = "resource", simple-name, object ;
 
 (* Named propositions can occur as declarations or as values. *)

@@ -123,14 +123,14 @@ Definitions may appear after their uses.
    (list (tt "workflow \"title\"") "First form of an entry workflow"
          "Names the method; at most one per file")
    (list (tt "about \"Markdown text\"") "After the optional workflow title, before imports"
-         "Describes the workflow; also attaches to stages and procedures")
+         "Describes the workflow; also attaches to phases, stages, and procedures")
    (list (tt "library name [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces")
    (list (tt "import \"Git URL\" at \"tag\" as alias")
          "After an optional workflow title and description, before method forms; or directly in a library"
          "Loads a pinned library")
    (list (tt "include \"relative/path.rkt\"")
          "Top level of a workflow or library file"
-         "Loads another file from the same repository")
+         "Loads another file, relative to the file containing the include")
    (list (tt "interface name [ ... ]")
          "Top level of a workflow or library, or alone in a file"
          "Declares record fields or workflow requirements")
@@ -142,17 +142,20 @@ Definitions may appear after their uses.
          "Names a data source or storage location")
    (list (tt "hypothesis name [text = \"...\"] (also assumption, conclusion)")
          "Top level of a workflow"
-         "Declares a named proposition")))
+         "Declares a named proposition")
+   (list (tt "phase name [stage-or-phase ...]")
+         "Top level of a workflow"
+         "Groups and describes workflow-level stages and smaller phases")))
 
 A library import selects a tag or full commit ID on its @tt{main} branch.
 @secref["libraries"] explains import, @tt{include}, repository layout, and
 dependency rules. @secref["interfaces"] explains the two interface forms.
-Workflow files may contain commands, procedures, stages, performers, resources,
+Workflow files may contain commands, procedures, stages, phases, performers, resources,
 propositions, interfaces,
 obligations, and includes. A library file may contain imports, includes,
 procedures, and record interfaces; it has no top-level executable commands.
 
-@section[#:tag "descriptions"]{Describe a workflow, stage, or procedure}
+@section[#:tag "descriptions"]{Describe a workflow, phase, stage, or procedure}
 
 @tt{about "text"} supplies an optional description in CommonMark Markdown.
 It uses ordinary quoted text, which may span lines; escaped quotes and
@@ -164,7 +167,8 @@ assumptions, limits, or how to interpret results when that helps a reader.
   (list
    (list (bold "What it describes") (bold "Where to place about"))
    (list "Workflow" "After its optional title, before imports and other forms")
-   (list "Procedure" "First inside the opening bracket of its to definition")
+   (list "Procedure" "After its name and inputs, before its opening bracket")
+   (list "Phase" "After its name, before its list of stages and phases")
    (list "Simple stage" "Immediately after its stage header")
    (list "Paired stage" "Immediately after its complete opening header and entry state")))
 
@@ -177,23 +181,30 @@ stage Prepare
 about "Prepare the timing plan."
 do make-plan as plan
 
-to make-plan [
-  about "Return a timing plan, with its **purpose**."
+to make-plan
+about "Return a timing plan, with its **purpose**."
+[
   output "Time ten swings as the swing gets smaller."
 ]
 
 stage Review
 about "Read the plan."
 print plan
+
+phase Planning
+about "Prepare and check the timing plan."
+[Prepare Review]
 }|
 
-Each workflow, stage, or procedure may have one description. Whitespace and
-comments may separate it from its header; commands may not. A workflow
+Each workflow, phase, stage, or procedure may have one description. It
+follows the header and comes before the body. Whitespace and comments may
+separate it from its header; commands may not. A workflow
 without a title may begin with @tt{about}. Procedures in libraries and
 included files follow the same rule. A description on a nested stage
 belongs to that stage, separately from its procedure's description.
 
 A workflow description can summarize the question, scope, and limits. A
+phase description can explain what a group of stages achieves. A
 stage description can explain its checkpoint or work. A procedure
 description can explain a reusable method and its limitations; its inputs
 and results remain defined by the code. An empty description is allowed.
@@ -203,6 +214,7 @@ external documentation tools. It does not render Markdown or treat prose
 as a declaration or a condition. Descriptions have no effect on execution
 or check results. Anonymous @tt{do}, @tt{if}, and loop blocks, libraries,
 and interfaces have no @tt{about} attachment; use comments for local notes.
+To describe a group of stages, use a phase (@secref["phases"]).
 The @hyperlink[(source-file-url "spec/descriptions.md")]{description contract}
 records these rules and the workflow model accessors.
 
@@ -213,7 +225,7 @@ records these rules and the workflow model accessors.
    (list (bold "Topic") (bold "Forms covered") (bold "Purpose and behavior"))
    (list (secref "descriptions")
          (tt "about \"Markdown text\"")
-         "Optional explanation attached to a workflow, stage, or procedure")
+         "Optional explanation attached to a workflow, phase, stage, or procedure")
    (list (secref "values")
          (tt "numbers, text, true, false, unknown, lists, records")
          "Values used by runnable forms")
@@ -232,6 +244,9 @@ records these rules and the workflow model accessors.
    (list (secref "stages")
          (tt "stage name")
          "Section header for runnable commands")
+   (list (secref "phases")
+         (tt "phase name [ ... ], phase name contains ... and ...")
+         "Named, described group of workflow-level stages and phases")
    (list (secref "stages")
          (tt "performer, stage ... by ... from state, do ... by ... into, end stage with state, at")
          "Read and checked; paired body not executed")

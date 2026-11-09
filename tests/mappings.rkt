@@ -12,15 +12,11 @@
    "appendix [must [reason] notes]]\n"))
 
 (define (with-workflow body use)
+  ;; A local include needs no Git repository.
   (define directory (make-temporary-file "sciencelogo-mappings-~a" 'directory))
-  (with-git-fixture
+  (dynamic-wind
     void
     (lambda ()
-      (unless (zero? (parameterize ([current-output-port (open-output-string)]
-                                    [current-error-port (open-output-string)])
-                        (system*/exit-code (find-executable-path "git")
-                                           "-C" (path->string directory) "init" "--initial-branch=main")))
-        (error 'with-workflow "could not initialize test repository"))
       (display-to-file (string-append "#lang sciencelogo\n" protocol)
                        (build-path directory "protocol.rkt"))
       (define file (build-path directory "workflow.rkt"))

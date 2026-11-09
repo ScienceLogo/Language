@@ -3,6 +3,7 @@
 (require rackunit
          racket/file
          racket/list
+         racket/port
          racket/string
          "../assessor.rkt"
          "../private/reader.rkt"
@@ -251,3 +252,107 @@
    "#lang sciencelogo\n"
    "stage Check from state [information.clock.time = \"12:00\"]\n"
    "end stage with state [information.clock.time = \"12:00\"]\n")))
+
+;; Phases group workflow-level stages and smaller phases, with an optional
+;; description. They are declarations: nothing runs and no order is imposed.
+(module+ test
+  (define stages "stage Setup\nprint 1\nstage Timing\nprint 2\nstage Report\nprint 3\n")
+  (define phased
+    (string-append
+     "#lang sciencelogo\n" stages
+     "phase Measurement\nabout \"Measure the period.\"\n[Setup Timing]\n"
+     "phase Study contains Measurement and Report\n"))
+  (with-method phased
+    (lambda (path)
+      (check-equal? (with-output-to-string (lambda () (dynamic-require path #f))) "1\n2\n3\n")
+      (define model (read-workflow-model path))
+      (define phases (workflow-model-phases model))
+      (define stage-id
+        (for/hash ([stage (in-list (workflow-model-stages model))])
+          (values (stage-model-name stage) (stage-model-id stage))))
+      (define measurement (first phases))
+      (define study (second phases))
+      (check-equal? (map phase-model-name phases) '("Measurement" "Study"))
+      (check-equal? (phase-model-members measurement)
+                    (list (hash-ref stage-id "Setup") (hash-ref stage-id "Timing")))
+      (check-equal? (phase-model-members study)
+                    (list (phase-model-id measurement) (hash-ref stage-id "Report")))
+      (check-equal? (phase-model-parent measurement) (phase-model-id study))
+      (check-false (phase-model-parent study))
+      (check-equal? (description-model-text (phase-model-description measurement))
+                    "Measure the period.")
+      (check-false (phase-model-description study))
+      (check-equal? (source-ref-line (phase-model-source measurement)) 8)
+      (check-equal? (map (lambda (ref) (list (source-ref-line ref) (source-ref-column ref)))
+                         (map phase-model-end phases))
+                    '((10 14) (11 43)))
+      (check-not-false
+       (for/or ([relation (in-list (workflow-model-relations model))])
+         (and (eq? (relation-model-kind relation) 'groups)
+              (equal? (relation-model-from relation) (phase-model-id study))
+              (equal? (relation-model-to relation) (phase-model-id measurement)))))
+      (check-equal? (assessment-findings (assess-file path)) '())
+      (check-equal? (list-ref (third (parse-sciencelogo-file path)) 6)
+                    '(phase "Measurement" ("Setup" "Timing") ((about "Measure the period."))))))
+
+  ;; A phase may follow or precede its stages and may sit in an included file.
+  (with-method (string-append "#lang sciencelogo\nphase Early [Setup]\n" stages)
+    (lambda (path)
+      (check-equal? (map phase-model-name (workflow-model-phases (read-workflow-model path)))
+                    '("Early"))))
+
+  (define (phase-error body)
+    (with-method (string-append "#lang sciencelogo\n" stages body)
+      (lambda (path)
+        (with-handlers ([exn:fail:read? exn-message])
+          (parse-sciencelogo-file path)
+          #f))))
+  (check-regexp-match #rx"lists Setup after Timing" (phase-error "phase P [Timing Setup]\n"))
+  (check-regexp-match #rx"not continuous: stage Timing lies between Setup and Report"
+                      (phase-error "phase P [Setup Report]\n"))
+  (check-regexp-match #rx"Timing already belongs to phase P"
+                      (phase-error "phase P [Setup Timing]\nphase Q [Timing Report]\n"))
+  (check-regexp-match #rx"phase cycle" (phase-error "phase P [Q]\nphase Q [P]\n"))
+  (check-regexp-match #rx"unknown stage or phase Missing" (phase-error "phase P [Missing]\n"))
+  (check-regexp-match #rx"needs at least one" (phase-error "phase P []\n"))
+  (check-regexp-match #rx"lists Setup twice" (phase-error "phase P [Setup Setup]\n"))
+  (check-regexp-match #rx"phase name Setup conflicts with a stage" (phase-error "phase Setup [Timing]\n"))
+  (check-regexp-match #rx"duplicate phase P" (phase-error "phase P [Setup]\nphase P [Report]\n"))
+  (check-regexp-match #rx"only workflow-level stages; Inner is inside"
+                      (phase-error "to plan [stage Inner print 4]\ndo plan\nphase P [Inner]\n"))
+  (check-regexp-match #rx"phase belongs directly in a workflow" (phase-error "do [phase P [Setup]]\n"))
+  (check-regexp-match #rx"phase belongs directly in a workflow"
+                      (phase-error "to plan [phase P [Setup]]\n")))
+
+;; Stages, phases, and procedures record where they end in their file.
+(module+ test
+  (define (span ref) (list (source-ref-line ref) (source-ref-column ref)))
+  (with-method
+    (string-append
+     "#lang sciencelogo\n"
+     "to period :duration :swings\nabout \"Divide.\"\n[\n  output :duration / :swings\n]\n"
+     "stage First\nx = 2\nto helper [print 1]\nprint x ; a trailing comment\n"
+     "performer researcher []\n"
+     "start stage Paired by researcher from state [information = []]\n"
+     "end stage with state [information = []]\n"
+     "stage Last\n")
+    (lambda (path)
+      (define model (read-workflow-model path))
+      (define procedure (first (workflow-model-procedures model)))
+      (check-equal? (span (procedure-model-source procedure)) '(2 0))
+      (check-equal? (span (procedure-model-end procedure)) '(6 1))
+      (define stages (workflow-model-stages model))
+      (check-equal? (map stage-model-name stages) '("First" "Paired" "Last"))
+      ;; A verbose stage starts at start; a simple stage's section ends with
+      ;; its last command, and an empty one at its header.
+      (check-equal? (map (lambda (stage) (span (stage-model-source stage))) stages)
+                    '((7 0) (12 0) (14 0)))
+      (check-equal? (map (lambda (stage) (span (stage-model-end stage))) stages)
+                    '((10 7) (13 39) (14 10)))
+      (check-equal? (span (procedure-model-end (second (workflow-model-procedures model))))
+                    '(9 19))))
+  (with-method "#lang sciencelogo\nto plan\nabout \"x\"\n[print 1]\ndo plan\n"
+    (lambda (path)
+      (check-equal? (description-model-text
+                     (procedure-model-description (first (workflow-model-procedures (read-workflow-model path)))))
+                    "x"))))
