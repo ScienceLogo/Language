@@ -19,7 +19,7 @@ implementation. ScienceLogo has equivalent compact and verbose syntax, which
 can be mixed in the same source file. The reference implementation provides
 the `#lang sciencelogo` reader, a core interpreter, and a structural assessor.
 To try the language from a local checkout, install the package with
-`raco pkg install --link .`, then follow the [Getting started manual page](scribblings/getting-started.scrbl).
+`raco pkg install --link --name sciencelogo .`, then follow the [Getting started manual page](scribblings/getting-started.scrbl).
 
 ## Read the language
 

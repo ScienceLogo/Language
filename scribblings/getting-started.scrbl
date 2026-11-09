@@ -3,7 +3,7 @@
 
 @title[#:style (page-style) #:tag "getting-started"]{Getting started}
 
-Install from a local checkout with @tt{raco pkg install --link .}. This first
+Install from a local checkout with @tt{raco pkg install --link --name sciencelogo .}. This first
 example makes a plan for the young Galileo question: does a pendulum's period
 change as its swing gets smaller? It describes work to do; it does not measure
 a pendulum.
