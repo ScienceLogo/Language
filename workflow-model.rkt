@@ -40,7 +40,7 @@
 ;; source is where an element starts; end is just after its last character.
 (struct stage-model (id name parent source entry exit performer description end) #:transparent)
 (struct phase-model (id name members parent source description end) #:transparent)
-(struct performer-model (id name fields source) #:transparent)
+(struct performer-model (id name fields source end) #:transparent)
 (struct resource-model (id name fields source) #:transparent)
 (struct proposition-model (id type name fields source) #:transparent)
 (struct procedure-model (id name inputs source description end) #:transparent)
@@ -224,7 +224,8 @@
        (hash-ref performer-ids (node-value declaration))
        (node-value declaration)
        (node->datum (first (node-children declaration)))
-       (origin (node-at declaration)))))
+       (origin (node-at declaration))
+       (end-of declaration))))
   (define resource-declarations
     (filter (lambda (form) (eq? (node-kind form) 'resource)) forms))
   (define resource-ids
