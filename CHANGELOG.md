@@ -1,12 +1,15 @@
 # Changelog
 
-Version numbers have three parts, such as `0.2.1`. The first two, `0.2`,
-name the language version: its syntax and the workflow model the reader
-produces. A change to either starts a new language version. The third part
-marks refinements, such as fixes and documentation, that change neither.
-Workflows and tools written for language version `0.2` work with every `0.2`
-release. Racket omits a third part of zero, so the first release of `0.2` is
-written `0.2`.
+The first release of a language version has a two-part number, such as
+`0.2`. Later refinements add a third part: `0.2.1`, `0.2.2`, and so on. The
+language version, `0.2`, covers the syntax and the workflow model the reader
+produces; a change to either starts a new language version. A refinement,
+such as a fix or a documentation change, changes neither. Workflows and
+tools written for language version `0.2` work with every `0.2` release.
+Each release tag is `v` followed by the version, such as `v0.2` or `v0.2.1`.
+Racket does not accept `0.2.0` as a version, so there is no `v0.2.0`.
+The Racket package catalog offers only the latest release; earlier releases
+remain available from their GitHub tags and releases.
 
 **0.2 — 2026-11-09:**
 

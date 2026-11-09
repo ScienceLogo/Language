@@ -35,13 +35,17 @@ the citation metadata for reference managers and other tools.
 Browse @hyperlink[(string-append repository "/releases")]{ScienceLogo releases}
 for version information and release notes.
 
-A version number has three parts, such as @tt{0.2.1}. The first two,
-@tt{0.2}, name the language version: its syntax and the workflow model the
-reader produces. A change to either starts a new language version. The third
-part marks refinements, such as fixes and documentation, that change neither.
+The first release of a language version has a two-part number, such as
+@tt{0.2}. Later refinements add a third part: @tt{0.2.1}, @tt{0.2.2}, and so
+on. The language version, @tt{0.2}, covers the syntax and the workflow model
+the reader produces; a change to either starts a new language version. A
+refinement, such as a fix or a documentation change, changes neither.
 Workflows and tools written for language version @tt{0.2} work with every
-@tt{0.2} release. Racket omits a third part of zero, so the first release of
-@tt{0.2} is written @tt{0.2}.
+@tt{0.2} release. Each release tag is @tt{v} followed by the version, such as
+@tt{v0.2} or @tt{v0.2.1}. Racket does not accept @tt{0.2.0} as a version, so
+there is no @tt{v0.2.0}. The Racket package catalog offers only the latest
+release; earlier releases remain available from their GitHub tags and
+releases.
 
 @(if archive
      (para "Zenodo archive: " (hyperlink archive (hash-ref project-citation "doi"))
