@@ -47,7 +47,7 @@ pendulum.
   and its revision, each included file, and each resolved library revision,
   with the language version the library states, if any.
   Identify the source location of each declaration and command. For each
-  stage, phase, procedure, and performer, also identify where it ends, so another tool
+  stage, phase, and procedure, also identify where it ends, so another tool
   can locate its whole source text. A simple stage ends with the last command
   or mapping of its section in the header's own file. Element
   identifiers must be unambiguous within the identified method revision;

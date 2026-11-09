@@ -194,9 +194,9 @@ interface mappings, @tt{must do}
 conditions, and typed relations. @tt{read-workflow-model} reads an
 investigation file;
 @tt{read-interface-model} reads an interface file. Method elements carry
-source locations. Stages, phases, procedures, and performers also carry an
-end location just after their last character: @tt{stage-model-end},
-@tt{phase-model-end}, @tt{procedure-model-end}, and @tt{performer-model-end}. A simple stage ends with
+source locations. Stages, phases, and procedures also carry an end location
+just after their last character: @tt{stage-model-end},
+@tt{phase-model-end}, and @tt{procedure-model-end}. A simple stage ends with
 the last command or mapping of its section. A phase lists its member stage
 and phase identifiers in order, links to each with @tt{groups}, and records
 its parent phase. Optional @tt{about} descriptions retain their owning workflow, phase, stage, or

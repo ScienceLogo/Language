@@ -324,7 +324,7 @@
   (check-regexp-match #rx"phase belongs directly in a workflow"
                       (phase-error "to plan [phase P [Setup]]\n")))
 
-;; Stages, phases, procedures, and performers record where they end in their file.
+;; Stages, phases, and procedures record where they end in their file.
 (module+ test
   (define (span ref) (list (source-ref-line ref) (source-ref-column ref)))
   (with-method
@@ -350,10 +350,7 @@
       (check-equal? (map (lambda (stage) (span (stage-model-end stage))) stages)
                     '((10 7) (13 39) (14 10)))
       (check-equal? (span (procedure-model-end (second (workflow-model-procedures model))))
-                    '(9 19))
-      (define performer (first (workflow-model-performers model)))
-      (check-equal? (span (performer-model-source performer)) '(11 0))
-      (check-equal? (span (performer-model-end performer)) '(11 23))))
+                    '(9 19))))
   (with-method "#lang sciencelogo\nto plan\nabout \"x\"\n[print 1]\ndo plan\n"
     (lambda (path)
       (check-equal? (description-model-text
