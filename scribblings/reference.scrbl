@@ -124,7 +124,7 @@ Definitions may appear after their uses.
          "Names the method; at most one per file")
    (list (tt "about \"Markdown text\"") "After the optional workflow title, before imports"
          "Describes the workflow; also attaches to phases, stages, and procedures")
-   (list (tt "library name [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces")
+   (list (tt "library name language \"0.2\" [ ... ]") (tt "library.rkt") "Declares reusable procedures and record interfaces; the language version is optional")
    (list (tt "import \"Git URL\" at \"tag\" as alias")
          "After an optional workflow title and description, before method forms; or directly in a library"
          "Loads a pinned library")

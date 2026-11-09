@@ -12,13 +12,14 @@ the repository root. A complete first library needs only that file:
 #lang sciencelogo
 ; @doc url: https://example.org/hello-world/
 
-library hello-world [
+library hello-world language "0.2" [
   to greeting [output "Hello, world!"]
 ]
 ```
 
 The comment line is optional; see
 [documentation links for tools](#documentation-links-for-tools).
+`language "0.2"` is optional too; see [language version](#language-version).
 
 The `library` declaration gives the library its unquoted identifier. Library,
 interface, and procedure names are unquoted in declarations and references;
@@ -50,6 +51,19 @@ a dot.
 The reader checks the library and records the resolved commit in the loaded program
 before any investigation command runs. A library does not need a central ScienceLogo
 repository or catalog.
+
+## Language version
+
+A library can state the ScienceLogo language version it was written and
+checked with, after its name: `library hello-world language "0.2" [ ... ]`.
+The version is a two-part number, such as `"0.2"`. The statement is
+optional, and it is not a limit: the reader loads the library under any
+language version. If the library fails to load under another version, the
+error also names the stated version and the version the reader implements.
+The import record in the workflow model keeps the stated version.
+
+The library's own tags, such as `v1.0.0`, are separate from the language
+version.
 
 ## Documentation links for tools
 

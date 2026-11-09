@@ -18,6 +18,7 @@ remain available from their GitHub tags and releases.
 - Breaking: a procedure's `about` now follows its name and inputs, before its opening bracket (`to name :input about "..." [ ... ]`). The old placement inside the brackets is an error that shows the new form.
 - The workflow model records where each stage, phase, and procedure ends (`stage-model-end`, `phase-model-end`, `procedure-model-end`) and exposes phases through `workflow-model-phases`. A verbose `start stage` now starts at `start`.
 - The library documentation describes the `@doc url:` comment marker that documentation tools read from `library.rkt`.
+- A library can state the language version it was written for: `library name language "0.2" [ ... ]`. The statement is optional and not a limit; when a library fails to load under another version, the error names both versions. The workflow model keeps it as `import-model-language`.
 - The README, manual, and changelog explain version numbers: each release is a language version with a two-part number, covering its syntax and workflow model, and there are no patch releases.
 
 **0.1 — 2026-10-23:** Initial release of the language specification, compact and verbose syntax, Racket implementation, structural checks, translation, documentation and examples.

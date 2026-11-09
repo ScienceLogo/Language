@@ -26,7 +26,7 @@ have their own sections; they do not introduce additional language forms.
 | Data outside a workflow | [Data sources and storage](resources.md): `resource` declarations and directional data paths. |
 | Reader output | [Shared representation](representation.md): method information and relationships readers must preserve. |
 | Language and applications | [Language boundary](architecture.md): the specification, reader, core interpreter, structural assessor, and independent scientific applications. |
-| Versions | [Changelog](../CHANGELOG.md): how a version number identifies the language version, covering syntax and workflow model, and its refinements. |
+| Versions | [Changelog](../CHANGELOG.md): two-part language versions covering syntax and workflow model, without patch releases, and how packages built on ScienceLogo refer to a language version. |
 
 ## Reference implementation and tools
 

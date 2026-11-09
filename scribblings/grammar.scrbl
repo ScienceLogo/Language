@@ -163,7 +163,8 @@ description, which must retain the shape defined in @secref["uncertainty"].
 The file's role determines which declarations are allowed. A workflow title
 is optional and appears only first. A workflow's optional @tt{about} follows
 that title and precedes imports. Workflow imports precede other forms.
-Library imports belong directly in the root library
+A library's optional @tt{language "0.2"} follows its name, before
+@tt{[}. Library imports belong directly in the root library
 block. Included workflow fragments have no title or imports; included library
 fragments contain only procedures, interfaces, and further includes.
 A file beginning with an interface and continuing with other forms is a

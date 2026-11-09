@@ -637,6 +637,8 @@
         [(member (it-text (peek)) '("library" "interface"))
          (define keyword (take!)) (define name (take!))
          (append (raw keyword) (raw name)
+                 (if (and (equal? (it-text keyword) "library") (word? "language"))
+                     (append (raw (take!)) (raw (take!))) '())
                  (take-group (if (equal? (it-text keyword) "interface") 'interface 'commands)))]
         [(word? "to")
          (define to (take!)) (define name (take!))

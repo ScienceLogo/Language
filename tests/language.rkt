@@ -1411,3 +1411,60 @@
    #rx"arithmetic needs exact numbers"
    (lambda ()
      (output-of "#lang sciencelogo\nx = [duration = \"two\"]\nx.duration += 2\n"))))
+
+;; A library may state the language version it was written for. The reader
+;; keeps the statement, loads the library under any version, and names both
+;; versions when the library fails under another version.
+(module+ test
+  (require (only-in "../workflow-model.rkt"
+                    read-workflow-model workflow-model-imports import-model-language))
+  (with-source
+   "#lang sciencelogo\nlibrary hello language \"0.2\" [to greeting [output \"Hello\"]]\n"
+   (lambda (path)
+     (check-equal? (parse-sciencelogo-file path)
+                   '(library "hello" ((language "0.2")
+                                      (to greeting () ((output (literal "Hello")))))))))
+  (check-exn
+   #rx"a library's language version is a two-part number, such as \"0.2\""
+   (lambda ()
+     (output-of "#lang sciencelogo\nlibrary hello language \"0.2.1\" [to greeting [output \"Hello\"]]\n")))
+  (define repo (make-temporary-file "sciencelogo-language-~a" 'directory))
+  (define (git . args)
+    (unless (zero? (parameterize ([current-output-port (open-output-string)]
+                                  [current-error-port (open-output-string)])
+                     (apply system*/exit-code (find-executable-path "git")
+                            "-C" (path->string repo) args)))
+      (error 'library-language "Git command failed")))
+  (define (release version body tag)
+    (call-with-output-file (build-path repo "library.rkt")
+      (lambda (out)
+        (fprintf out "#lang sciencelogo\nlibrary hello language ~s [\n  ~a\n]\n" version body))
+      #:exists 'truncate)
+    (git "add" ".")
+    (git "-c" "user.name=ScienceLogo Tests" "-c" "user.email=tests@example.invalid"
+         "commit" "--quiet" "-m" tag)
+    (git "tag" tag))
+  (define (workflow tag)
+    (format "#lang sciencelogo\nimport ~s at ~s as hello\ndo hello.greeting as message\nprint message\n"
+            (format "file://~a" (path->string repo)) tag))
+  (with-git-fixture
+    void
+    (lambda ()
+      (git "init" "--initial-branch=main")
+      (release (language-version) "to greeting [output \"Hello\"]" "current")
+      (release "0.1" "to greeting [output \"Hello\"]" "older")
+      (release "0.1" "to greeting [about \"Greet.\" output \"Hello\"]" "broken")
+      (with-source
+       (workflow "current")
+       (lambda (path)
+         (check-equal? (with-output-to-string (lambda () (dynamic-require path #f))) "Hello\n")
+         (check-equal? (map import-model-language
+                            (workflow-model-imports (read-workflow-model path)))
+                       (list (language-version)))))
+      (check-equal? (output-of (workflow "older")) "Hello\n")
+      (check-exn
+       (regexp (string-append "library hello states language version 0[.]1; "
+                              "this reader implements language version "
+                              (regexp-quote (language-version))))
+       (lambda () (output-of (workflow "broken")))))
+    (lambda () (delete-directory/files repo))))

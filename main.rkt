@@ -579,7 +579,7 @@
      (define (run-forms forms inputs scopes return)
        (for ([form (in-list forms)])
          (match form
-           [`(import ,_ ,_ ,_ ,_ ,_) (void)]
+           [`(import ,_ ,_ ,_ ,_ ,_ ,_) (void)]
            [`(included-file ,_ ,_) (void)]
            [`(implements ,_ ,_) (void)]
            [`(must-call ,_) (void)]

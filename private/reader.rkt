@@ -8,6 +8,8 @@
          racket/port
          racket/string
          racket/system
+         racket/runtime-path
+         setup/getinfo
          syntax/readerr
          "../normalize.rkt"
          "source-offsets.rkt"
@@ -21,6 +23,7 @@
          parse-sciencelogo-tree-file
          node->datum
          form-end
+         language-version
          ungroup-node
          state-call-location-syntax
          (struct-out token)
@@ -34,6 +37,11 @@
 (define form-ends (make-weak-hasheq))
 (define (form-end form)
   (hash-ref form-ends (node-at form) #f))
+
+;; The language version this reader implements, as declared in info.rkt.
+(define-runtime-path package-directory "..")
+(define (language-version)
+  ((get-info/full package-directory) 'version (lambda () #f)))
 
 ;; This is a temporary view for structural checks. The source tree retains
 ;; every group, including redundant and nested parentheses.
@@ -1047,6 +1055,7 @@
       [(equal? expected-kind "fragment") "fragment"]
       [(member first-word '("library" "interface")) first-word]
       [else "workflow"]))
+  (define library-language '())
   (define-values (title imports forms)
     (cond
       [(string=? kind "workflow")
@@ -1070,6 +1079,15 @@
       [else
        (advance!)
        (define title (identifier-name (format "an unquoted ~a name" kind)))
+       (when (and (string=? kind "library")
+                  (eq? (token-kind (current)) 'word)
+                  (string=? (token-value (current)) "language"))
+         (define at (advance!))
+         (define version (expect 'string "a quoted language version, such as \"0.2\""))
+         (unless (regexp-match? #px"^[0-9]+[.][0-9]+$" (token-value version))
+           (read-error source version
+                       "a library's language version is a two-part number, such as \"0.2\""))
+         (set! library-language (list (node 'language (token-value version) '() at))))
        (expect 'open "[ after the library or interface name")
        (values title '()
                (if (string=? kind "interface")
@@ -1101,7 +1119,7 @@
          (expand-workflow-forms actual-forms source)))
   (define result
     (case (string->symbol actual-kind)
-      [(library) (node 'library title actual-forms start)]
+      [(library) (node 'library title (append library-language actual-forms) start)]
       [(interface) (node 'interface title actual-forms start)]
       [(fragment) (node 'fragment #f actual-forms start)]
       [(workflow-fragment) (node 'workflow-fragment #f actual-forms start)]
@@ -1132,14 +1150,16 @@
      (define expanded
        (struct-copy node result
                     [children
-                     (expand-library-forms
-                      forms
-                      (lambda (path at)
-                        (define full (build-path directory (string->path path)))
-                        (unless (file-exists? full)
-                          (read-error source at (format "missing included file ~a" path)))
-                        (file->string full))
-                      (format "~a" source))]))
+                     (append
+                      library-language
+                      (expand-library-forms
+                       forms
+                       (lambda (path at)
+                         (define full (build-path directory (string->path path)))
+                         (unless (file-exists? full)
+                           (read-error source at (format "missing included file ~a" path)))
+                         (file->string full))
+                       (format "~a" source)))]))
      (define local-imports
        (filter (lambda (form) (eq? (node-kind form) 'import))
                (node-children expanded)))
@@ -1518,61 +1538,88 @@
         (git-in "read library.rkt at the selected revision"
                 "show" (string-append commit ":library.rkt")))
       (define source-label (format "~a at ~a" url commit))
-      (define library
-        (parse-library-file content (format "~a:library.rkt" source-label)
-                            "library" at))
-      (define expanded
-        (struct-copy node library
-                     [children
-                      (expand-library-forms
-                       (node-children library)
-                       (lambda (path include-at)
-                         (git-output source include-at "read included library file"
-                                     "-C" (path->string checkout) "show"
-                                     (string-append commit ":" path)))
-                       source-label)]))
-      (define local-imports
-        (filter (lambda (form) (eq? (node-kind form) 'import))
-                (node-children expanded)))
-      (define dependencies
-        (resolve-imports local-imports qualified-alias (cons url stack)))
-      (define alias-prefix (format "~a." qualified-alias))
-      (define interface-names
-        (append
-         (for/list ([form (in-list (node-children expanded))]
-                    #:when (eq? (node-kind form) 'interface))
-           (string->symbol (node-value form)))
-         (for/list ([form (in-list dependencies)]
-                    #:when (and (eq? (node-kind form) 'interface)
-                                (string-prefix? (node-value form) alias-prefix)))
-           (string->symbol
-            (substring (node-value form) (string-length alias-prefix))))))
-      (define normalized-expanded
-        (resolve-typed-defaults
-         (resolve-value-references
-          expanded interface-names
-          (append (stage-names-in expanded)
-                  (for/list ([name (in-list (append* (map stage-names-in dependencies)))]
-                             #:when (string-prefix? name alias-prefix))
-                    (substring name (string-length alias-prefix)))))
-         interface-names))
-      (check-direct-calls (node-children normalized-expanded) source interface-names)
-      (define local-definitions
-        (map (lambda (form)
-               (qualify-library-form
-                form qualified-alias interface-names
-                (map procedure-name
-                     (filter (lambda (form) (eq? (node-kind form) 'to))
-                             (node-children normalized-expanded)))))
-             (filter (lambda (form) (memq (node-kind form) '(to interface)))
-                     (node-children normalized-expanded))))
-      (define definitions (append dependencies local-definitions))
-      (validate-program (struct-copy node expanded [children definitions]) source)
-      (values (struct-copy node import
-                           [value (list url revision commit qualified-alias
-                                        (node-value library))])
-              definitions))
+      (with-language-note content
+        (lambda ()
+          (define library
+            (parse-library-file content (format "~a:library.rkt" source-label)
+                                "library" at))
+          (define stated-language
+            (for/first ([form (in-list (node-children library))]
+                        #:when (eq? (node-kind form) 'language))
+              (node-value form)))
+          (define expanded
+            (struct-copy node library
+                         [children
+                          (expand-library-forms
+                           (node-children library)
+                           (lambda (path include-at)
+                             (git-output source include-at "read included library file"
+                                         "-C" (path->string checkout) "show"
+                                         (string-append commit ":" path)))
+                           source-label)]))
+          (define local-imports
+            (filter (lambda (form) (eq? (node-kind form) 'import))
+                    (node-children expanded)))
+          (define dependencies
+            (resolve-imports local-imports qualified-alias (cons url stack)))
+          (define alias-prefix (format "~a." qualified-alias))
+          (define interface-names
+            (append
+             (for/list ([form (in-list (node-children expanded))]
+                        #:when (eq? (node-kind form) 'interface))
+               (string->symbol (node-value form)))
+             (for/list ([form (in-list dependencies)]
+                        #:when (and (eq? (node-kind form) 'interface)
+                                    (string-prefix? (node-value form) alias-prefix)))
+               (string->symbol
+                (substring (node-value form) (string-length alias-prefix))))))
+          (define normalized-expanded
+            (resolve-typed-defaults
+             (resolve-value-references
+              expanded interface-names
+              (append (stage-names-in expanded)
+                      (for/list ([name (in-list (append* (map stage-names-in dependencies)))]
+                                 #:when (string-prefix? name alias-prefix))
+                        (substring name (string-length alias-prefix)))))
+             interface-names))
+          (check-direct-calls (node-children normalized-expanded) source interface-names)
+          (define local-definitions
+            (map (lambda (form)
+                   (qualify-library-form
+                    form qualified-alias interface-names
+                    (map procedure-name
+                         (filter (lambda (form) (eq? (node-kind form) 'to))
+                                 (node-children normalized-expanded)))))
+                 (filter (lambda (form) (memq (node-kind form) '(to interface)))
+                         (node-children normalized-expanded))))
+          (define definitions (append dependencies local-definitions))
+          (validate-program (struct-copy node expanded [children definitions]) source)
+          (values (struct-copy node import
+                               [value (list url revision commit qualified-alias
+                                            (node-value library) stated-language)])
+                  definitions))))
     (lambda () (delete-directory/files checkout))))
+
+;; A library may state the language version it was written for. The reader
+;; still loads it under any version; when loading fails under another
+;; version, the error names both versions.
+(define (with-language-note content thunk)
+  (define stated
+    (regexp-match #px"(?m:^\\s*library\\s+([^\\s\\[]+)\\s+language\\s+\"([0-9]+[.][0-9]+)\")"
+                  content))
+  (define current-version (language-version))
+  (if (and stated (not (equal? (third stated) current-version)))
+      (with-handlers ([(lambda (e)
+                         (and (exn:fail:read? e)
+                              (not (regexp-match? #rx"states language version" (exn-message e)))))
+                       (lambda (e)
+                         (raise (exn:fail:read
+                                 (format "~a\nlibrary ~a states language version ~a; this reader implements language version ~a"
+                                         (exn-message e) (second stated) (third stated) current-version)
+                                 (exn-continuation-marks e)
+                                 (exn:fail:read-srclocs e))))])
+        (thunk))
+      (thunk)))
 
 (define (resolve-imports imports [parent-alias #f] [stack '()])
   (define aliases (make-hasheq))
@@ -2328,7 +2375,7 @@
     (for/fold ([visible results]) ([form (in-list forms)])
       (case (node-kind form)
         [(to import interface performer resource proposition implements must-call must-stage-order stage about
-             included-file phase) visible]
+             included-file phase language) visible]
         [(state-stage)
          (check-value (second (node-value form)) inputs visible)
          (check-value (third (node-value form)) inputs visible)
@@ -2554,6 +2601,7 @@
      (list (node-kind form) (node-value form)
            (map node->datum (node-children form)))]
     [(import) (cons 'import (node-value form))]
+    [(language) (list 'language (node-value form))]
     [(include) (list 'include (node-value form))]
     [(included-file) (cons 'included-file (node-value form))]
     [(implements)

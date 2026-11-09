@@ -16,7 +16,8 @@
 
 (* Files. A fragment's role is determined by the file that includes it. *)
 workflow-file = header, [ workflow-title ], [ description ], { import }, { workflow-form }, EOF ;
-library-file = header, "library", declaration-name, "[", { library-form }, "]", EOF ;
+library-file = header, "library", declaration-name, [ library-language ], "[", { library-form }, "]", EOF ;
+library-language = "language", text ; (* a two-part language version, such as "0.2" *)
 interface-file = header, interface, EOF ;
 workflow-fragment = header, { workflow-form }, EOF ;
 library-fragment = header, { procedure | interface | include }, EOF ;

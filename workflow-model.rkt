@@ -48,7 +48,7 @@
 (struct item-model (id name role scope producer source) #:transparent)
 (struct relation-model (kind from to source) #:transparent)
 (struct guarded-relation-model relation-model (guard scope) #:transparent)
-(struct import-model (id url requested-revision commit alias library-name source)
+(struct import-model (id url requested-revision commit alias library-name source language)
   #:transparent)
 (struct implementation-model (id path alias provisions source interface) #:transparent)
 (struct provision-model (id part locator source) #:transparent)
@@ -657,12 +657,12 @@
                      (hash-ref proposition-ids (node-value form))
                      (node-at form))]
       [(import)
-       (match-define (list url requested commit alias library-name)
+       (match-define (list url requested commit alias library-name language)
          (node-value form))
        (define id (element-id root 'import (node-at form) alias))
        (set! imports
              (cons (import-model id url requested commit alias library-name
-                                 (origin (node-at form)))
+                                 (origin (node-at form)) language)
                    imports))
        (add-relation 'imports root id (node-at form))]
       [(implements)

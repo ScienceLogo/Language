@@ -55,8 +55,8 @@ create a local scope.
 @(tabular #:style 'boxed
   (list
    (list (bold "Form") (bold "Rule"))
-   (list (tt "library name [ ... ]")
-         "One declaration in the root library.rkt file; contains imports, includes, procedures, and record interfaces")
+   (list (tt "library name language \"0.2\" [ ... ]")
+         "One declaration in the root library.rkt file; contains imports, includes, procedures, and record interfaces. The language version is optional")
    (list (tt "import \"Git URL\" at \"tag or commit\" as alias")
          "Directly in a library block, or at the top of an entry workflow")
    (list (tt "include \"relative/path.rkt\"")
@@ -82,14 +82,16 @@ Create a separate directory named @tt{hello-world}. Save this as its
 #lang sciencelogo
 ; @doc url: https://example.org/hello-world/
 
-library hello-world [
+library hello-world language "0.2" [
   to greeting [output "Hello, world!"]
 ]
 }|
 
 The @tt{greeting} procedure returns text. Loading the library does not print it.
 The optional comment line tells documentation tools where the library's own
-documentation is published; see @secref["library-doc-links"].
+documentation is published; see @secref["library-doc-links"]. The optional
+@tt{language "0.2"} states the language version the library was written for;
+see @secref["library-language"].
 In that directory, initialize and tag the Git repository:
 
 @verbatim|{
@@ -117,6 +119,17 @@ The @tt{at} value selects a tag or full commit ID reachable from @tt{main}; it
 does not select a branch. @tt{hello} is the local alias for this import. The call
 returns @tt{"Hello, world!"} as @tt{message}, and the investigation displays it.
 The reader resolves and validates the library before running the investigation.
+
+@section[#:tag "library-language"]{State the language version}
+
+A library can state the ScienceLogo language version it was written and
+checked with, after its name, as in @tt{library hello-world language "0.2" [ ... ]}.
+The version is a two-part number. The statement is optional, and it is not a
+limit: the reader loads the library under any language version. If the
+library fails to load under another version, the error also names the stated
+version and the version the reader implements. The workflow model keeps the
+stated version with each import as @tt{import-model-language}. The library's
+own tags, such as @tt{v1.0.0}, are separate from the language version.
 
 @section[#:tag "library-doc-links"]{Link to a library's documentation}
 
