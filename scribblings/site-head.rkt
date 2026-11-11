@@ -29,4 +29,11 @@
                         `(link ((rel "icon")
                                 (type "image/svg+xml")
                                 (sizes "any")
-                                (href ,favicon-data-url))))))))
+                                (href ,favicon-data-url))))
+                       ;; Umami visit statistics, counted only on sciencelogo.org.
+                       (head-extra
+                        '(script ((defer "defer")
+                                  (src "https://stats.bojafa.us/script.js")
+                                  (data-website-id "3fdcb8f6-3195-4b90-885f-0292797625bf")
+                                  (data-domains "sciencelogo.org"))
+                                 ""))))))
